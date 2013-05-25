@@ -100,8 +100,9 @@ echo "  (movable and erasable), possibly with external links into it -- this is"
 echo "  often more convenient, especially if you want to install multiple"
 echo "  versions or keep it in your home directory."
 if test ! "x$RELEASED" = "xyes"; then
-  echo "*** This is a nightly build: such a unix-style distribution is *not*"
-  echo "*** recommended because it cannot be used to install multiple versions."
+  echo "*** This is a non-release build: such a Unix-style distribution is NOT"
+  echo "*** recommended, because it cannot be used to install multiple versions"
+  echo "*** in the default location."
 fi
 unixstyle="x"
 while test "$unixstyle" = "x"; do
@@ -163,7 +164,7 @@ set_dirs() {
   libdir="$1/lib"
   incrktdir="$1/include/$TARGET"
   librktdir="$1/lib/$TARGET"
-  collectsdir="$1/lib/$TARGET/collects"
+  configdir="$1/etc/$TARGET"
   has_share="N"
   if test -d "$1/share"; then has_share="Y"; fi
   if test "$has_share" = "N" && test -d "$1/doc"; then docdir="$1/doc/$TARGET"
@@ -172,10 +173,6 @@ set_dirs() {
   if test "$has_share" = "N" && test -d "$1/man"; then mandir="$1/man"
   else mandir="$1/share/man"
   fi
-  # The source tree is always removed -- no point keeping it if it won't work
-  # if test "$has_share" = "N" && test -d "$1/src"; then srcdir="$1/src/$TARGET"
-  # else srcdir="$1/share/$TARGET/src"
-  # fi
 }
 
 ###############################################################################
@@ -230,8 +227,8 @@ unpack_installation() {
     | { cd "$INSTDIR"
         "$tar" xf - || failwith "problems during unpacking of binary archive."
       }
-  test -d "$INSTDIR/collects" \
-    || failwith "unpack failed (could not find \"$T/collects\")."
+  test -d "$INSTDIR/lib/collects" \
+    || failwith "unpack failed (could not find \"$T/lib/collects\")."
   echo "Done."
 }
 
@@ -330,16 +327,12 @@ unixstyle_install() {
       echo ""
       echo "Target Directories:"
       show_dir_var "[e] Executables  " "$bindir"
-      show_dir_var "[r] Racket Code  " "$collectsdir"
-      show_dir_var "[d] Core Docs    " "$docdir"
+      show_dir_var "[o] Libraries    " "$librktdir"
+      show_dir_var "[c] Configuration" "$configdir"
+      show_dir_var "[d] Documentation" "$docdir"
       show_dir_var "[l] C Libraries  " "$libdir"
       show_dir_var "[h] C headers    " "$incrktdir"
-      show_dir_var "[o] Extra C Objs " "$librktdir"
       show_dir_var "[m] Man Pages    " "$mandir"
-      if test "$PNAME" = "full"; then
-        echo "  (C sources are not kept)"
-        # show_dir_var "[s] Source Tree  " "$srcdir"
-      fi
       echo "Enter a letter to change an entry, or enter to continue."
     fi
     retry="N"
@@ -354,14 +347,12 @@ unixstyle_install() {
     }
     case "$change_what" in
       [eE]* ) read_dir bindir ;;
-      [rR]* ) read_dir collectsdir ;;
       [dD]* ) read_dir docdir ;;
       [lL]* ) read_dir libdir ;;
       [hH]* ) read_dir incrktdir ;;
       [oO]* ) read_dir librktdir ;;
+      [cC]* ) read_dir configdir ;;
       [mM]* ) read_dir mandir ;;
-      # [sS]* ) if test "$PNAME" = "full"; then read_dir srcdir
-      #         else echo "Invalid response"; fi ;;
       ""    ) if test "$err" = "N"; then done="Y"
               else echo "*** Please fix erroneous paths to proceed"; fi ;;
       *     ) retry="Y" ;;
@@ -391,9 +382,9 @@ unixstyle_install() {
   unpack_installation "$tmp"
 
   cd "$where"
-  "$tmp/bin/racket" "$tmp/collects/setup/unixstyle-install.rkt" \
-    "move" "$tmp" "$bindir" "$collectsdir" "$docdir" "$libdir" \
-    "$incrktdir" "$librktdir" "$mandir" \
+  "$tmp/bin/racket" "$tmp/lib/collects/setup/unixstyle-install.rkt" \
+    "move" "$tmp" "$bindir" "$librktdir/collects" "$docdir" "$libdir" \
+    "$incrktdir" "$librktdir" "$configdir" "$mandir" \
     || failwith "installation failed"
 
 }

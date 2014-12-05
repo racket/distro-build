@@ -42,9 +42,8 @@
 
 (define build-dir (path->complete-path "build"))
 (define built-dir (build-path build-dir from-dir))
-(define native-dir (build-path build-dir "native"))
 
-(define dirs (list built-dir native-dir))
+(define dirs (list built-dir))
 
 (define (pkg-name->info req name)
   (for/or ([d (in-list dirs)])

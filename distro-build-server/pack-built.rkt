@@ -39,11 +39,15 @@
   (define i (get-info/full dir))
   (define mode (and i (i 'distribution-preference (lambda () #f))))
   (or (eq? mode 'binary)
-      ;; Any ".rkt" or ".scrbl" other than "info.rkt"?
-      (not (for/or ([f (in-directory dir)])
-             (and (regexp-match? #rx"[.](scrbl|rkt)$" f)
-                  (not (let-values ([(base name dir?) (split-path f)])
-                         (equal? #"info.rkt" (path->bytes name)))))))))
+      (and
+       ;; Any ".rkt" or ".scrbl" other than "info.rkt"?
+       (not (for/or ([f (in-directory dir)])
+              (and (regexp-match? #rx"[.](scrbl|rkt)$" f)
+                   (not (let-values ([(base name dir?) (split-path f)])
+                          (equal? #"info.rkt" (path->bytes name)))))))
+       ;; Any native library?
+       (for/or ([f (in-directory dir)])
+         (regexp-match? #rx"[.](dll|so(|[.][-.0-9]+)|dylib|framework)$" f)))))
    
 (for ([pkg (in-list (installed-pkg-names))])
   (define ht (hash-ref pkg-details pkg (hash)))

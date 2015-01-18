@@ -62,16 +62,20 @@
 (define past-successes
   (let ([current-table (get-installers-table table-file)])
     (for/fold ([table (hash)]) ([s (in-list (reverse (remove current-snapshot (get-snapshots))))])
-      (define past-table (get-installers-table
-                          (build-path snapshots-dir s installers-dir "table.rktd")))
-      (for/fold ([table table]) ([(k v) (in-hash past-table)])
-        (if (or (hash-ref current-table k #f)
-                (hash-ref table k #f)
-                (not (file-exists? (build-path site-dir "log" k))))
-            table
-            (hash-set table k (past-success s
-                                            (string-append s "/index.html")
-                                            v)))))))
+      (with-handlers ([exn:fail? (lambda (exn)
+                                   (log-error "failure getting installer table: ~a"
+                                              (exn-message exn))
+                                   table)])
+        (define past-table (get-installers-table
+                            (build-path snapshots-dir s installers-dir "table.rktd")))
+        (for/fold ([table table]) ([(k v) (in-hash past-table)])
+          (if (or (hash-ref current-table k #f)
+                  (hash-ref table k #f)
+                  (not (file-exists? (build-path site-dir "log" k))))
+              table
+              (hash-set table k (past-success s
+                                              (string-append s "/index.html")
+                                              v))))))))
 
 (define current-rx (regexp (regexp-quote (version))))
 

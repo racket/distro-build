@@ -2,7 +2,7 @@
 
 (define collection "distro-build")
 
-(define deps '("base"
+(define deps '(["base" #:version "6.2.900.9"]
                "ds-store-lib"))
 (define build-deps '("at-exp-lib"))
 

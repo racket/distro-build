@@ -4,7 +4,8 @@
          racket/format
          racket/runtime-path
          ds-store
-         ds-store/alias)
+         ds-store/alias
+         compiler/exe-dylib-path)
 
 (provide installer-dmg
          make-dmg)
@@ -31,6 +32,7 @@
   (printf "Copying ~a\n" src-dir)
   (define dest-dir (build-path work-dir volname))
   (copy-directory/files src-dir dest-dir
+                        #:preserve-links? #t
                         #:keep-modify-seconds? #t)
   (when readme
     (call-with-output-file*
@@ -86,6 +88,16 @@
                        (path-replace-suffix name #"")))
         (define exe (build-path f "Contents" "MacOS" name))
         (when (file-exists? exe)
+          ;; Move a copy of the `Racket` framework into the ".app":
+          (when (regexp-match #rx"^@executable_path/[.][.]/[.][.]/[.][.]/lib/Racket.framework/"
+                              (find-matching-library-path exe "Racket"))
+            (define so (build-path (build-path f "Contents" "MacOS" "Racket")))
+            (copy-file (build-path (build-path f 'up "lib" "Racket.framework" "Racket"))
+                       so)
+            (system*/show codesign "-s" sign-identity so)
+            ;; Update executable to point to the adjacent copy of "Racket"
+            (update-matching-library-path exe "Racket" "@executable_path/Racket"))
+          ;; Sign ".app":
           (system*/show codesign "-s" sign-identity f)))))
   (check-bins (build-path dest-dir "bin"))
   (check-bins (build-path dest-dir "lib"))

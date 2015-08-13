@@ -5,9 +5,18 @@
          racket/date
          file/zip
          pkg/lib
-         web-server/servlet-env)
+         web-server/servlet-env
+         racket/cmdline
+         racket/format)
 
 (module test racket/base)
+
+(define installer-vers (version))
+
+(command-line
+ #:once-each
+ [("--version") vers "Version to download and install"
+  (set! installer-vers vers)])
 
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
@@ -22,13 +31,13 @@
 (define catalog (~a snapshot-site "catalog/"))
 
 (define min-racket-installers
-  (list "racket-minimal-6.1.0.900-x86_64-linux-ubuntu-precise.sh"))
+  (list (~a "racket-minimal-" installer-vers "-x86_64-linux-ubuntu-precise.sh")))
 
 (define racket-installers
-  (list "racket-6.1.0.900-x86_64-linux-ubuntu-precise.sh"))
+  (list (~a "racket-" installer-vers "-x86_64-linux-ubuntu-precise.sh")))
 
 (define min-racket-natipkg-installers
-  (list "racket-minimal-6.1.0.900-x86_64-linux-natipkg-debian-squeeze.sh"))
+  (list (~a "racket-minimal-" installer-vers "-x86_64-linux-natipkg-debian-squeeze.sh")))
 
 ;; For serving packages to VM:
 (define server-port 50001)

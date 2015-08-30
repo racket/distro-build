@@ -321,7 +321,7 @@
             "git pull"))
    (and need-native-racket?
         (sh "cd " (q dir) " ; "
-            "make native-for-cross"))
+            "make -j " j " native-for-cross"))
    (sh "cd " (q dir) " ; "
        "make -j " j " client"
        (client-args c server server-port 'unix readme)

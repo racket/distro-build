@@ -114,6 +114,7 @@
   (case kw
     [(#:pkgs) (and (list? val) (andmap simple-string? val))]
     [(#:racket) (or (not val) (string? val))]
+    [(#:cross-target) (simple-string? val)]
     [(#:doc-search) (string? val)]
     [(#:dist-name) (string? val)]
     [(#:dist-base) (simple-string? val)]
@@ -190,7 +191,7 @@
   (and (string? s)
        ;; No spaces, quotes, or other things that could
        ;; break a command-line, path, or URL construction:
-       (regexp-match #rx"^[-a-zA-Z0-9.]*$" s)))
+       (regexp-match #rx"^[-a-zA-Z0-9._]*$" s)))
 
 (define (email? s)
   (and (string? s)

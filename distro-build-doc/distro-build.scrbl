@@ -248,13 +248,6 @@ spaces, etc.):
   @item{@racket[#:pkgs (list _string* ...)] --- packages to install;
     defaults to the @tt{PKGS} makefile variable}
 
-  @item{@racket[#:racket _string-or-false] --- path to a native Racket
-    executable when using the client machine for cross-compilation; if
-    the value is @racket[#f], the the Racket executable generated for
-    the client machine is used to prepare the installer; a
-    non-@racket[#f] typically must be combined with
-    @racket[#:configure] arguments to set up cross-compilation}
-
   @item{@racket[#:dist-base-url _string] --- a URL that is used to
     construct a default for @racket[#:doc-search] and
     @racket[#:dist-catalogs], where the constructed values are
@@ -316,13 +309,32 @@ spaces, etc.):
     shown, for example, in the Virtual Box GUI); if provided, the
     virtual machine is started and stopped on the server as needed}
 
-  @item{@racket[#:platform <symbol>] --- @racket['unix],
+  @item{@racket[#:platform _symbol] --- @racket['unix],
     @racket['macosx], @racket['windows], or @racket['windows/bash]
     (which means @racket['windows] though an SSH server providing
-    @exec{bash}, such as Cygwin's); defaults to @racket[(system-type)]}
+    @exec{bash}, such as Cygwin's); the @racket[_symbol] names
+    the client machine's system, not the target for cross-compilation;
+    defaults to @racket[(system-type)]}
 
   @item{@racket[#:configure (list _string ...)] --- arguments to
     @exec{configure}}
+
+  @item{@racket[#:cross-target _string*] --- specifies a target for
+    cross-compilation, which adds @DFlag{host}@tt{=}@racket[_string*]
+    to the start of the list of @exec{configure} arguments; in
+    addition, if no @racket[#:racket] value is provided, a native
+    @exec{racket} executable for the client machine is created (by
+    using @exec{configure} with no arguments) and used for
+    cross-compilation in the same way as a @racket[#:racket] value}
+
+  @item{@racket[#:racket _string-or-false] --- an absolute path to a
+    native Racket executable to use for compilation, especially
+    cross-compilation; if the value is @racket[#f], then the Racket
+    executable generated for the client machine is used to prepare the
+    installer, or a client-native executable is generated
+    automatically if @racket[#:cross-target] is specified; a
+    non-@racket[#f] value for @racket[#:racket] is propagated to
+    @racket[#:configure] via @DFlag{enable-racket}}
 
   @item{@racket[#:bits _integer] --- @racket[32] or @racket[64];
     affects Visual Studio mode}

@@ -300,6 +300,12 @@
                   (format "~a=~a" (car e) (cadr e)))))
      (list "/bin/sh" "-c" (apply ~a args))))
   (define j (or (get-opt c '#:j) 1))
+  (define cross-target (get-opt c '#:cross-target))
+  (define given-racket (and cross-target
+                            (get-opt c '#:racket)))
+  (define need-native-racket? (and cross-target
+                                   (not given-racket)))
+  (define built-native-racket "cross/racket/racket3m") ; relative to build directory
   (try-until-ready c host port user server-port 'unix (sh "echo hello"))
   (ssh-script
    host port user
@@ -313,11 +319,25 @@
    (and pull?
         (sh "cd " (q dir) " ; "
             "git pull"))
+   (and need-native-racket?
+        (sh "cd " (q dir) " ; "
+            "make native-for-cross"))
    (sh "cd " (q dir) " ; "
        "make -j " j " client"
        (client-args c server server-port 'unix readme)
        " JOB_OPTIONS=\"-j " j "\""
-       " CONFIGURE_ARGS_qq=" (qq (get-opt c '#:configure null) 'unix))))
+       (if need-native-racket?
+           (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)
+           "")
+       " CONFIGURE_ARGS_qq=" (qq (append
+                                  (if cross-target
+                                      (list (~a "--enable-racket="
+                                                (or given-racket
+                                                    (~a "`pwd`/" built-native-racket)))
+                                            (~a "--host=" cross-target))
+                                      null)
+                                  (get-opt c '#:configure null))
+                                 'unix))))
 
 (define (windows-build c platform host port user server server-port repo clean? pull? readme)
   (define dir (get-path-opt c '#:dir "build\\plt" #:localhost (current-directory)))

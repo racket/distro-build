@@ -141,6 +141,7 @@
                           val))]
     [(#:vbox) (string? val)]
     [(#:platform) (memq val '(unix macosx windows windows/bash))]
+    [(#:target-platform) (memq val '(unix macosx windows #f))]
     [(#:configure) (and (list? val) (andmap string? val))]
     [(#:bits) (or (equal? val 32) (equal? val 64))]
     [(#:vc) (string? val)]

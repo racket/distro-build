@@ -336,6 +336,13 @@ spaces, etc.):
     non-@racket[#f] value for @racket[#:racket] is propagated to
     @racket[#:configure] via @DFlag{enable-racket}}
 
+  @item{@racket[#:target-platform _symbol] --- @racket['unix],
+    @racket['macosx], or @racket['windows], or @racket[#f], indicating
+    the target platform's type (which is different from the client
+    system type in the case of cross-compilation); defaults to
+    @racket[#f], which means that the target platform should be
+    inferred from arguments such as @racket[#:cross-target]}
+
   @item{@racket[#:bits _integer] --- @racket[32] or @racket[64];
     affects Visual Studio mode}
 
@@ -517,9 +524,10 @@ hash table mapping configuration keywords to values.}
 
 Produces basic @filepath{README} content, using information about the
 distribution and the Racket license. The content is constructed using
-@racket[config] keys such as @racket[#:name], @racket[#:platform],
+@racket[config] keys such as @racket[#:name], @racket[#:target-platform],
 @racket[#:dist-name], and @racket[#:dist-catalogs], and sometimes
-@racket[current-stamp].}
+@racket[current-stamp]. Some content depends on the result of
+@racket[(readme-system-type config)].}
 
 
 @defproc[(make-macosx-notes [config hash?]) string?]{
@@ -528,6 +536,29 @@ Produces @filepath{README} content to tell Mac OS X users how to install a
 distribution folder. This function is used by @racket[make-readme] when
 @racket[#:platform] in @racket[config] is @racket['macosx].}
 
+
+@defproc[(readme-system-type [config hash?]) (or/c 'unix 'macosx 'windows)]{
+
+Determines the kind of platform for a generated @filepath{README}
+file:
+
+@itemlist[
+
+ @item{If @racket['#:target-platform] has a non-@racket[#f] value in
+       @racket[config], the value is returned.}
+
+ @item{Otherwise, if @racket['#:cross-target] has a string value, then
+       a system type is inferred if it contains any of the following
+       fragments: @litchar{mingw} implies @racket['windows],
+       @litchar{darwin} implies @racket['macosx], and @litchar{linux}
+       implies @racket['unix].}
+
+ @item{If the above fail, the value of @racket['#:platform] is
+       returned, if it is mapped in @racket[config].}
+
+ @item{As a last resort, @racket[(system-type)] is returned.}
+
+]}
 
 @; ----------------------------------------
 

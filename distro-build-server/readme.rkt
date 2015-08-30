@@ -5,7 +5,8 @@
 
 (provide make-readme
          make-source-notes
-         make-macosx-notes)
+         make-macosx-notes
+         readme-system-type)
 
 (define (maybe-stamp config)
   (if (hash-ref config '#:release? #f)
@@ -28,7 +29,7 @@
            "")@;
       @(if (and (not (hash-ref config '#:source-runtime? 
                                (hash-ref config '#:source? #f)))
-                (eq? (hash-ref config '#:platform (system-type)) 'macosx))
+                (eq? (readme-system-type config) 'macosx))
            (string-append "\n" (make-macosx-notes config) "\n")
            "")@;
       @(let* ([catalogs (filter
@@ -139,3 +140,21 @@
           files within the folder. If you want to use the Racket command-line
           programs, then (optionally) add the path of the "bin" subdirectory to
           your PATH environment variable.}))
+
+(define (readme-system-type config)
+  (or (hash-ref config '#:cross-platform #f)
+      (let ([c (hash-ref config '#:cross-target #f)])
+        (or (and c
+                 (cond
+                  [(regexp-match? #rx"mingw" c)
+                   'windows]
+                  [(regexp-match? #rx"darwin" c)
+                   'macosx]
+                  [(regexp-match? #rx"linux" c)
+                   'unix]
+                  [else
+                   #f]))
+            (let ([p (hash-ref config '#:platform (system-type))])
+              (if (eq? p 'windows/bash)
+                  'windows
+                  p))))))

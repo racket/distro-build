@@ -425,10 +425,9 @@ SectionEnd
   (when readme
     (call-with-output-file*
      #:exists 'truncate
-     #:mode 'text
      (build-path "bundle" "racket" "README.txt")
      (lambda (o)
-       (display readme o))))
+       (display (regexp-replace* #rx"\n" readme "\r\n") o))))
   (nsis-generate exe-path
                  human-name
                  (version)

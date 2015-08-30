@@ -5,7 +5,8 @@
          racket/runtime-path
          ds-store
          ds-store/alias
-         compiler/exe-dylib-path)
+         compiler/exe-dylib-path
+         setup/cross-system)
 
 (provide installer-dmg
          make-dmg)
@@ -148,7 +149,7 @@
 (define (installer-dmg human-name base-name dist-suffix readme sign-identity)
   (define dmg-name (format "bundle/~a-~a~a.dmg"
                            base-name
-                           (system-library-subpath #f)
+                           (cross-system-library-subpath #f)
                            dist-suffix))
   (make-dmg human-name "bundle/racket" dmg-name bg-image readme sign-identity)
   dmg-name)

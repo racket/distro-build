@@ -58,7 +58,7 @@ default accepts only connections via @racket["localhost"].
 
 On the client machine, all work is performed at a specified directory
 as specified by @racket[#:dir]. The directory defaults to
-@filepath{build/plt} (Unix, Mac OS X) or @filepath{build\plt}
+@filepath{build/plt} (Unix or Mac OS X) or @filepath{build\plt}
 (Windows), except when the host is @racket["localhost"] and the client
 is @racket[#f], in which case the current directory (i.e., the
 server's directory) is used.
@@ -110,7 +110,7 @@ installers.
 
 @section{Machine Requirements}
 
-Each Unix or Mac OS X @tech{client machines} needs the following available:
+Each Unix or Mac OS X @tech{client machine} needs the following available:
 
 @itemlist[
 
@@ -119,6 +119,10 @@ Each Unix or Mac OS X @tech{client machines} needs the following available:
   @item{@exec{git} (unless the working directory is ready)}
 
   @item{@exec{gcc}, @exec{make}, etc.}
+
+  @item{when creating a Windows installer (via cross-compilation),
+        Nullsoft Scriptable Install System (NSIS) version 2.x with
+        @exec{makensis} in @envvar{PATH}}
 
 ]
 
@@ -138,15 +142,18 @@ Each Windows @tech{client machine} needs the following:
     or
      @filepath{C:\Program Files (x86)\Microsoft Visual Studio @nonterm{vers}}}
      
-  @item{Nullsoft Scriptable Install System (NSIS) verstion 2.x, installed
+  @item{Nullsoft Scriptable Install System (NSIS) version 2.x, installed
     in the default folder:
      @filepath{C:\Program Files\NSIS\makensis.exe}
     or
      @filepath{C:\Program Files (x86)\NSIS\makensis.exe}
-    or installed so that @exec{makensis} in your @envvar{PATH}.}
+    or installed so that @exec{makensis} in @envvar{PATH}}
 
 ]
 
+Currently, Windows and Unix variants can be cross-compiled using a
+same-versioned native Racket installation on a client machine that
+runs Unix or Mac OS X.
 
 @; ----------------------------------------
 
@@ -209,6 +216,13 @@ spaces, etc.):
     directory if the host is @racket["localhost"] and the user is
     @racket[#f]}
 
+  @item{@racket[#:env (list (list _string* _string) ...)] ---
+    environment-variable settings to prefix all client-machine
+    interactions for a Unix or Mac OS X client; for example
+    @racket['(("PATH" "/usr/local/bin:/usr/bin"))] configures the
+    client machine's @envvar{PATH} enviornment variable to have
+    only @filepath{/usr/local/bin} and @filepath{/usr/bin}}
+
   @item{@racket[#:server _string*] --- the address of the server as
     accessed by the client; when SSH remote tunneling works, then
     @racket["localhost"] should work to reach the server; defaults to
@@ -233,6 +247,13 @@ spaces, etc.):
 
   @item{@racket[#:pkgs (list _string* ...)] --- packages to install;
     defaults to the @tt{PKGS} makefile variable}
+
+  @item{@racket[#:racket _string-or-false] --- path to a native Racket
+    executable when using the client machine for cross-compilation; if
+    the value is @racket[#f], the the Racket executable generated for
+    the client machine is used to prepare the installer; a
+    non-@racket[#f] typically must be combined with
+    @racket[#:configure] arguments to set up cross-compilation}
 
   @item{@racket[#:dist-base-url _string] --- a URL that is used to
     construct a default for @racket[#:doc-search] and
@@ -349,8 +370,8 @@ spaces, etc.):
   @item{@racket[#:source-runtime? _boolean] --- if true, then create
     an archive that contains the run-time system in source form
     (possibly with built packages), instead of a platform-specific
-    installer; a @racket[#t] value works best when used with a Unix
-    client machine, since Unix clients typically have no
+    installer; a @racket[#t] value works best when used for a Unix
+    build, since Unix clients typically have no
     native-library packages; the default is the value of
     @racket[#:source?]}
 

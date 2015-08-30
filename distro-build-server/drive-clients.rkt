@@ -239,6 +239,7 @@
                  (if l
                      (apply ~a #:separator " " l)
                      default-pkgs)))
+  (define racket (get-opt c '#:racket))
   (define doc-search (choose-doc-search c default-doc-search))
   (define dist-name (or (get-opt c '#:dist-name)
                         default-dist-name))
@@ -264,6 +265,9 @@
   (~a " SERVER=" server
       " SERVER_PORT=" server-port
       " PKGS=" (q pkgs)
+      (if racket
+          (~a " PLAIN_RACKET=" (q racket))
+          "")
       " DOC_SEARCH=" (q doc-search)
       " DIST_DESC=" (q desc)
       " DIST_NAME=" (q dist-name)
@@ -286,8 +290,15 @@
 
 (define (unix-build c platform host port user server server-port repo clean? pull? readme)
   (define dir (get-path-opt c '#:dir "build/plt" #:localhost (current-directory)))
+  (define env (get-opt c '#:env null))
   (define (sh . args)
-    (list "/bin/sh" "-c" (apply ~a args)))
+    (append
+     (if (null? env)
+         null
+         (list* "/usr/bin/env"
+                (for/list ([e (in-list env)])
+                  (format "~a=~a" (car e) (cadr e)))))
+     (list "/bin/sh" "-c" (apply ~a args))))
   (define j (or (get-opt c '#:j) 1))
   (try-until-ready c host port user server-port 'unix (sh "echo hello"))
   (ssh-script

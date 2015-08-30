@@ -4,6 +4,7 @@
          racket/port
          racket/format
          racket/runtime-path
+         setup/cross-system
          file/tar)
 
 (provide installer-sh)
@@ -78,7 +79,7 @@
 (define (installer-sh human-name base-name dir-name release? dist-suffix readme)
   (define sh-path (format "bundle/~a-~a~a.sh" 
                           base-name 
-                          (system-library-subpath #f) 
+                          (cross-system-library-subpath #f) 
                           dist-suffix))
   (generate-installer-sh "bundle/racket" sh-path
                          dir-name human-name

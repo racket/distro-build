@@ -113,6 +113,7 @@
 (define (check-group-keyword kw val)
   (case kw
     [(#:pkgs) (and (list? val) (andmap simple-string? val))]
+    [(#:racket) (or (not val) (string? val))]
     [(#:doc-search) (string? val)]
     [(#:dist-name) (string? val)]
     [(#:dist-base) (simple-string? val)]
@@ -130,6 +131,13 @@
     [(#:user) (or (not val) (simple-string? val))]
     [(#:port) (port-no? val)]
     [(#:dir) (path-string? val)]
+    [(#:env) (and (list? val)
+                  (andmap (lambda (p)
+                            (and (list? p)
+                                 (= 2 (length p))
+                                 (simple-string? (car p))
+                                 (string? (cadr p))))
+                          val))]
     [(#:vbox) (string? val)]
     [(#:platform) (memq val '(unix macosx windows windows/bash))]
     [(#:configure) (and (list? val) (andmap string? val))]

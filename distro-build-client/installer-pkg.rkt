@@ -5,7 +5,8 @@
          racket/runtime-path
          ds-store
          ds-store/alias
-         xml)
+         xml
+         setup/cross-system)
 
 (provide installer-pkg)
 
@@ -151,7 +152,7 @@
 (define (installer-pkg human-name base-name dist-suffix readme sign-identity)
   (define pkg-name (format "bundle/~a-~a~a.pkg"
                            base-name
-                           (system-library-subpath #f)
+                           (cross-system-library-subpath #f)
                            dist-suffix))
   (make-pkg human-name "bundle/racket" pkg-name readme sign-identity)
   pkg-name)

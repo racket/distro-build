@@ -9,6 +9,7 @@
          racket/file
          racket/path
          racket/port
+         setup/cross-system
          "display-time.rkt")
 
 (module test racket/base)
@@ -70,7 +71,7 @@
 (define installer-file
   (if source?
       (installer-tgz base-name dir-name dist-suffix readme)
-      (case (system-type)
+      (case (cross-system-type)
         [(unix) (installer-sh human-name base-name dir-name release? dist-suffix readme)]
         [(macosx) (if mac-pkg?
                       (installer-pkg (if (or release? versionless?)

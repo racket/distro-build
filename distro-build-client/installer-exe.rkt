@@ -4,7 +4,8 @@
          racket/system
 	 racket/path
          racket/runtime-path
-         setup/getinfo)
+         setup/getinfo
+         setup/cross-system)
 
 (provide installer-exe)
 
@@ -405,15 +406,21 @@ SectionEnd
      (display script o)
      (newline o)))
   (parameterize ([current-directory "bundle"])
-    (system* makensis "/V3" "installer.nsi")))
+    (define verbose (if (eq? 'windows (system-type))
+                        "/V3"
+                        "-V3"))
+    (system* makensis verbose "installer.nsi")))
 
 (define (installer-exe human-name base-name versionless? dist-suffix readme)
-  (define makensis (or (find-executable-path "makensis.exe")
-                       (try-exe "c:\\Program Files\\NSIS\\makensis.exe")
-                       (try-exe "c:\\Program Files (x86)\\NSIS\\makensis.exe")
+  (define makensis (or (case (system-type)
+                         [(windows)
+                          (or (find-executable-path "makensis.exe")
+                              (try-exe "c:\\Program Files\\NSIS\\makensis.exe")
+                              (try-exe "c:\\Program Files (x86)\\NSIS\\makensis.exe"))]
+                         [else (find-executable-path "makensis")])
                        (error 'installer-exe "cannot find \"makensis.exe\"")))
-  (define platform (let-values ([(base name dir?) (split-path (system-library-subpath #f))])
-                     (path->string name)))
+  (define platform (let-values ([(base name dir?) (split-path (cross-system-library-subpath #f))])
+                     (bytes->string/utf-8 (path-element->bytes name))))
   (define exe-path (format "bundle/~a-~a-win32~a.exe" base-name platform dist-suffix))
   (when readme
     (call-with-output-file*

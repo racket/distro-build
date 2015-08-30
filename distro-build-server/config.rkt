@@ -182,7 +182,7 @@
   (and (string? s)
        ;; No spaces, quotes, or other things that could
        ;; break a command-line, path, or URL construction:
-       (regexp-match #rx"^[-a-zA-A0-9.]*$" s)))
+       (regexp-match #rx"^[-a-zA-Z0-9.]*$" s)))
 
 (define (email? s)
   (and (string? s)

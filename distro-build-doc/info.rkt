@@ -6,7 +6,9 @@
                "distro-build-server"
                "distro-build-client"
                "web-server-lib"))
-(define build-deps '("at-exp-lib"))
+(define build-deps '("at-exp-lib"
+                     "racket-doc"
+                     "scribble-lib"))
 
 (define pkg-desc "documentation part of \"distro-build\"")
 

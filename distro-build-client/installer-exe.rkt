@@ -89,7 +89,7 @@ Name "${RKTHumanName}"
 OutFile "@|destfilename|"
 
 BrandingText "${RKTHumanName}"
-BGGradient 4040A0 101020
+BGGradient off
 
 SetCompressor /SOLID "LZMA"
 

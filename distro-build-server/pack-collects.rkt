@@ -16,4 +16,8 @@
   (delete-file tgz-file))
 
 (parameterize ([current-directory (build-path "racket")])
-  (tar-gzip tgz-file "collects"))
+  (tar-gzip tgz-file "collects"
+            ;; Skip "." files:
+            #:path-filter (lambda (p)
+                            (define-values (base name dir?) (split-path p))
+                            (not (regexp-match? #rx"^[.]" name)))))

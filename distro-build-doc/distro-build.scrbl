@@ -352,9 +352,14 @@ spaces, etc.):
     on the value of @racket[#:bits]}
 
   @item{@racket[#:sign-identity _string] --- provides an identity to
-    be passed to @exec{codesign} for code signing on Mac OS X (for all
-    executables in a distribution), where an empty string disables
-    signing; the default is @racket[""]}
+    be passed to @exec{codesign} for code signing on Mac OS X (for a
+    package or all executables in a distribution), where an empty
+    string disables signing; the default is @racket[""]}
+
+  @item{@racket[#:osslsigncode-args (list _string ...)] --- provides
+    arguments for signing a Windows executable using
+    @exec{osslsigncode}, where @Flag{n}, @Flag{t}, @Flag{in}, and
+    @Flag{-out} arguments are supplied automatically.}
 
   @item{@racket[#:j _integer] --- parallelism for @tt{make} on Unix
     and Mac OS X and for @exec{raco setup} on all platforms; defaults
@@ -407,6 +412,10 @@ spaces, etc.):
   @item{@racket[#:mac-pkg? _boolean] --- if true, creates a
     @filepath{.pkg} for Mac OS X (in single-file format) instead of a
     @filepath{.dmg}; the default is @racket[#f]}
+
+  @item{@racket[#:tgz? _boolean] --- if true, creates a
+    @filepath{.tgz} archive instead of an installer; the default is
+    @racket[#f]}
 
   @item{@racket[#:pause-before _nonnegative-real] --- a pause in
     seconds to wait before starting a machine, which may help a

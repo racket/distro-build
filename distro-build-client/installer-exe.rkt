@@ -3,6 +3,7 @@
          racket/list
          racket/system
 	 racket/path
+	 racket/file
          racket/runtime-path
          setup/getinfo
          setup/cross-system)
@@ -411,7 +412,7 @@ SectionEnd
                         "-V3"))
     (system* makensis verbose "installer.nsi")))
 
-(define (installer-exe human-name base-name versionless? dist-suffix readme)
+(define (installer-exe human-name base-name versionless? dist-suffix readme osslsigncode-args)
   (define makensis (or (case (system-type)
                          [(windows)
                           (or (find-executable-path "makensis.exe")
@@ -437,4 +438,19 @@ SectionEnd
                  #:extension-registers (get-extreg "bundle/racket")
                  #:start-menus (get-startmenu "bundle/racket")
                  #:auto-launch (get-auto-launch "bundle/racket"))
+  (unless (null? osslsigncode-args)
+    (define unsigned-exe-path (let-values ([(base name dir?) (split-path exe-path)])
+                                (build-path base "unsigned" name)))
+    (make-directory* "bundle/unsigned")
+    (rename-file-or-directory exe-path unsigned-exe-path #t)
+    (unless (apply system*
+                   (or (find-executable-path (case (system-type)
+                                               [(windows) "osslsigncode.exe"]
+                                               [else "osslsigncode"]))
+                       (error "cannot find `osslsigncode`"))
+                   (append osslsigncode-args
+                           (list "-n" human-name
+                                 "-t" "http://timestamp.verisign.com/scripts/timstamp.dll"
+                                 "-in" unsigned-exe-path "-out" exe-path)))
+      (error "signing failed")))
   exe-path)

@@ -6,6 +6,7 @@
          racket/file
          racket/string
          racket/path
+         net/base64
          (only-in distro-build/config
                   current-mode
                   site-config?
@@ -233,6 +234,10 @@
                       "\"\\&\\&\"")]
     [else s]))
 
+(define (pack-base64-arguments args)
+  (bytes->string/utf-8 (base64-encode (string->bytes/utf-8 (format "~s" args))
+                                      #"")))
+
 (define (client-args c server server-port kind readme)
   (define desc (client-name c))
   (define pkgs (let ([l (get-opt c '#:pkgs)])
@@ -250,12 +255,14 @@
   (define dist-suffix (get-opt c '#:dist-suffix ""))
   (define dist-catalogs (choose-catalogs c '("")))
   (define sign-identity (get-opt c '#:sign-identity ""))
+  (define osslsigncode-args (get-opt c '#:osslsigncode-args))
   (define release? (get-opt c '#:release? default-release?))
   (define source? (get-opt c '#:source? default-source?))
   (define versionless? (get-opt c '#:versionless? default-versionless?))
   (define source-pkgs? (get-opt c '#:source-pkgs? source?))
   (define source-runtime? (get-opt c '#:source-runtime? source?))
   (define mac-pkg? (get-opt c '#:mac-pkg? #f))
+  (define tgz? (get-opt c '#:tgz? #f))
   (define install-name (get-opt c '#:install-name (if release? 
                                                       "" 
                                                       snapshot-install-name)))
@@ -276,6 +283,9 @@
       " DIST_SUFFIX=" (q dist-suffix)
       " DIST_CATALOGS_q=" (qq dist-catalogs kind)
       " SIGN_IDENTITY=" (q sign-identity)
+      " OSSLSIGNCODE_ARGS_BASE64=" (q (if osslsigncode-args
+                                          (pack-base64-arguments osslsigncode-args)
+                                          ""))
       " INSTALL_NAME=" (q install-name)
       " BUILD_STAMP=" (q build-stamp)
       " RELEASE_MODE=" (if release? "--release" (q ""))
@@ -285,6 +295,7 @@
                               (q "--source --no-setup")
                               (q ""))
       " MAC_PKG_MODE=" (if mac-pkg? "--mac-pkg" (q ""))
+      " TGZ_MODE=" (if tgz? "--tgz" (q ""))
       " UPLOAD=http://" server ":" server-port "/upload/"
       " README=http://" server ":" server-port "/" (q (file-name-from-path readme))))
 

@@ -2,7 +2,8 @@
 (require racket/system
          racket/file
          racket/format
-         file/tar)
+         file/tar
+         setup/cross-system)
 
 (provide installer-tgz)
 
@@ -25,11 +26,22 @@
   (parameterize ([current-directory src-dir])
     (apply tar-gzip dest #:path-prefix target-dir-name (directory-list))))
 
-(define (installer-tgz base-name dir-name dist-suffix readme)
-  (define tgz-path (format "bundle/~a-src~a.tgz" 
-                           base-name 
+(define (installer-tgz source? base-name dir-name dist-suffix readme)
+  (define tgz-path (format "bundle/~a-~a~a.tgz"
+                           base-name
+                           (if source?
+                               "src"
+                               (get-platform-name)) 
                            dist-suffix))
   (generate-tgz "bundle/racket" tgz-path
                 dir-name
                 readme)
   tgz-path)
+
+(define (get-platform-name)
+  (case (cross-system-type)
+    [(windows)
+     (define-values (base name dir?) (split-path (cross-system-library-subpath #f)))
+     (format "~a-win32" (bytes->string/utf-8 (path-element->bytes name)))]
+    [else
+     (format "~a" (cross-system-library-subpath #f))]))

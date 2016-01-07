@@ -9,6 +9,7 @@
          racket/file
          racket/path
          racket/port
+         net/base64
          setup/cross-system
          "display-time.rkt")
 
@@ -17,12 +18,14 @@
 (define release? #f)
 (define source? #f)
 (define versionless? #f)
+(define tgz? #f)
 (define mac-pkg? #f)
 (define upload-to #f)
 (define upload-desc "")
 (define download-readme #f)
 
-(define-values (short-human-name human-name base-name dir-name dist-suffix sign-identity)
+(define-values (short-human-name human-name base-name dir-name dist-suffix 
+                                 sign-identity osslsigncode-args-base64)
   (command-line
    #:once-each
    [("--release") "Create a release installer"
@@ -31,6 +34,8 @@
     (set! source? #t)]
    [("--versionless") "Avoid version number in names and paths"
     (set! versionless? #t)]
+   [("--tgz") "Create a \".tgz\" archive instead of an installer"
+    (set! tgz? #t)]
    [("--mac-pkg") "Create a \".pkg\" installer on Mac OS X"
     (set! mac-pkg? #t)]
    [("--upload") url "Upload installer"
@@ -42,7 +47,7 @@
     (unless (string=? readme "")
       (set! download-readme readme))]
    #:args
-   (human-name base-name dir-name dist-suffix sign-identity)
+   (human-name base-name dir-name dist-suffix sign-identity osslsigncode-args-base64)
    (values human-name
            (format "~a v~a" human-name (version))
            (if versionless?
@@ -55,7 +60,7 @@
            (if (string=? dist-suffix "")
                ""
                (string-append "-" dist-suffix))
-           sign-identity)))
+           sign-identity osslsigncode-args-base64)))
 
 (display-time)
 
@@ -68,22 +73,39 @@
           (port->string i)
           (close-input-port i)))))
 
+(define (unpack-base64-arguments str)
+  (define p (open-input-bytes (base64-decode (string->bytes/utf-8 str))))
+  (define l (read p))
+  (unless (and (list? l)
+               (andmap string? l)
+               (eof-object? (read p)))
+    (error 'unpack-base64-arguments
+           "encoded arguments didn't decode and `read` as a list of strings: ~e" str))
+  l)
+
 (define installer-file
-  (if source?
-      (installer-tgz base-name dir-name dist-suffix readme)
+  (if (or source? tgz?)
+      (installer-tgz source? base-name dir-name dist-suffix readme)
       (case (cross-system-type)
-        [(unix) (installer-sh human-name base-name dir-name release? dist-suffix readme)]
-        [(macosx) (if mac-pkg?
-                      (installer-pkg (if (or release? versionless?)
-                                         short-human-name
-                                         human-name)
-                                     base-name dist-suffix readme sign-identity)
-                      (installer-dmg (if versionless?
-                                         short-human-name
-                                         human-name)
-                                     base-name dist-suffix readme sign-identity))]
-        [(windows) (installer-exe short-human-name base-name (or release? versionless?) 
-                                  dist-suffix readme)])))
+        [(unix)
+         (installer-sh human-name base-name dir-name release? dist-suffix readme)]
+        [(macosx)
+         (if mac-pkg?
+             (installer-pkg (if (or release? versionless?)
+                                short-human-name
+                                human-name)
+                            base-name dist-suffix readme sign-identity)
+             (installer-dmg (if versionless?
+                                short-human-name
+                                human-name)
+                            base-name dist-suffix readme sign-identity))]
+        [(windows)
+         (define osslsigncode-args
+           (and (not (equal? osslsigncode-args-base64 ""))
+                (unpack-base64-arguments osslsigncode-args-base64)))
+         (installer-exe short-human-name base-name (or release? versionless?)
+                        dist-suffix readme
+                        osslsigncode-args)])))
 
 (call-with-output-file*
  (build-path "bundle" "installer.txt")

@@ -133,7 +133,7 @@ InstallDir "${RKTProgFiles}\${RKTDirName}"
      "")
 !endif
 !define MUI_FINISHPAGE_LINK "Visit the Racket web site"
-!define MUI_FINISHPAGE_LINK_LOCATION "http://racket-lang.org/"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://racket-lang.org/"
 
 ; !define MUI_UNFINISHPAGE_NOAUTOCLOSE ; to allow users see what was erased
 
@@ -146,7 +146,7 @@ InstallDir "${RKTProgFiles}\${RKTDirName}"
 
 VIProductVersion "${RKTVersionLong}"
 VIAddVersionKey "ProductName" "Racket"
-VIAddVersionKey "Comments" "This is the Racket language, see http://racket-lang.org/."
+VIAddVersionKey "Comments" "This is the Racket language, see https://racket-lang.org/."
 VIAddVersionKey "CompanyName" "PLT Design Inc."
 VIAddVersionKey "LegalCopyright" "© PLT Design Inc."
 VIAddVersionKey "FileDescription" "Racket Installer"
@@ -309,8 +309,8 @@ Section ""
       WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "DisplayIcon" "$INSTDIR\DrRacket.exe,0"
       WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "DisplayVersion" "${RKTVersion}"
       ; used to also have "VersionMajor" & "VersionMinor" but looks like it's not needed
-      WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "HelpLink" "http://racket-lang.org/"
-      WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "URLInfoAbout" "http://racket-lang.org/"
+      WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "HelpLink" "https://racket-lang.org/"
+      WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "URLInfoAbout" "https://racket-lang.org/"
       WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "Publisher" "PLT Design Inc."
       WriteRegDWORD     HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "NoModify" "1"
       WriteRegDWORD     HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "NoRepair" "1"

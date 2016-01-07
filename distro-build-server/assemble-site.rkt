@@ -41,7 +41,7 @@
 
 (define www-site (and (hash-ref config '#:plt-web-style? #t)
                       (site "www"
-                            #:url "http://racket-lang.org/"
+                            #:url "https://racket-lang.org/"
                             #:generate? #f)))
 
 (printf "Assembling site as ~a\n" dest-dir)

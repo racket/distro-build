@@ -26,7 +26,7 @@
 (define vbox-user "racket")
 (define vbox-snapshot "init")
 
-(define snapshot-site "http://pre-release.racket-lang.org/")
+(define snapshot-site "https://pre-release.racket-lang.org/")
 (define installers-site (~a snapshot-site "installers/"))
 (define catalog (~a snapshot-site "catalog/"))
 

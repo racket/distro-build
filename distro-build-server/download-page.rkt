@@ -182,7 +182,7 @@
                                                 null)
                                #:share-from (or www-site
                                                 (site "www"
-                                                      #:url "http://racket-lang.org/"
+                                                      #:url "https://racket-lang.org/"
                                                       #:generate? #f)))))
 
   (define orig-directory (current-directory))

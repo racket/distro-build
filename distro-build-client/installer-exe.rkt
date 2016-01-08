@@ -438,7 +438,7 @@ SectionEnd
                  #:extension-registers (get-extreg "bundle/racket")
                  #:start-menus (get-startmenu "bundle/racket")
                  #:auto-launch (get-auto-launch "bundle/racket"))
-  (unless (null? osslsigncode-args)
+  (when osslsigncode-args
     (define unsigned-exe-path (let-values ([(base name dir?) (split-path exe-path)])
                                 (build-path base "unsigned" name)))
     (make-directory* "bundle/unsigned")

@@ -92,6 +92,7 @@ done
 ## Utilities
 
 PATH=/usr/bin:/bin
+origPATH="$PATH"
 
 if test "x`echo -n`" = "x-n"; then
   echon() { /bin/echo "$*\c"; }
@@ -123,6 +124,17 @@ lookfor() {
   IFS=":"
   for dir in $PATH; do
     if test -x "$dir/$1"; then
+      eval "$1=$dir/$1"
+      IFS="$saved_IFS"
+      return
+    fi
+  done
+  for dir in $origPATH; do
+    if test -x "$dir/$1"; then
+      echo "Warning: $1 found in a non-standrad place: $dir/$1"
+      # Reset PATH, as it is likely the command found in a non-standard place
+      # will not work properly with the basic PATH.
+      PATH="$origPATH"
       eval "$1=$dir/$1"
       IFS="$saved_IFS"
       return

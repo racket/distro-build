@@ -107,7 +107,8 @@
         pre-built versions of the core Racket bytecode, as well as pre-built
         versions of included packages and documentation --- which makes it
         suitable for quick installation on a Unix platform for which
-        executable binaries are not already provided.})
+        executable binaries are not already provided.
+        This option is recommended for ARM.})
   (cond
    [(and (hash-ref config '#:source-runtime? src?)
          (not (hash-ref config '#:source-pkgs? src?)))

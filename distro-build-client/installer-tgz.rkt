@@ -13,7 +13,8 @@
     (error "failed")))
 
 (define (generate-tgz src-dir dest-path target-dir-name readme)
-  (system/show "chmod" "-R" "g+w" src-dir)
+  (when (eq? 'unix (system-type))
+    (system/show "chmod" "-R" "g+w" src-dir))
   (define dest (path->complete-path dest-path))
   (when (file-exists? dest) (delete-file dest))
   (printf "Tarring to ~s\n" dest)

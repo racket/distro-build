@@ -112,7 +112,8 @@
             l))
       (cond
        [(null? l) `((#f) (#f ,nbsp))]
-       [(not (equal? prev (take (car l) len)))
+       [(or (<= (length (car l)) len)
+            (not (equal? prev (take (car l) len))))
         ;; move out a layer:
         (loop l keys (drop-right prev 1) #t)]
        [(= (add1 len) (length (car l)))

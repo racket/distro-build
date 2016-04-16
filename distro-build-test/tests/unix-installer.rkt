@@ -31,13 +31,13 @@
 (define catalog (~a snapshot-site "catalog/"))
 
 (define min-racket-installers
-  (list (~a "racket-minimal-" installer-vers "-x86_64-linux-ubuntu-precise.sh")))
+  (list (~a "racket-minimal-" installer-vers "-x86_64-linux.sh")))
 
 (define racket-installers
-  (list (~a "racket-" installer-vers "-x86_64-linux-ubuntu-precise.sh")))
+  (list (~a "racket-" installer-vers "-x86_64-linux.sh")))
 
 (define min-racket-natipkg-installers
-  (list (~a "racket-minimal-" installer-vers "-x86_64-linux-natipkg-debian-squeeze.sh")))
+  (list (~a "racket-minimal-" installer-vers "-x86_64-linux-natipkg.sh")))
 
 ;; For serving packages to VM:
 (define server-port 50001)

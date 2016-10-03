@@ -152,4 +152,7 @@
                            (cross-system-library-subpath #f)
                            dist-suffix))
   (make-dmg human-name "bundle/racket" dmg-name bg-image readme sign-identity)
+  ;; sign whole DMG too, for Sierra
+  (unless (string=? sign-identity "")
+    (system*/show codesign "-s" sign-identity dmg-name))
   dmg-name)

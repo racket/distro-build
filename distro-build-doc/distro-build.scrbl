@@ -58,7 +58,7 @@ default accepts only connections via @racket["localhost"].
 
 On the client machine, all work is performed at a specified directory
 as specified by @racket[#:dir]. The directory defaults to
-@filepath{build/plt} (Unix or Mac OS X) or @filepath{build\plt}
+@filepath{build/plt} (Unix or Mac OS) or @filepath{build\plt}
 (Windows), except when the host is @racket["localhost"] and the client
 is @racket[#f], in which case the current directory (i.e., the
 server's directory) is used.
@@ -110,7 +110,7 @@ installers.
 
 @section{Machine Requirements}
 
-Each Unix or Mac OS X @tech{client machine} needs the following available:
+Each Unix or Mac OS @tech{client machine} needs the following available:
 
 @itemlist[
 
@@ -153,7 +153,7 @@ Each Windows @tech{client machine} needs the following:
 
 Currently, Windows and Unix variants can be cross-compiled using a
 same-versioned native Racket installation on a client machine that
-runs Unix or Mac OS X.
+runs Unix or Mac OS.
 
 @; ----------------------------------------
 
@@ -218,7 +218,7 @@ spaces, etc.):
 
   @item{@racket[#:env (list (list _string* _string) ...)] ---
     environment-variable settings to prefix all client-machine
-    interactions for a Unix or Mac OS X client; for example
+    interactions for a Unix or Mac OS client; for example
     @racket['(("PATH" "/usr/local/bin:/usr/bin"))] configures the
     client machine's @envvar{PATH} enviornment variable to have
     only @filepath{/usr/local/bin} and @filepath{/usr/bin}}
@@ -352,7 +352,7 @@ spaces, etc.):
     on the value of @racket[#:bits]}
 
   @item{@racket[#:sign-identity _string] --- provides an identity to
-    be passed to @exec{codesign} for code signing on Mac OS X (for a
+    be passed to @exec{codesign} for code signing on Mac OS (for a
     package or all executables in a distribution), where an empty
     string disables signing; the default is @racket[""]}
 
@@ -362,7 +362,7 @@ spaces, etc.):
     @Flag{-out} arguments are supplied automatically.}
 
   @item{@racket[#:j _integer] --- parallelism for @tt{make} on Unix
-    and Mac OS X and for @exec{raco setup} on all platforms; defaults
+    and Mac OS and for @exec{raco setup} on all platforms; defaults
     to @racket[1]}
 
   @item{@racket[#:timeout _number] --- numbers of seconds to wait
@@ -410,7 +410,7 @@ spaces, etc.):
     @tt{VERSIONLESS_MODE} makefile variable}
 
   @item{@racket[#:mac-pkg? _boolean] --- if true, creates a
-    @filepath{.pkg} for Mac OS X (in single-file format) instead of a
+    @filepath{.pkg} for Mac OS (in single-file format) instead of a
     @filepath{.dmg}; the default is @racket[#f]}
 
   @item{@racket[#:tgz? _boolean] --- if true, creates a
@@ -541,7 +541,7 @@ distribution and the Racket license. The content is constructed using
 
 @defproc[(make-macosx-notes [config hash?]) string?]{
 
-Produces @filepath{README} content to tell Mac OS X users how to install a
+Produces @filepath{README} content to tell Mac OS users how to install a
 distribution folder. This function is used by @racket[make-readme] when
 @racket[#:platform] in @racket[config] is @racket['macosx].}
 

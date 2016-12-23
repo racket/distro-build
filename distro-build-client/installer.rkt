@@ -36,7 +36,7 @@
     (set! versionless? #t)]
    [("--tgz") "Create a \".tgz\" archive instead of an installer"
     (set! tgz? #t)]
-   [("--mac-pkg") "Create a \".pkg\" installer on Mac OS X"
+   [("--mac-pkg") "Create a \".pkg\" installer on Mac OS"
     (set! mac-pkg? #t)]
    [("--upload") url "Upload installer"
     (unless (string=? url "")

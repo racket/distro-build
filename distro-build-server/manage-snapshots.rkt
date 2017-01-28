@@ -4,6 +4,7 @@
          net/url
          scribble/html
          "download-page.rkt"
+         "private/find-desired-snapshots.rkt"
          (only-in distro-build/config extract-options))
 
 (module test racket/base)
@@ -45,17 +46,27 @@
              #:when (directory-exists? (build-path snapshots-dir p)))
     (path-element->string p)))
 
-(define n (hash-ref config '#:max-snapshots 5))
-
-(let ([snapshots (get-snapshots)])
-  (when (n . < . (length snapshots))
-    (define remove-snapshots (remove
-                              current-snapshot
-                              (list-tail (sort snapshots string>?) n)))
-    (for ([s (in-list remove-snapshots)])
-      (printf "Removing snapshot ~a\n" s)
-      (flush-output)
-      (delete-directory/files (build-path snapshots-dir s)))))
+(define week-count (hash-ref config '#:week-count #f))
+(define to-remove-snapshots
+  (cond
+    [week-count
+     (define all-snapshots (get-snapshots))
+     (define desired-snapshots
+       (find-desired-week-and-month-snapshots week-count all-snapshots (current-seconds)))
+     (remove* desired-snapshots all-snapshots)]
+    [else
+     (define n (hash-ref config '#:max-snapshots 5))
+     (define snapshots (get-snapshots))
+     (cond
+       [(n . < . (length snapshots))
+        (remove
+         current-snapshot
+         (list-tail (sort snapshots string>?) n))]
+       [else '()])]))
+(for ([s (in-list to-remove-snapshots)])
+  (printf "Removing snapshot ~a\n" s)
+  (flush-output)
+  (delete-directory/files (build-path snapshots-dir s)))
 
 (printf "Loading past successes\n")
 (define table-file (build-path site-dir installers-dir "table.rktd"))

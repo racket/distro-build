@@ -10,7 +10,8 @@
                "scribble-html-lib"
                "plt-web-lib"
                "remote-shell-lib"))
-(define build-deps '("at-exp-lib"))
+(define build-deps '("at-exp-lib"
+                     "rackunit-lib"))
 
 (define pkg-desc "server-side part of \"distro-build\"")
 

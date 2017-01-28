@@ -483,7 +483,13 @@ Top keywords (recognized only in the configuration top-level):
     the default is @racket["Racket Downloads"]}
 
   @item{@racket[#:max-snapshots _number] --- number of snapshots to
-    keep, used by the @tt{snapshot-site} makefile target}
+    keep, used by the @tt{snapshot-site} makefile target; defaults to @racket[5].}
+
+  @item{@racket[#:week-count _number-or-false] ---
+   If not @racket[#f], keeps one snapshot per day for the last
+   week as well as one snapshot per week for the number of week
+   specified. If set, then @racket[#:max-snapshots] is ignored.
+   Defaults to @racket[#f].}
 
   @item{@racket[#:plt-web-style? _boolean] --- indicates whether
     @racket[plt-web] should be used to generate a site or snapshot

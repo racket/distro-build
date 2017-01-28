@@ -164,6 +164,7 @@
     [(#:site-title) (string? val)]
     [(#:pdf-doc?) (boolean? val)]
     [(#:max-snapshots) (real? val)]
+    [(#:week-and-months) (exact-positive-integer? val)]
     [(#:plt-web-style?) (boolean? val)]
     [(#:pause-before) (and (real? val) (not (negative? val)))]
     [(#:pause-after) (and (real? val) (not (negative? val)))]

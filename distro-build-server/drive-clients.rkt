@@ -187,7 +187,7 @@
      (~a "'"
          (apply ~a #:separator " " (map q l))
          "'")]
-    [(windows windows/bash)
+    [(windows windows/bash windows/cmd)
      (~a "\""
          (apply 
           ~a #:separator " " 
@@ -359,7 +359,10 @@
                      "x86_amd64")))
   (define j (or (get-opt c '#:j) 1))
   (define (cmd . args) 
-    (list "cmd" "/c" (shell-protect (apply ~a args) platform)))
+    (define command (shell-protect (apply ~a args) platform))
+    (case platform
+      [(windows/cmd) (list command)]
+      [else (list "cmd" "/c" command)]))
   (try-until-ready c host port user server-port 'windows (cmd "echo hello"))
   (ssh-script
    host port user

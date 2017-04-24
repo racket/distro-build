@@ -310,11 +310,13 @@ spaces, etc.):
     virtual machine is started and stopped on the server as needed}
 
   @item{@racket[#:platform _symbol] --- @racket['unix],
-    @racket['macosx], @racket['windows], or @racket['windows/bash]
-    (which means @racket['windows] though an SSH server providing
-    @exec{bash}, such as Cygwin's); the @racket[_symbol] names
-    the client machine's system, not the target for cross-compilation;
-    defaults to @racket[(system-type)]}
+    @racket['macosx], @racket['windows], @racket['windows/bash] (which
+    means @racket['windows] though an SSH server providing
+    @exec{bash}, such as Cygwin's), or @racket['windows/cmd] (which
+    means @racket['windows] through an SSH server that expects
+    @exec{cmd} commands); the @racket[_symbol] names the client
+    machine's system, not the target for cross-compilation; defaults
+    to @racket[(system-type)]}
 
   @item{@racket[#:configure (list _string ...)] --- arguments to
     @exec{configure}}

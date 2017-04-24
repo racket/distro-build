@@ -143,7 +143,7 @@
           your PATH environment variable.}))
 
 (define (readme-system-type config)
-  (or (hash-ref config '#:cross-platform #f)
+  (or (hash-ref config '#:target-platform #f)
       (let ([c (hash-ref config '#:cross-target #f)])
         (or (and c
                  (cond
@@ -156,6 +156,7 @@
                   [else
                    #f]))
             (let ([p (hash-ref config '#:platform (system-type))])
-              (if (eq? p 'windows/bash)
+              (if (or (eq? p 'windows/bash)
+                      (eq? p 'windows/cmd))
                   'windows
                   p))))))

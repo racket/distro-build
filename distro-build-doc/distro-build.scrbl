@@ -37,7 +37,9 @@ machine}. The server machine first prepares packages for installation
 on @deftech{client machines}. The site configuration's top-level entry
 is consulted for a @racket[#:pkgs] and/or @racket[#:doc-search]
 option, which overrides any @tt{PKGS} and/or @tt{DOC_SEARCH}
-configuration from the makefile.
+configuration from the makefile. A top-level @racket[#:test-pkgs]
+entry in the configuration is added to @racket[#:pkgs] to determine
+the packages that are prepared by the server.
 
 The site configuration file otherwise describes and configures
 client machines hierarchically, where configuration options
@@ -253,12 +255,18 @@ spaces, etc.):
     client after an installer is created, where testsing happens only
     if if a non-empty argument list is specified, if the client is not
     a source-runtime build, and if the client does not have a
-    @racket[#:cross-target] configuration; defaults to @racket['()]}
+    @racket[#:cross-target] configuration; running @exec{raco test}
+    will only work if @filepath{compiler-lib} is among the packages
+    included in the distribution or included in a @racket[#:test-pkgs]
+    configuration; defaults to @racket['()]}
 
   @item{@racket[#:test-pkgs (list _string* ...)] --- extra packages to
-    install after an installer is created and before tests are run,
-    especially @filepath{compiler-lib} to provide @exec{raco test};
-    defaults to @racket['()]}
+    install after an installer is created and before tests are run;
+    note that @filepath{compiler-lib} may be needed to provide
+    @exec{raco test} itself; the set of packages needed for all nested
+    configurations should be included in a top-level @racket[#:pkgs]
+    or @racket[#:test-pkgs] specification, so that the packages are
+    prepared for use by clients; defaults to @racket['()]}
 
   @item{@racket[#:dist-base-url _string] --- a URL that is used to
     construct a default for @racket[#:doc-search] and

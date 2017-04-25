@@ -11,10 +11,11 @@
    (config-file config-mode pkgs . flag)
    (values config-file config-mode pkgs flag)))
 
-(define pkgs (or (hash-ref (extract-options config-file config-mode)
-                           '#:pkgs
-                           #f)
-                 (string-split default-pkgs)))
+(define config (extract-options config-file config-mode))
+
+(define pkgs (append (or (hash-ref config '#:pkgs #f)
+                         (string-split default-pkgs))
+                     (hash-ref config '#:test-pkgs '())))
 
 (parameterize ([current-command-line-arguments
                 (list->vector (append (list "pkg" "install")

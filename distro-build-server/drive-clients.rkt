@@ -297,7 +297,15 @@
       " MAC_PKG_MODE=" (if mac-pkg? "--mac-pkg" (q ""))
       " TGZ_MODE=" (if tgz? "--tgz" (q ""))
       " UPLOAD=http://" server ":" server-port "/upload/"
-      " README=http://" server ":" server-port "/" (q (file-name-from-path readme))))
+      " README=http://" server ":" server-port "/" (q (file-name-from-path readme))
+      " TEST_PKGS=" (q (apply ~a #:separator " " (get-opt c '#:test-pkgs '())))
+      " TEST_ARGS_q=" (qq (get-opt c '#:test-args '()) kind)))
+
+(define (has-tests? c)
+  (and (pair? (get-opt c '#:test-args '()))
+       (not (get-opt c '#:source-runtime? (get-opt c '#:source? default-source?)))
+       (not (get-opt c '#:cross-target))))
+
 
 (define (unix-build c platform host port user server server-port repo clean? pull? readme)
   (define dir (get-path-opt c '#:dir "build/plt" #:localhost (current-directory)))
@@ -348,7 +356,14 @@
                                             (~a "--host=" cross-target))
                                       null)
                                   (get-opt c '#:configure null))
-                                 'unix))))
+                                 'unix))
+   (and (has-tests? c)
+        (sh "cd " (q dir) " ; "
+            "make test-client"
+            (client-args c server server-port 'unix readme)
+            (if need-native-racket?
+                (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)
+                "")))))
 
 (define (windows-build c platform host port user server server-port repo clean? pull? readme)
   (define dir (get-path-opt c '#:dir "build\\plt" #:localhost (current-directory)))
@@ -378,7 +393,12 @@
         " && racket\\src\\worksp\\msvcprep.bat " vc
         " && nmake win32-client" 
         " JOB_OPTIONS=\"-j " j "\""
-        (client-args c server server-port platform readme))))
+        (client-args c server server-port platform readme))
+   (and (has-tests? c)
+        (cmd "cd " (q dir)
+             " && racket\\src\\worksp\\msvcprep.bat " vc
+             " && nmake win32-test-client"
+             (client-args c server server-port platform readme)))))
 
 (define (client-build c)
   (define host (or (get-opt c '#:host)

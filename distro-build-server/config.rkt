@@ -113,6 +113,8 @@
 (define (check-group-keyword kw val)
   (case kw
     [(#:pkgs) (and (list? val) (andmap simple-string? val))]
+    [(#:test-pkgs) (and (list? val) (andmap simple-string? val))]
+    [(#:test-args) (and (list? val) (andmap string? val))]
     [(#:racket) (or (not val) (string? val))]
     [(#:cross-target) (simple-string? val)]
     [(#:doc-search) (string? val)]

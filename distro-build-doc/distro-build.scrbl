@@ -248,6 +248,18 @@ spaces, etc.):
   @item{@racket[#:pkgs (list _string* ...)] --- packages to install;
     defaults to the @tt{PKGS} makefile variable}
 
+  @item{@racket[#:test-args (list _string ...)] --- arguments to
+    @exec{raco test} as run in the installation-staging directory of a
+    client after an installer is created, where testsing happens only
+    if if a non-empty argument list is specified, if the client is not
+    a source-runtime build, and if the client does not have a
+    @racket[#:cross-target] configuration; defaults to @racket['()]}
+
+  @item{@racket[#:test-pkgs (list _string* ...)] --- extra packages to
+    install after an installer is created and before tests are run,
+    especially @filepath{compiler-lib} to provide @exec{raco test};
+    defaults to @racket['()]}
+
   @item{@racket[#:dist-base-url _string] --- a URL that is used to
     construct a default for @racket[#:doc-search] and
     @racket[#:dist-catalogs], where the constructed values are

@@ -595,3 +595,7 @@
                     start-seconds end-seconds
                     (hash-map failures (lambda (k v) (symbol->string k))))
         (display-time)))))
+
+;; exit with non-0 return code in case of any client failure
+(unless (hash-empty? failures)
+  (exit 1))

@@ -519,7 +519,8 @@ Top keywords (recognized only in the configuration top-level):
 
   @item{@racket[#:fail-on-client-failures _boolean] --- if true, failure
     on any build client causes the build server to exit with a non-zero
-    return code; the default is @racket[#f]}
+    return code; the default is @racket[#f]
+    @history[#:added "1.1"]}
 ]}
 
 

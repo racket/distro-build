@@ -2,6 +2,8 @@
 
 (define collection 'multi)
 
+(define version "1.1")
+
 (define deps '("distro-build-lib"
                "distro-build-doc"))
 (define implies '("distro-build-lib"

@@ -180,6 +180,7 @@
     [(#:smtp-connect) (memq val '(plain ssl tls))]
     [(#:smtp-user) (or (not val) (string? val))]
     [(#:smtp-password) (or (not val) (string? val))]
+    [(#:fail-on-client-failures) (boolean? val)]
     [(#:custom) (and (hash? val)
                      (for/and ([k (in-hash-keys val)])
                        (keyword? k)))]

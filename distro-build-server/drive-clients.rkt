@@ -584,8 +584,8 @@
 (display-time)
 (define end-seconds (current-seconds))
 
-(unless stop?
-  (let ([opts (merge-options (hasheq) config)])
+(let ([opts (merge-options (hasheq) config)])
+  (unless stop?
     (let ([to-email (get-opt opts '#:email-to null)])
       (unless (null? to-email)
         (printf "Sending report to ~a\n" (apply ~a to-email #:separator ", "))
@@ -594,8 +594,8 @@
                     (get-opt opts '#:build-stamp (current-stamp))
                     start-seconds end-seconds
                     (hash-map failures (lambda (k v) (symbol->string k))))
-        (display-time)))))
-
-;; exit with non-0 return code in case of any client failure
-(unless (hash-empty? failures)
-  (exit 1))
+        (display-time))))
+  (when (get-opt opts '#:fail-on-client-failures)
+    ;; exit with non-0 return code in case of any client failure
+    (unless (hash-empty? failures)
+      (exit 1))))

@@ -517,6 +517,9 @@ Top keywords (recognized only in the configuration top-level):
     @racket[plt-web] should be used to generate a site or snapshot
     page; the default is @racket[#t]}
 
+  @item{@racket[#:fail-on-client-failures _boolean] --- if true, failure
+    on any build client causes the build server to exit with a non-zero
+    return code; the default is @racket[#f]}
 ]}
 
 

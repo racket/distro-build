@@ -12,6 +12,7 @@
          make-dmg)
 
 (define hdiutil "/usr/bin/hdiutil")
+(define osascript "/usr/bin/osascript")
 (define codesign "/usr/bin/codesign")
 
 (define-runtime-path bg-image "macosx-installer/racket-rising.png")
@@ -142,7 +143,10 @@
                    (ds (->path ".bg.png") 'Iloc 'blob (iloc 900 180)) ; file is hidden, anway
                    (ds (->path "Applications") 'Iloc 'blob (iloc 500 180))
                    (ds (->path volname) 'Iloc 'blob (iloc 170 180))))
-  (system*/show hdiutil "detach" mnt)
+  ;; Using `hdiutil detach` fails for some systems:
+  ;;  (system*/show hdiutil "detach" mnt)
+  ;; So, the alternative is to have Finder eject the disk:
+  (system*/show osascript "-e" "tell application \"Finder\"" "-e" (~a "eject \"" volname "\"") "-e" "end tell")
   (when del?
     (delete-directory mnt)))
 

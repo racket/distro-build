@@ -143,10 +143,13 @@
                    (ds (->path ".bg.png") 'Iloc 'blob (iloc 900 180)) ; file is hidden, anway
                    (ds (->path "Applications") 'Iloc 'blob (iloc 500 180))
                    (ds (->path volname) 'Iloc 'blob (iloc 170 180))))
-  ;; Using `hdiutil detach` fails for some systems:
-  ;;  (system*/show hdiutil "detach" mnt)
-  ;; So, the alternative is to have Finder eject the disk:
-  (system*/show osascript "-e" "tell application \"Finder\"" "-e" (~a "eject \"" volname "\"") "-e" "end tell")
+  ;; Neither `hdiutil detach` nor using Finder to detach the disk works on all
+  ;; systems. So try one, then the other.
+  (with-handlers ([exn:fail? (lambda _ (system*/show hdiutil "detach" mnt))])
+    (system*/show osascript
+                  "-e" "tell application \"Finder\""
+                  "-e" (~a "eject \"" volname "\"")
+                  "-e" "end tell"))
   (when del?
     (delete-directory mnt)))
 

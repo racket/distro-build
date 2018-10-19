@@ -12,6 +12,8 @@
 
 (define server
   (command-line
+   #:once-each
+   [("--skip") "don't unpack" (exit 0)]
    #:args (server)
    server))
 

@@ -117,6 +117,7 @@
     [(#:test-args) (and (list? val) (andmap string? val))]
     [(#:racket) (or (not val) (string? val))]
     [(#:cross-target) (simple-string? val)]
+    [(#:variant) (or (eq? val 'cs) (eq? val '3m) (eq? val 'cgc))]
     [(#:doc-search) (string? val)]
     [(#:dist-name) (string? val)]
     [(#:dist-base) (simple-string? val)]

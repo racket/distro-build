@@ -245,6 +245,7 @@
                      (apply ~a #:separator " " l)
                      default-pkgs)))
   (define racket (get-opt c '#:racket))
+  (define variant (or (get-opt c '#:variant) '3m))
   (define doc-search (choose-doc-search c default-doc-search))
   (define dist-name (or (get-opt c '#:dist-name)
                         default-dist-name))
@@ -275,6 +276,9 @@
       (if racket
           (~a " PLAIN_RACKET=" (q racket))
           "")
+      (if (and racket (eq? variant 'cs))
+          (~a " RACKET=" (q racket))
+          "")
       " DOC_SEARCH=" (q doc-search)
       " DIST_DESC=" (q desc)
       " DIST_NAME=" (q dist-name)
@@ -294,6 +298,7 @@
       " PKG_SOURCE_MODE=" (if source-pkgs?
                               (q "--source --no-setup")
                               (q ""))
+      " UNPACK_COLLECTS_FLAGS=" (if (eq? variant 'cs) "--skip" "")
       " MAC_PKG_MODE=" (if mac-pkg? "--mac-pkg" (q ""))
       " TGZ_MODE=" (if tgz? "--tgz" (q ""))
       " UPLOAD=http://" server ":" server-port "/upload/"
@@ -319,6 +324,7 @@
                   (format "~a=~a" (car e) (cadr e)))))
      (list "/bin/sh" "-c" (apply ~a args))))
   (define j (or (get-opt c '#:j) 1))
+  (define variant (or (get-opt c '#:variant) '3m))
   (define cross-target (get-opt c '#:cross-target))
   (define given-racket (and cross-target
                             (get-opt c '#:racket)))
@@ -348,6 +354,9 @@
        (if need-native-racket?
            (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)
            "")
+       (if (eq? variant 'cs)
+           " CLIENT_BASE=cs-base RACKETCS_SUFFIX= "
+           "")
        " CONFIGURE_ARGS_qq=" (qq (append
                                   (if cross-target
                                       (list (~a "--enable-racket="
@@ -373,6 +382,7 @@
                      "x86"
                      "x86_amd64")))
   (define j (or (get-opt c '#:j) 1))
+  (define variant (or (get-opt c '#:variant) '3m))
   (define (cmd . args) 
     (define command (shell-protect (apply ~a args) platform))
     (case platform
@@ -393,6 +403,9 @@
         " && racket\\src\\worksp\\msvcprep.bat " vc
         " && nmake win32-client" 
         " JOB_OPTIONS=\"-j " j "\""
+        (if (eq? variant 'cs)
+            " CLIENT_BASE=win32-cs-base RACKETCS_SUFFIX= "
+            "")
         (client-args c server server-port platform readme))
    (and (has-tests? c)
         (cmd "cd " (q dir)

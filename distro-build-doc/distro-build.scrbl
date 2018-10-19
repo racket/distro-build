@@ -365,6 +365,10 @@ spaces, etc.):
     @racket[#f], which means that the target platform should be
     inferred from arguments such as @racket[#:cross-target]}
 
+  @item{@racket[#:variant _symbol] --- @racket['3m], @racket['cgc], or
+    @racket['cs], indicating the target build; defaults to
+    @racket['3m]}
+
   @item{@racket[#:bits _integer] --- @racket[32] or @racket[64];
     affects Visual Studio mode}
 

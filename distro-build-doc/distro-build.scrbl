@@ -247,6 +247,15 @@ spaces, etc.):
     defaults to
     @filepath{http://@nonterm{server}:@nonterm{server-port}/.git}}
 
+  @item{@racket[#:extra-repo-dir _path-string-or-false] --- a
+    server-side directory that contains additional Git repositories to
+    be served to clients, normally Chez Scheme with its submodules;
+    any subdirectory that constains a @filepath{.git} directory will
+    be prepared with @exec{git update-server-info}, and any repository
+    clones created by clients (other than the main Racket repository)
+    will use the served directory; defaults to @racket[#f], which
+    disables repository redirection on clients}
+
   @item{@racket[#:pkgs (list _string* ...)] --- packages to install;
     defaults to the @tt{PKGS} makefile variable}
 

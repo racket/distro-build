@@ -39,6 +39,19 @@
   (hash-ref (extract-options config-file config-mode)
             '#:server-port
             default-server-port))
+(define extra-repo-dir
+  (hash-ref (extract-options config-file config-mode)
+            '#:extra-repo-dir
+            #f))
+
+(when extra-repo-dir
+  (for ([d (in-directory extra-repo-dir)])
+    (define-values (base name dir) (split-path d))
+    (when (and (path? name)
+               (equal? (path->string name) ".git"))
+      (printf "Updating ~a\n" base)
+      (parameterize ([current-directory base])
+        (system "git update-server-info")))))
 
 (define build-dir (path->complete-path "build"))
 (define built-dir (build-path build-dir from-dir))
@@ -146,7 +159,10 @@
     (for/list ([d (in-list dirs)])
       (path->complete-path d))
     ;; for ".git":
-    (list (current-directory)))
+    (list (current-directory))
+    (if extra-repo-dir
+        (list extra-repo-dir)
+        null))
    #:servlet-regexp #rx""
    #:port server-port))
 

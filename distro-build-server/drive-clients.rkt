@@ -246,6 +246,7 @@
                      default-pkgs)))
   (define racket (get-opt c '#:racket))
   (define variant (or (get-opt c '#:variant) '3m))
+  (define extra-repos? (and (get-opt c '#:extra-repo-dir) #t))
   (define doc-search (choose-doc-search c default-doc-search))
   (define dist-name (or (get-opt c '#:dist-name)
                         default-dist-name))
@@ -278,6 +279,9 @@
           "")
       (if (and racket (eq? variant 'cs))
           (~a " RACKET=" (q racket))
+          "")
+      (if extra-repos?
+          (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
           "")
       " DOC_SEARCH=" (q doc-search)
       " DIST_DESC=" (q desc)

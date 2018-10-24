@@ -153,6 +153,7 @@
     [(#:timeout) (real? val)]
     [(#:j) (exact-positive-integer? val)]
     [(#:repo) (string? val)]
+    [(#:init) (or (not val) (string? val))]
     [(#:clean?) (boolean? val)]
     [(#:pull?) (boolean? val)]
     [(#:extra-repo-dir) (path-string? val)]

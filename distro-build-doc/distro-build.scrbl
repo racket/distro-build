@@ -403,6 +403,10 @@ spaces, etc.):
   @item{@racket[#:timeout _number] --- numbers of seconds to wait
     before declaring failure; defaults to 30 minutes}
 
+  @item{@racket[#:init _string-or-false] --- if non-@racket[#f], a
+    command to run on a client and before any other commands; the
+    default is @racket[#f]}
+
   @item{@racket[#:clean? _boolean] --- if true, then the build process
     on the client machine starts by removing @racket[#:dir]'s value;
     use @racket[#f] for a shared repo checkout; the default is

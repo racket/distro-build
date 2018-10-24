@@ -316,7 +316,7 @@
        (not (get-opt c '#:cross-target))))
 
 
-(define (unix-build c platform host port user server server-port repo clean? pull? readme)
+(define (unix-build c platform host port user server server-port repo init clean? pull? readme)
   (define dir (get-path-opt c '#:dir "build/plt" #:localhost (current-directory)))
   (define env (get-opt c '#:env null))
   (define (sh . args)
@@ -340,6 +340,8 @@
    host port user
    server-port
    'unix
+   (and init
+        (sh init))
    (and clean?
         (sh "rm -rf  " (q dir)))
    (sh "if [ ! -d " (q dir) " ] ; then"
@@ -378,7 +380,7 @@
                 (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)
                 "")))))
 
-(define (windows-build c platform host port user server server-port repo clean? pull? readme)
+(define (windows-build c platform host port user server server-port repo init clean? pull? readme)
   (define dir (get-path-opt c '#:dir "build\\plt" #:localhost (current-directory)))
   (define bits (or (get-opt c '#:bits) 64))
   (define vc (or (get-opt c '#:vc)
@@ -397,6 +399,8 @@
    host port user
    server-port
    platform
+   (and init
+        (cmd init))
    (and clean?
         (cmd "IF EXIST " (q dir) " rmdir /S /Q " (q dir)))
    (cmd "IF NOT EXIST " (q dir) " git clone " (q repo) " " (q dir))
@@ -429,6 +433,7 @@
                           default-server-port))
   (define repo (or (get-opt c '#:repo)
                    (~a "http://" server ":" server-port "/.git")))
+  (define init (get-opt c '#:init))
   (define clean? (get-opt c '#:clean? default-clean? #:localhost #f))
   (define pull? (get-opt c '#:pull? #t #:localhost #f))
 
@@ -467,7 +472,7 @@
    ((case platform
       [(unix macosx) unix-build]
       [else windows-build])
-    c platform host port user server server-port repo clean? pull? readme)
+    c platform host port user server server-port repo init clean? pull? readme)
 
    (delete-file readme)))
 

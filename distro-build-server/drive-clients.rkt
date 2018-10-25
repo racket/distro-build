@@ -412,7 +412,7 @@
         " && nmake win32-client" 
         " JOB_OPTIONS=\"-j " j "\""
         (if (eq? variant 'cs)
-            " CLIENT_BASE=win32-cs-base RACKETCS_SUFFIX= "
+            " WIN32_CLIENT_BASE=win32-cs-base RACKETCS_SUFFIX= "
             "")
         (client-args c server server-port platform readme))
    (and (has-tests? c)

@@ -91,11 +91,23 @@
         (define exe (build-path f "Contents" "MacOS" name))
         (when (file-exists? exe)
           ;; Move a copy of the `Racket` framework into the ".app":
-          (when (regexp-match #rx"^@executable_path/[.][.]/[.][.]/[.][.]/lib/Racket.framework/"
-                              (find-matching-library-path exe "Racket"))
+          (define lib-path (find-matching-library-path exe "Racket"))
+          (define rx #rx"^@executable_path/[.][.]/[.][.]/[.][.]/lib/Racket.framework/")
+          (when (regexp-match? rx lib-path)
+            ;; Get shared library's path after "Racket.framework":
+            (define orig-so (substring lib-path (cdar (regexp-match-positions rx lib-path))))
+            ;; Copy the shared library:
             (define so (build-path (build-path f "Contents" "MacOS" "Racket")))
-            (copy-file (build-path (build-path f 'up "lib" "Racket.framework" "Racket"))
+            (copy-file (build-path (build-path f 'up "lib" "Racket.framework" orig-so))
                        so)
+            ;; If there's a "boot" directory, make a link, because the shared
+            ;; library expects to find it adjacent:
+            (define orig-boot-dir (let-values ([(base name dir?) (split-path orig-so)])
+                                    (build-path 'up "lib" "Racket.framework" base "boot")))
+            (when (directory-exists? (build-path f orig-boot-dir))
+              (make-file-or-directory-link (build-path 'up 'up orig-boot-dir)
+                                           (build-path f "Contents" "MacOS" "boot")))
+            ;; Sign library:
             (system*/show codesign "-s" sign-identity so)
             ;; Update executable to point to the adjacent copy of "Racket"
             (update-matching-library-path exe "Racket" "@executable_path/Racket"))

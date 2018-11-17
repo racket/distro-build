@@ -363,6 +363,9 @@
        (if (eq? variant 'cs)
            " CLIENT_BASE=cs-base RACKETCS_SUFFIX= "
            "")
+       (if cross-target
+           " BUNDLE_FROM_SERVER_TARGET=bundle-cross-from-server"
+           "")
        " CONFIGURE_ARGS_qq=" (qq (append
                                   (if cross-target
                                       (list (~a "--enable-racket="

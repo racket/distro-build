@@ -28,6 +28,7 @@
 (define default-source? #f)
 (define default-versionless? #f)
 (define default-clean? #f)
+(define serving-machine-independent? #f)
 (define dry-run #f)
 
 (define snapshot-install-name "snapshot")
@@ -44,6 +45,8 @@
     (set! default-source? #t)]
    [("--versionless") "Avoid version number in names and paths"
     (set! default-versionless? #t)]
+   [("-M" "--compile-any") "Serving machine-independent bytecode"
+    (set! serving-machine-independent? #t)]
    [("--clean") "Erase client directories before building"
     (set! default-clean? #t)]
    [("--dry-run") mode
@@ -302,7 +305,10 @@
       " PKG_SOURCE_MODE=" (if source-pkgs?
                               (q "--source --no-setup")
                               (q ""))
-      " UNPACK_COLLECTS_FLAGS=" (if (eq? variant 'cs) "--skip" "")
+      " UNPACK_COLLECTS_FLAGS=" (if (and (eq? variant 'cs)
+                                         (not serving-machine-independent?))
+                                    "--skip"
+                                    "")
       " MAC_PKG_MODE=" (if mac-pkg? "--mac-pkg" (q ""))
       " TGZ_MODE=" (if tgz? "--tgz" (q ""))
       " UPLOAD=http://" server ":" server-port "/upload/"
@@ -357,6 +363,7 @@
        "make -j " j " client"
        (client-args c server server-port 'unix readme)
        " JOB_OPTIONS=\"-j " j "\""
+       " SETUP_MACHINE_FLAGS=" ; to make sure it's not propagated from an environment variable
        (if need-native-racket?
            (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)
            "")

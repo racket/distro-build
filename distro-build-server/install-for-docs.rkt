@@ -5,7 +5,8 @@
          racket/system
          compiler/find-exe
          (only-in "config.rkt" extract-options)
-         distro-build/display-time)
+         distro-build/display-time
+         "private/target-machine.rkt")
 
 (module test racket/base)
 
@@ -51,20 +52,26 @@
 (printf "Running `raco pkg install' for packages:\n")
 (for ([pkg (in-list pkgs)])
   (printf "  ~a\n" pkg))
-(unless (apply system* (find-exe) 
-               "-G" "build/docs/etc" "-l-" 
-               "raco" "pkg" "install"
-               "--pkgs"
-               "-i" "--deps" "search-auto"
-               pkgs)
+(unless (apply system* (find-exe)
+               (append
+                (target-machine-flags)
+                (list
+                 "-G" "build/docs/etc" "-l-"
+                 "raco" "pkg" "install"
+                 "--pkgs"
+                 "-i" "--deps" "search-auto")
+                pkgs))
   (error "install failed"))
 
 (when (hash-ref config '#:pdf-doc? #f)
   (display-time)
   (printf "Running `raco setup' PDF documentation:\n")
-  (unless (system* (find-exe) 
-                   "-G" "build/docs/etc" "-l-" 
-                   "raco" "setup" "--doc-pdf" "build/pdf-doc")
+  (unless (apply system* (find-exe)
+                 (append
+                  (target-machine-flags)
+                  (list
+                   "-G" "build/docs/etc" "-l-"
+                   "raco" "setup" "--doc-pdf" "build/pdf-doc")))
     (error "PDF failed")))
   
 (display-time)

@@ -4,6 +4,7 @@
          racket/string
          racket/system
          compiler/find-exe
+         setup/dirs
          (only-in "config.rkt" extract-options)
          distro-build/display-time
          "private/target-machine.rkt")
@@ -47,6 +48,13 @@
  (lambda (o)
    (write ht o)
    (newline o)))
+
+;; For -MCR builds to work right, we need "system.rktd" with
+;; its mapping of 'target-machine to #f:
+(define system.rktd (build-path (find-lib-dir) "system.rktd"))
+(when (file-exists? system.rktd)
+  (make-directory* (build-path dir "lib"))
+  (copy-file system.rktd (build-path dir "lib" "system.rktd")))
 
 (display-time)
 (printf "Running `raco pkg install' for packages:\n")

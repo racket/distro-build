@@ -290,7 +290,7 @@
                                           (pack-base64-strings osslsigncode-args)
                                           ""))
       (if (pair? installer-post-process)
-          (~a " INSTALLER_POST_PROCESS=" (q (pack-base64-strings installer-post-process)))
+          (~a " INSTALLER_POST_PROCESS_BASE64=" (q (pack-base64-strings installer-post-process)))
           "")
       " INSTALL_NAME=" (q install-name)
       " BUILD_STAMP=" (q build-stamp)

@@ -394,7 +394,22 @@ spaces, etc.):
   @item{@racket[#:osslsigncode-args (list _string ...)] --- provides
     arguments for signing a Windows executable using
     @exec{osslsigncode}, where @Flag{n}, @Flag{t}, @Flag{in}, and
-    @Flag{-out} arguments are supplied automatically.}
+    @Flag{-out} arguments are supplied automatically}
+
+  @item{@racket[#:client-installer-post-process (list _string ...)]
+    --- an executable path followed by initial arguments; the executable
+    is run with the installer path added as an additional argument before
+    an installer file is uploaded from the client; the default is an empty list,
+    which disable the post-processing action
+    @history[#:added "1.2"]}
+
+  @item{@racket[#:server-installer-post-process (list _path-string ...)]
+    --- an executable path followed by initial arguments; the executable
+    is run with the installer path added as an additional argument when
+    creating a download site for an installer file on the server machine; the
+    default is an empty list, which disable the post-processing action
+    for the installer
+    @history[#:added "1.2"]}
 
   @item{@racket[#:j _integer] --- parallelism for @tt{make} on Unix
     and Mac OS and for @exec{raco setup} on all platforms; defaults

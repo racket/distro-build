@@ -1,10 +1,11 @@
 #lang racket/base
 (require racket/cmdline
          racket/file
+         racket/system
          net/url
          "download-page.rkt"
          "indexes.rkt"
-         (only-in distro-build/config extract-options)
+         (only-in distro-build/config extract-options+post-processes)
          (only-in plt-web site))
 
 (module test racket/base)
@@ -29,7 +30,8 @@
    (config-file config-mode)
    (values config-file config-mode)))
 
-(define config (extract-options config-file config-mode))
+(define-values (config post-processes)
+  (extract-options+post-processes config-file config-mode))
 
 (define dest-dir (hash-ref config
                            '#:site-dest
@@ -115,6 +117,17 @@
 (copy installers-dir)
 (generate-index-html dest-dir installers-dir www-site)
 
+(define installers-table-path
+  (build-path build-dir
+              installers-dir
+              "table.rktd"))
+(unless (zero? (hash-count post-processes))
+  (define installers-table (get-installers-table installers-table-path))
+  (for ([(name installer) (in-hash installers-table)])
+    (define post-process (hash-ref post-processes name #f))
+    (when post-process
+      (apply system* (append post-process (list installer))))))
+
 (define doc-path (build-path docs-dir doc-dir))
 (when (directory-exists? doc-path)
   (copy doc-dir docs-dir))
@@ -125,9 +138,7 @@
 (copy "stamp.txt")
 (copy (build-path "origin" "collects.tgz"))
 
-(make-download-page (build-path build-dir
-                                installers-dir
-                                "table.rktd")
+(make-download-page installers-table-path
                     #:plt-www-site www-site
                     #:title site-title
                     #:installers-url "installers/"

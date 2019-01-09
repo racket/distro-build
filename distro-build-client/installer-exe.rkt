@@ -148,8 +148,7 @@ InstallDir "${RKTProgFiles}\${RKTDirName}"
 VIProductVersion "${RKTVersionLong}"
 VIAddVersionKey "ProductName" "Racket"
 VIAddVersionKey "Comments" "This is the Racket language, see https://racket-lang.org/."
-VIAddVersionKey "CompanyName" "PLT Design Inc."
-VIAddVersionKey "LegalCopyright" "© PLT Design Inc."
+VIAddVersionKey "CompanyName" "Racket"
 VIAddVersionKey "FileDescription" "Racket Installer"
 VIAddVersionKey "FileVersion" "${RKTVersion}"
 
@@ -312,7 +311,7 @@ Section ""
       ; used to also have "VersionMajor" & "VersionMinor" but looks like it's not needed
       WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "HelpLink" "https://racket-lang.org/"
       WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "URLInfoAbout" "https://racket-lang.org/"
-      WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "Publisher" "PLT Design Inc."
+      WriteRegStr       HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "Publisher" "Racket"
       WriteRegDWORD     HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "NoModify" "1"
       WriteRegDWORD     HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RKTRegName}" "NoRepair" "1"
   !endif

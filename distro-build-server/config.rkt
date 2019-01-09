@@ -16,7 +16,9 @@
          site-config-content
          current-mode
          current-stamp
-         extract-options)
+         extract-options
+         extract-options+post-processes
+         merge-options)
 
 (module reader syntax/module-reader
   distro-build/config)
@@ -150,6 +152,8 @@
     [(#:vc) (string? val)]
     [(#:sign-identity) (string? val)]
     [(#:osslsigncode-args) (and (list? val) (andmap string? val))]
+    [(#:client-installer-post-process) (and (list? val) (andmap string? val))]
+    [(#:server-installer-post-process) (and (list? val) (andmap path-string? val))]
     [(#:timeout) (real? val)]
     [(#:j) (exact-positive-integer? val)]
     [(#:repo) (string? val)]
@@ -218,7 +222,37 @@
           s
           "now"))))
 
+;; Returns a hash of global options
 (define (extract-options config-file config-mode)
   (parameterize ([current-mode config-mode])
     (site-config-options 
      (dynamic-require (path->complete-path config-file) 'site-config))))
+
+;; Returns global options plus a hash mapping names to post-processing
+;; executables
+(define (extract-options+post-processes config-file config-mode)
+  (parameterize ([current-mode config-mode])
+    (define config
+      (dynamic-require (path->complete-path config-file) 'site-config))
+    (values (site-config-options config)
+            (let loop ([config config] [pre-opts (hasheq)] [ht (hash)])
+              (define opts (merge-options pre-opts config))
+              (case (site-config-tag config)
+                [(parallel sequential)
+                 (for/fold ([ht ht]) ([c (in-list (site-config-content config))])
+                   (loop c opts ht))]
+                [else
+                 (define post-process (hash-ref opts '#:server-installer-post-process #f))
+                 (if post-process
+                     (hash-set ht (hash-ref opts '#:name) post-process)
+                     ht)])))))
+
+(define (merge-options opts c)
+  (for/fold ([opts opts]) ([(k v) (in-hash (site-config-options c))])
+    (if (eq? k '#:custom)
+        (hash-set opts
+                  '#:custom
+                  (let ([prev (hash-ref opts '#:custom (hash))])
+                    (for/fold ([prev prev]) ([(k2 v2) (in-hash v)])
+                      (hash-set prev k2 v2))))
+        (hash-set opts k v))))

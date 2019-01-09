@@ -11,6 +11,7 @@
                   current-mode
                   site-config?
                   site-config-tag site-config-options site-config-content
+                  merge-options
                   current-stamp)
          distro-build/url-options
          distro-build/display-time
@@ -71,16 +72,6 @@
          config))
 
 ;; ----------------------------------------
-
-(define (merge-options opts c)
-  (for/fold ([opts opts]) ([(k v) (in-hash (site-config-options c))])
-    (if (eq? k '#:custom)
-        (hash-set opts
-                  '#:custom
-                  (let ([prev (hash-ref opts '#:custom (hash))])
-                    (for/fold ([prev prev]) ([(k2 v2) (in-hash v)])
-                      (hash-set prev k2 v2))))
-        (hash-set opts k v))))
 
 (define (get-opt opts kw [default #f] #:localhost [localhost-default default])
   (hash-ref opts kw (lambda ()
@@ -237,7 +228,7 @@
                       "\"\\&\\&\"")]
     [else s]))
 
-(define (pack-base64-arguments args)
+(define (pack-base64-strings args)
   (bytes->string/utf-8 (base64-encode (string->bytes/utf-8 (format "~s" args))
                                       #"")))
 
@@ -260,6 +251,7 @@
   (define dist-suffix (get-opt c '#:dist-suffix ""))
   (define dist-catalogs (choose-catalogs c '("")))
   (define sign-identity (get-opt c '#:sign-identity ""))
+  (define installer-post-process (get-opt c '#:client-installer-post-process '()))
   (define osslsigncode-args (get-opt c '#:osslsigncode-args))
   (define release? (get-opt c '#:release? default-release?))
   (define source? (get-opt c '#:source? default-source?))
@@ -295,8 +287,11 @@
       " DIST_CATALOGS_q=" (qq dist-catalogs kind)
       " SIGN_IDENTITY=" (q sign-identity)
       " OSSLSIGNCODE_ARGS_BASE64=" (q (if osslsigncode-args
-                                          (pack-base64-arguments osslsigncode-args)
+                                          (pack-base64-strings osslsigncode-args)
                                           ""))
+      (if (pair? installer-post-process)
+          (~a " INSTALLER_POST_PROCESS=" (q (pack-base64-strings installer-post-process)))
+          "")
       " INSTALL_NAME=" (q install-name)
       " BUILD_STAMP=" (q build-stamp)
       " RELEASE_MODE=" (if release? "--release" (q ""))

@@ -9,6 +9,7 @@
          racket/file
          racket/path
          racket/port
+         racket/system
          net/base64
          setup/cross-system
          "display-time.rkt")
@@ -23,6 +24,7 @@
 (define upload-to #f)
 (define upload-desc "")
 (define download-readme #f)
+(define post-process-cmd #f)
 
 (define-values (short-human-name human-name base-name dir-name dist-suffix 
                                  sign-identity osslsigncode-args-base64)
@@ -46,6 +48,9 @@
    [("--readme") readme "URL for README.txt to include"
     (unless (string=? readme "")
       (set! download-readme readme))]
+   [("--post-process") cmd-as-base64 "Program plus arguments to run on the installer before uploading"
+    (unless (string=? cmd-as-base64 "")
+      (set! post-process-cmd cmd-as-base64))]
    #:args
    (human-name base-name dir-name dist-suffix sign-identity osslsigncode-args-base64)
    (values human-name
@@ -73,13 +78,13 @@
           (port->string i)
           (close-input-port i)))))
 
-(define (unpack-base64-arguments str)
+(define (unpack-base64-strings str)
   (define p (open-input-bytes (base64-decode (string->bytes/utf-8 str))))
   (define l (read p))
   (unless (and (list? l)
                (andmap string? l)
                (eof-object? (read p)))
-    (error 'unpack-base64-arguments
+    (error 'unpack-base64-strings
            "encoded arguments didn't decode and `read` as a list of strings: ~e" str))
   l)
 
@@ -102,10 +107,14 @@
         [(windows)
          (define osslsigncode-args
            (and (not (equal? osslsigncode-args-base64 ""))
-                (unpack-base64-arguments osslsigncode-args-base64)))
+                (unpack-base64-strings osslsigncode-args-base64)))
          (installer-exe short-human-name base-name (or release? versionless?)
                         dist-suffix readme
                         osslsigncode-args)])))
+
+(when post-process-cmd
+  (apply system* (append (unpack-base64-strings post-process-cmd)
+                         (list installer-file))))
 
 (call-with-output-file*
  (build-path "bundle" "installer.txt")

@@ -126,7 +126,9 @@
   (for ([(name installer) (in-hash installers-table)])
     (define post-process (hash-ref post-processes name #f))
     (when post-process
-      (apply system* (append post-process (list installer))))))
+      (define args (append post-process (list installer)))
+      (unless (apply system* args)
+        (error 'post-process "failed for ~s" args)))))
 
 (define doc-path (build-path docs-dir doc-dir))
 (when (directory-exists? doc-path)

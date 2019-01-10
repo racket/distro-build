@@ -113,8 +113,10 @@
                         osslsigncode-args)])))
 
 (when post-process-cmd
-  (apply system* (append (unpack-base64-strings post-process-cmd)
-                         (list installer-file))))
+  (define args (append (unpack-base64-strings post-process-cmd)
+                       (list installer-file)))
+  (unless (apply system* args)
+    (error 'post-process "failed for ~s" args)))
 
 (call-with-output-file*
  (build-path "bundle" "installer.txt")

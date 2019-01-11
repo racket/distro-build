@@ -118,7 +118,7 @@
 (generate-index-html dest-dir installers-dir www-site)
 
 (define installers-table-path
-  (build-path build-dir
+  (build-path dest-dir
               installers-dir
               "table.rktd"))
 (unless (zero? (hash-count post-processes))
@@ -126,7 +126,7 @@
   (for ([(name installer) (in-hash installers-table)])
     (define post-process (hash-ref post-processes name #f))
     (when post-process
-      (define args (append post-process (list installer)))
+      (define args (append post-process (list (build-path dest-dir installers-dir installer))))
       (unless (apply system* args)
         (error 'post-process "failed for ~s" args)))))
 

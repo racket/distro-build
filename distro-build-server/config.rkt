@@ -242,8 +242,8 @@
                  (for/fold ([ht ht]) ([c (in-list (site-config-content config))])
                    (loop c opts ht))]
                 [else
-                 (define post-process (hash-ref opts '#:server-installer-post-process #f))
-                 (if post-process
+                 (define post-process (hash-ref opts '#:server-installer-post-process '()))
+                 (if (pair? post-process)
                      (hash-set ht (hash-ref opts '#:name) post-process)
                      ht)])))))
 

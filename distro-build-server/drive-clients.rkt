@@ -154,7 +154,15 @@
     (or (not cmd)
         (if (and (equal? host "localhost")
                  (not user))
-            (apply system*/show cmd)
+            ;; Run client locally:
+            (parameterize ([current-environment-variables
+                            (environment-variables-copy (current-environment-variables))])
+              ;; Prevent any makefile variables from the server setup
+              ;; from being propagated to the client build:
+              (environment-variables-set! (current-environment-variables) #"MAKEFLAGS" #f)
+              ;; Run client in a shell:
+              (apply system*/show cmd))
+            ;; Run client remotely:
             (apply system*/show ssh 
                    "-p" (~a port)
                    ;; create tunnel to connect back to server:
@@ -240,6 +248,9 @@
                      default-pkgs)))
   (define racket (get-opt c '#:racket))
   (define variant (or (get-opt c '#:variant) '3m))
+  (define cs? (eq? variant 'cs))
+  (define scheme (and cs?
+                      (get-opt c '#:scheme)))
   (define extra-repos? (and (get-opt c '#:extra-repo-dir) #t))
   (define doc-search (choose-doc-search c default-doc-search))
   (define dist-name (or (get-opt c '#:dist-name)
@@ -272,8 +283,11 @@
       (if racket
           (~a " PLAIN_RACKET=" (q racket))
           "")
-      (if (and racket (eq? variant 'cs))
+      (if (and racket cs?)
           (~a " RACKET=" (q racket))
+          "")
+      (if scheme
+          (~a " SCHEME_SRC=" (q scheme))
           "")
       (if extra-repos?
           (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
@@ -300,7 +314,7 @@
       " PKG_SOURCE_MODE=" (if source-pkgs?
                               (q "--source --no-setup")
                               (q ""))
-      " UNPACK_COLLECTS_FLAGS=" (if (and (eq? variant 'cs)
+      " UNPACK_COLLECTS_FLAGS=" (if (and cs?
                                          (not serving-machine-independent?))
                                     "--skip"
                                     "")
@@ -314,8 +328,14 @@
 (define (has-tests? c)
   (and (pair? (get-opt c '#:test-args '()))
        (not (get-opt c '#:source-runtime? (get-opt c '#:source? default-source?)))
-       (not (get-opt c '#:cross-target))))
+       (not (or (get-opt c '#:cross-target)
+                (get-opt c '#:cross-target-machine)))))
 
+(define (infer-machine target)
+  (case target
+    [("x86_64-w64-mingw32") "ta6nt"]
+    [("i686-w64-mingw32") "ti3nt"]
+    [else #f]))
 
 (define (unix-build c platform host port user server server-port repo init clean? pull? readme)
   (define dir (get-path-opt c '#:dir "build/plt" #:localhost (current-directory)))
@@ -330,12 +350,22 @@
      (list "/bin/sh" "-c" (apply ~a args))))
   (define j (or (get-opt c '#:j) 1))
   (define variant (or (get-opt c '#:variant) '3m))
+  (define cs? (eq? variant 'cs))
   (define cross-target (get-opt c '#:cross-target))
-  (define given-racket (and cross-target
+  (define cross-target-machine (and cs?
+                                    (or (get-opt c '#:cross-target-machine)
+                                        (and cross-target
+                                             (infer-machine cross-target)))))
+  (define cross? (or cross-target cross-target-machine))
+  (define given-racket (and cross?
                             (get-opt c '#:racket)))
-  (define need-native-racket? (and cross-target
+  (define scheme (and cs?
+                      (get-opt c '#:scheme)))
+  (define need-native-racket? (and cross?
                                    (not given-racket)))
-  (define built-native-racket "cross/racket/racket3m") ; relative to build directory
+  (define built-native-racket
+    ;; relative to build directory
+    (if cs? "cross/cs/c/racketcs" "cross/racket/racket3m"))
   (try-until-ready c host port user server-port 'unix (sh "echo hello"))
   (ssh-script
    host port user
@@ -353,27 +383,48 @@
             "git pull"))
    (and need-native-racket?
         (sh "cd " (q dir) " ; "
-            "make -j " j " native-for-cross"))
+            "make -j " j " native-" (if cs? "cs-" "") "for-cross"
+            (if scheme
+                (~a " SCHEME_SRC=" (q scheme))
+                "")))
    (sh "cd " (q dir) " ; "
        "make -j " j " client"
        (client-args c server server-port 'unix readme)
        " JOB_OPTIONS=\"-j " j "\""
        " SETUP_MACHINE_FLAGS=" ; to make sure it's not propagated from an environment variable
        (if need-native-racket?
-           (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)
+           (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket
+               (if cs?
+                   (~a " RACKET=`pwd`/racket/src/build/" built-native-racket
+                       (if scheme
+                           ""
+                           " SCHEME_SRC=`pwd`/racket/src/build/cross/ChezScheme"))
+                   ""))
            "")
-       (if (eq? variant 'cs)
+       (if cs?
            " CLIENT_BASE=cs-base RACKETCS_SUFFIX= "
            "")
-       (if cross-target
+       (if cross?
            " BUNDLE_FROM_SERVER_TARGET=bundle-cross-from-server"
+           "")
+       (if (and cross? cs?)
+           " CS_CROSS_SUFFIX=-cross"
+           "")
+       (if cross-target-machine
+           (~a " SETUP_MACHINE_FLAGS=\"--cross-compiler " cross-target-machine
+               " `pwd`/racket/src/build/cs/c/ -MCR `pwd`/build/zo:\"")
            "")
        " CONFIGURE_ARGS_qq=" (qq (append
                                   (if cross-target
+                                      (list (~a "--host=" cross-target))
+                                      null)
+                                  (if cross?
                                       (list (~a "--enable-racket="
                                                 (or given-racket
-                                                    (~a "`pwd`/" built-native-racket)))
-                                            (~a "--host=" cross-target))
+                                                    (~a "`pwd`/" built-native-racket))))
+                                      null)
+                                  (if (and cs? scheme)
+                                      (list (~a "--enable-scheme=" scheme))
                                       null)
                                   (get-opt c '#:configure null))
                                  'unix))

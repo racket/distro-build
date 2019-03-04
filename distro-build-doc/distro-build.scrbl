@@ -41,6 +41,11 @@ configuration from the makefile. A top-level @racket[#:test-pkgs]
 entry in the configuration is added to @racket[#:pkgs] to determine
 the packages that are prepared by the server.
 
+When building installers that include the @racket['cs] variant,
+@tt{make installer SETUP_MACHINE_FLAGS=-M} is recommended, because it
+prepares the packages in a machine-independent format that can be
+quickly recompiled on clients.
+
 The site configuration file otherwise describes and configures
 client machines hierarchically, where configuration options
 propagate down the hierarchy when they are not overridden more
@@ -264,7 +269,8 @@ spaces, etc.):
     client after an installer is created, where testsing happens only
     if if a non-empty argument list is specified, if the client is not
     a source-runtime build, and if the client does not have a
-    @racket[#:cross-target] configuration; running @exec{raco test}
+    @racket[#:cross-target] or @racket[#:cross-target-machine]
+    configuration; running @exec{raco test}
     will only work if @filepath{compiler-lib} is among the packages
     included in the distribution or included in a @racket[#:test-pkgs]
     configuration; defaults to @racket['()]}
@@ -356,16 +362,38 @@ spaces, etc.):
     addition, if no @racket[#:racket] value is provided, a native
     @exec{racket} executable for the client machine is created (by
     using @exec{configure} with no arguments) and used for
-    cross-compilation in the same way as a @racket[#:racket] value}
+    cross-compilation in the same way as a @racket[#:racket] value;
+    note that cross-compilation for the @racket['cs] variant may also
+    also requires a @racket[#:cross-target-machine] specification,
+    although it is inferred from @racket[#:cross-target] if possible}
+
+  @item{@racket[#:cross-target-machine _string*] --- similar to
+    @racket[#:cross-target], but used only for @racket[#:variant 'cs],
+    and specifies the target machine for cross-compilation ofa
+    as a string like @racket["ta6nt"]; use both
+    @racket[#:cross-target-machine] and @racket[#:cross-target] unless
+    the former can be inferred from the latter or unless options in
+    @racket[#:configure] instead of @racket[#:cross-target] select the
+    cross-build target
+    @history[#:added "1.3"]}
 
   @item{@racket[#:racket _string-or-false] --- an absolute path to a
     native Racket executable to use for compilation, especially
     cross-compilation; if the value is @racket[#f], then the Racket
     executable generated for the client machine is used to prepare the
     installer, or a client-native executable is generated
-    automatically if @racket[#:cross-target] is specified; a
-    non-@racket[#f] value for @racket[#:racket] is propagated to
-    @racket[#:configure] via @DFlag{enable-racket}}
+    automatically if @racket[#:cross-target] or
+    @racket[#:cross-target-machine] is specified; a non-@racket[#f]
+    value for @racket[#:racket] is propagated to @racket[#:configure]
+    via @DFlag{enable-racket}}
+
+  @item{@racket[#:scheme _string-or-false] --- an absolute path to a
+    directory containing Chez Scheme sources, used only for
+    @racket[#:variant 'cs]; if the value is @racket[#f], then a build
+    directory is created by cloning a Chez Scheme Git repository; a
+    non-@racket[#f] value for @racket[#:scheme] is propagated to
+    @racket[#:configure] via @DFlag{enable-scheme}
+    @history[#:added "1.3"]}
 
   @item{@racket[#:target-platform _symbol] --- @racket['unix],
     @racket['macosx], or @racket['windows], or @racket[#f], indicating
@@ -537,13 +565,14 @@ Top keywords (recognized only in the configuration top-level):
     the default is @racket["Racket Downloads"]}
 
   @item{@racket[#:max-snapshots _number] --- number of snapshots to
-    keep, used by the @tt{snapshot-site} makefile target; defaults to @racket[5].}
+    keep, used by the @tt{snapshot-site} makefile target; defaults
+    to @racket[5]}
 
   @item{@racket[#:week-count _number-or-false] ---
-   If not @racket[#f], keeps one snapshot per day for the last
+   if not @racket[#f], keeps one snapshot per day for the last
    week as well as one snapshot per week for the number of week
-   specified. If set, then @racket[#:max-snapshots] is ignored.
-   Defaults to @racket[#f].}
+   specified; if set, then @racket[#:max-snapshots] is ignored;
+   defaults to @racket[#f]}
 
   @item{@racket[#:plt-web-style? _boolean] --- indicates whether
     @racket[plt-web] should be used to generate a site or snapshot

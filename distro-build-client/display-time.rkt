@@ -8,4 +8,5 @@
   (printf "[~a] The time is now ~a\n" 
           (parameterize ([date-display-format 'iso-8601])
             (date->string now #t))
-          (date->string now #t)))
+          (date->string now #t))
+  (flush-output))

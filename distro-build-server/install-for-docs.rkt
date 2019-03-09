@@ -62,10 +62,10 @@
   (printf "  ~a\n" pkg))
 (unless (apply system* (find-exe)
                (append
+                (list "-G" "build/docs/etc")
                 (target-machine-flags)
                 (list
-                 "-G" "build/docs/etc" "-l-"
-                 "raco" "pkg" "install"
+                 "-l-" "raco" "pkg" "install"
                  "--pkgs"
                  "-i" "--deps" "search-auto")
                 pkgs))
@@ -76,10 +76,11 @@
   (printf "Running `raco setup' PDF documentation:\n")
   (unless (apply system* (find-exe)
                  (append
+                  (list "-G" "build/docs/etc")
                   (target-machine-flags)
                   (list
-                   "-G" "build/docs/etc" "-l-"
-                   "raco" "setup" "--doc-pdf" "build/pdf-doc")))
+                   "-l-" "raco" "setup"
+                   "--doc-pdf" "build/pdf-doc")))
     (error "PDF failed")))
   
 (display-time)

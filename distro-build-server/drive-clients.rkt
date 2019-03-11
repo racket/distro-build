@@ -391,7 +391,6 @@
        "make -j " j " client"
        (client-args c server server-port 'unix readme)
        " JOB_OPTIONS=\"-j " j "\""
-       " SETUP_MACHINE_FLAGS=" ; to make sure it's not propagated from an environment variable
        (if need-native-racket?
            (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket
                (if cs?

@@ -67,7 +67,8 @@
                 (list
                  "-l-" "raco" "pkg" "install"
                  "--pkgs"
-                 "-i" "--deps" "search-auto")
+                 "-i" "--deps" "search-auto"
+                 "--recompile-only")
                 pkgs))
   (error "install failed"))
 
@@ -80,6 +81,7 @@
                   (target-machine-flags)
                   (list
                    "-l-" "raco" "setup"
+                   "--recompile-only"
                    "--doc-pdf" "build/pdf-doc")))
     (error "PDF failed")))
   

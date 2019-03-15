@@ -93,6 +93,7 @@ BrandingText "${RKTHumanName}"
 BGGradient off
 
 SetCompressor /SOLID "LZMA"
+CPU @(if (equal? winplatform "x86_64") "amd64" "x86")
 
 InstallDir "${RKTProgFiles}\${RKTDirName}"
 !ifndef SimpleInstaller

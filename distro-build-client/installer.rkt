@@ -73,6 +73,7 @@
   (and download-readme
        (let ()
          (printf "Downloading ~a\n" download-readme)
+         (flush-output)
          (define i (get-pure-port (string->url download-readme)))
          (begin0
           (port->string i)
@@ -127,6 +128,7 @@
 
 (when upload-to
   (printf "Upload ~a to ~a\n" installer-file upload-to)
+  (flush-output)
   (define i
     (put-pure-port
      (string->url (format "~a~a"

@@ -52,10 +52,12 @@
     (set! default-clean? #t)]
    [("--dry-run") mode
     ("Don't actually use the clients;"
-     " <mode> can be `ok', `fail', `error', `stuck', or `frozen'")
+     " <mode> can be `ok`, `fail`, `error`, `stuck`, or `frozen`")
     (unless (member mode '("ok" "fail" "error" "stuck" "frozen"))
       (raise-user-error 'drive-clients "bad dry-run mode: ~a" mode))
     (set! dry-run (string->symbol mode))]
+   [("--describe") "Similar to `--dry-run`, but shows more details"
+    (set! dry-run 'describe)]
    #:args (config-file config-mode 
                        server server-port server-hosts pkgs doc-search
                        dist-name dist-base dist-dir)
@@ -131,16 +133,101 @@
 
 ;; ----------------------------------------
 
+(define describe-indent (make-parameter ""))
+(define (next-describe-indent)
+  (string-append (describe-indent) "   "))
+
+(define (describe desc)
+  (when (eq? dry-run 'describe)
+    (printf "~a---- ~a ----\n"
+            (describe-indent)
+            desc)))
+
+(define describe-both-keys
+  '(#:pkgs
+    #:test-pkgs
+    #:test-args))
+
+(define describe-top-keys
+  '(#:doc-search
+    #:dist-base-url
+    #:server-hosts
+    #:extra-repo-dir
+    #:site-dest
+    #:site-help
+    #:site-title
+    #:pdf-doc?
+    #:max-snapshots
+    #:week-count
+    #:plt-web-style?
+    #:email-to
+    #:email-from
+    #:smtp-server
+    #:smtp-port
+    #:smtp-connect
+    #:smtp-user
+    #:smtp-password
+    #:fail-on-client-failures
+    #:custom))
+
+(define describe-never-keys
+  '(#:name))
+
+(define (describe-config c #:show-top? [show-top? #f])
+  (when (eq? dry-run 'describe)
+    (for ([k (in-list (sort (hash-keys c) keyword<?))])
+      (define top? (and (memq k describe-top-keys) #t))
+      (when (and (or (eq? top? show-top?)
+                     (memq k describe-both-keys))
+                 (not (memq k describe-never-keys)))
+        (printf "~a~a: ~v\n"
+                (describe-indent)
+                (keyword->string k)
+                (hash-ref c k))))))
+
+(define (displayln/wrap-for-describe s)
+  (cond
+    [(eq? dry-run 'describe)
+     (define w (max 20 (- 72 (string-length (describe-indent)))))
+     (cond
+       [((string-length s) . <= . w)
+        (display (describe-indent))
+        (displayln s)]
+       [else
+        (let loop ([i w])
+          (cond
+            [(zero? i)
+             (let loop ([i w])
+               (cond
+                 [(= i (string-length s))
+                  (display (describe-indent))
+                  (displayln s)]
+                 [(eqv? #\space (string-ref s i))
+                  (displayln/wrap-for-describe (substring s 0 i))
+                  (displayln/wrap-for-describe (substring s i))]
+                 [else (loop (add1 i))]))]
+            [(eqv? #\space (string-ref s i))
+             (displayln/wrap-for-describe (substring s 0 i))
+             (displayln/wrap-for-describe (substring s i))]
+            [else (loop (sub1 i))]))])]
+    [else
+     (displayln s)]))
+
+;; ----------------------------------------
+
 (define scp (find-executable-path "scp"))
 (define ssh (find-executable-path "ssh"))
 
 (define (system*/show exe . args)
-  (displayln (apply ~a #:separator " " 
-                    (map (lambda (p) (if (path? p) (path->string p) p)) 
-                         (cons exe args))))
+  (displayln/wrap-for-describe
+   (apply ~a #:separator " "
+          (append
+           (if (eq? dry-run 'describe) '("exec:") '())
+           (map (lambda (p) (if (path? p) (path->string p) p)) 
+                (cons exe args)))))
   (flush-output)
   (case dry-run
-    [(ok) #t]
+    [(ok describe) #t]
     [(fail) #f]
     [(error) (error "error")]
     [(stuck) (semaphore-wait (make-semaphore))]
@@ -150,7 +237,9 @@
 
 (define (ssh-script host port user server-port kind . cmds)
   (for/and ([cmd (in-list cmds)])
-    (when cmd (display-time))
+    (when cmd
+      (unless (eq? dry-run 'describe)
+        (display-time)))
     (or (not cmd)
         (if (and (equal? host "localhost")
                  (not user))
@@ -477,6 +566,8 @@
              (client-args c server server-port platform readme)))))
 
 (define (client-build c)
+  (describe (client-name c))
+  (describe-config c)
   (define host (or (get-opt c '#:host)
                    "localhost"))
   (define port (or (get-opt c '#:port)
@@ -506,19 +597,25 @@
                                                '#:build-stamp (if (get-opt c '#:release? default-release?)
                                                                   ""
                                                                   (current-stamp)))))))
-  (make-directory* (build-path "build" "readmes"))
-  (define readme (make-temporary-file
-                  "README-~a"
-                  #f
-                  (build-path "build" "readmes")))
-  (call-with-output-file*
-   readme
-   #:exists 'truncate
-   (lambda (o)
-     (display readme-txt o)
-     (unless (regexp-match #rx"\n$" readme-txt)
-       ;; ensure a newline at the end:
-       (newline o))))
+  (define readme
+    (cond
+      [(eq? dry-run 'describe)
+       "readme"]
+      [else
+       (make-directory* (build-path "build" "readmes"))
+       (define readme (make-temporary-file
+                       "README-~a"
+                       #f
+                       (build-path "build" "readmes")))
+       (call-with-output-file*
+        readme
+        #:exists 'truncate
+        (lambda (o)
+          (display readme-txt o)
+          (unless (regexp-match #rx"\n$" readme-txt)
+            ;; ensure a newline at the end:
+            (newline o))))
+       readme]))
 
   (define platform (or (get-opt c '#:platform) (system-type)))
 
@@ -529,7 +626,8 @@
       [else windows-build])
     c platform host port user server server-port repo init clean? pull? readme)
 
-   (delete-file readme)))
+   (unless (eq? dry-run 'describe)
+     (delete-file readme))))
 
 ;; ----------------------------------------
 
@@ -608,71 +706,100 @@
 ;; ----------------------------------------
 
 (define start-seconds (current-seconds))
-(display-time)
+(unless (eq? dry-run 'describe)
+  (display-time))
+
+(define (build-thread thunk)
+  (if (eq? dry-run 'describe)
+      (begin
+        (thunk) ; run thunk sequentially
+        (thread void))
+      (thread thunk)))
+
+(when (eq? dry-run 'describe)
+  (describe "Top")
+  (describe-config (merge-options #hasheq() config) #:show-top? #t))
 
 (void
  (sync
   (let loop ([config config]
              [all-seq? #t] ; Ctl-C handling is better if nothing is in parallel
+             [in-seq? #t]  ; prettier describe
              [opts (hasheq)])
     (cond
-     [stop? (thread void)]
+     [stop? (build-thread void)]
      [else
       (case (site-config-tag config)
         [(parallel)
+         (describe "PARALLEL")
          (define new-opts (merge-options opts config))
          (define ts
-           (map (lambda (c) (loop c #f new-opts))
-                (get-content config)))
-         (thread
+           (parameterize ([describe-indent (next-describe-indent)])
+             (map (lambda (c) (loop c #f #f new-opts))
+                  (get-content config))))
+         (build-thread
           (lambda ()
             (for ([t (in-list ts)])
               (sync t))))]
         [(sequential)
+         (define content (get-content config))
+         (define nest? (not (or in-seq? ((length content) . <= . 1))))
+         (define now-in-seq? (or in-seq? nest?))
+         (when nest? (describe "SEQUENTIAL"))
          (define new-opts (merge-options opts config))
          (define (go)
-           (for-each (lambda (c) (sync (loop c all-seq? new-opts)))
-                     (get-content config)))
-         (if all-seq?
-             (begin (go) (thread void))
-             (thread go))]
-        [else 
+           (for-each (lambda (c) (sync (loop c all-seq? now-in-seq? new-opts)))
+                     content))
+         (parameterize ([describe-indent (if nest?
+                                             (next-describe-indent)
+                                             (describe-indent))])
+           (if all-seq?
+               (begin (go) (build-thread void))
+               (build-thread go)))]
+        [else
          (define c (merge-options opts config))
-         (client-thread
-          c
-          all-seq?
-          (lambda (shutdown report-fail)
-            (limit-and-report-failure
-             c 2 shutdown report-fail
-             (lambda ()
-               (sleep (get-opt c '#:pause-before 0))
-               ;; start client, if a VM:
-               (start-client c (or (get-opt c '#:max-vm) 1))
-               ;; catch failure in build step proper, so we
-               ;; can more likely stop the client:
-               (begin0
-                (limit-and-report-failure
-                 c 1 shutdown report-fail
-                 (lambda () (client-build c)))
-                ;; stop client, if a VM:
-                (stop-client c)
-                (sleep (get-opt c '#:pause-after 0)))))))])]))))
+         (cond
+           [(eq? dry-run 'describe)
+            ;; Don't need error handling, etc.:
+            (build-thread
+             (lambda () (client-build c)))]
+           [else
+            (client-thread
+             c
+             all-seq?
+             (lambda (shutdown report-fail)
+               (limit-and-report-failure
+                c 2 shutdown report-fail
+                (lambda ()
+                  (sleep (get-opt c '#:pause-before 0))
+                  ;; start client, if a VM:
+                  (start-client c (or (get-opt c '#:max-vm) 1))
+                  ;; catch failure in build step proper, so we
+                  ;; can more likely stop the client:
+                  (begin0
+                    (limit-and-report-failure
+                     c 1 shutdown report-fail
+                     (lambda () (client-build c)))
+                    ;; stop client, if a VM:
+                    (stop-client c)
+                    (sleep (get-opt c '#:pause-after 0)))))))])])]))))
 
-(display-time)
-(define end-seconds (current-seconds))
+(unless (eq? dry-run 'describe)
+  (display-time)
+  (define end-seconds (current-seconds))
 
-(let ([opts (merge-options (hasheq) config)])
-  (unless stop?
-    (let ([to-email (get-opt opts '#:email-to null)])
-      (unless (null? to-email)
-        (printf "Sending report to ~a\n" (apply ~a to-email #:separator ", "))
-        (send-email to-email (lambda (key def)
-                               (get-opt opts key def))
-                    (get-opt opts '#:build-stamp (current-stamp))
-                    start-seconds end-seconds
-                    (hash-map failures (lambda (k v) (symbol->string k))))
-        (display-time))))
-  (when (get-opt opts '#:fail-on-client-failures)
-    ;; exit with non-0 return code in case of any client failure
-    (unless (hash-empty? failures)
-      (exit 1))))
+  (let ([opts (merge-options (hasheq) config)])
+    (unless stop?
+      (let ([to-email (get-opt opts '#:email-to null)])
+        (unless (null? to-email)
+          (printf "Sending report to ~a\n" (apply ~a to-email #:separator ", "))
+          (send-email to-email (lambda (key def)
+                                 (get-opt opts key def))
+                      (get-opt opts '#:build-stamp (current-stamp))
+                      start-seconds end-seconds
+                      (hash-map failures (lambda (k v) (symbol->string k))))
+          (display-time))))
+    (when (get-opt opts '#:fail-on-client-failures)
+      ;; exit with non-0 return code in case of any client failure
+      (unless (hash-empty? failures)
+        (exit 1)))))

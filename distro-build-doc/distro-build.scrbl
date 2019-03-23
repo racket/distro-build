@@ -258,8 +258,9 @@ spaces, etc.):
     any subdirectory that constains a @filepath{.git} directory will
     be prepared with @exec{git update-server-info}, and any repository
     clones created by clients (other than the main Racket repository)
-    will use the served directory; defaults to @racket[#f], which
-    disables repository redirection on clients}
+    will use the served directory; updating on clients requires that
+    each served repository has a @filepath{master} branch; defaults to
+    @racket[#f], which disables repository redirection on clients}
 
   @item{@racket[#:pkgs (list _string* ...)] --- packages to install;
     defaults to the @tt{PKGS} makefile variable}

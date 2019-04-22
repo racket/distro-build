@@ -407,6 +407,12 @@ spaces, etc.):
     @racket['cs], indicating the target build; defaults to
     @racket['3m]}
 
+  @item{@racket[#:compile-any? _boolean] --- determines whether to
+    build bytecode in machine-independent form, which works for all
+    Racket variants but is slower to load; a @scheme[#t] value makes sense
+    mainly for a source distirbution that includes built packages;
+    defaults to @racket[#f]}
+
   @item{@racket[#:bits _integer] --- @racket[32] or @racket[64];
     affects Visual Studio mode}
 

@@ -440,6 +440,7 @@
   (define j (or (get-opt c '#:j) 1))
   (define variant (or (get-opt c '#:variant) '3m))
   (define cs? (eq? variant 'cs))
+  (define compile-any? (get-opt c '#:compile-any?))
   (define cross-target (get-opt c '#:cross-target))
   (define cross-target-machine (and cs?
                                     (or (get-opt c '#:cross-target-machine)
@@ -477,7 +478,7 @@
                 (~a " SCHEME_SRC=" (q scheme))
                 "")))
    (sh "cd " (q dir) " ; "
-       "make -j " j " client"
+       "make -j " j " client" (if compile-any? "-compile-any" "")
        (client-args c server server-port 'unix readme)
        " JOB_OPTIONS=\"-j " j "\""
        (if need-native-racket?

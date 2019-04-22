@@ -56,7 +56,7 @@
   (make-directory* (build-path dir "lib"))
   (copy-file system.rktd (build-path dir "lib" "system.rktd")))
 
-(display-time)
+(display-time #:server? #t)
 (printf "Running `raco pkg install' for packages:\n")
 (for ([pkg (in-list pkgs)])
   (printf "  ~a\n" pkg))
@@ -73,7 +73,7 @@
   (error "install failed"))
 
 (when (hash-ref config '#:pdf-doc? #f)
-  (display-time)
+  (display-time #:server? #t)
   (printf "Running `raco setup' PDF documentation:\n")
   (unless (apply system* (find-exe)
                  (append
@@ -85,4 +85,4 @@
                    "--doc-pdf" "build/pdf-doc")))
     (error "PDF failed")))
   
-(display-time)
+(display-time #:server? #t)

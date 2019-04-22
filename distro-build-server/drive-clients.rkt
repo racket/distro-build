@@ -239,7 +239,7 @@
   (for/and ([cmd (in-list cmds)])
     (when cmd
       (unless (eq? dry-run 'describe)
-        (display-time)))
+        (display-time #:server? #t)))
     (or (not cmd)
         (if (and (equal? host "localhost")
                  (not user))
@@ -687,11 +687,17 @@
       (define (report-fail)
         (record-failure (client-name c))
         (printf "Build FAILED for ~s\n" (client-name c)))
+      (define start-milliseconds (current-inexact-milliseconds))
       (unless (parameterize ([current-output-port p]
                              [current-error-port p])
                 (proc shutdown report-fail))
         (report-fail))
-      (display-time))
+      (printf "Duration for ~a: ~a\n"
+              (client-name c)
+              (duration->string (- (current-inexact-milliseconds)
+                                   start-milliseconds)))
+      (flush-output)
+      (display-time #:server? #t))
     (cond
      [all-seq? 
       (go (lambda () (exit 1)))
@@ -707,7 +713,7 @@
 
 (define start-seconds (current-seconds))
 (unless (eq? dry-run 'describe)
-  (display-time))
+  (display-time #:server? #t))
 
 (define (build-thread thunk)
   (if (eq? dry-run 'describe)
@@ -785,7 +791,7 @@
                     (sleep (get-opt c '#:pause-after 0)))))))])])]))))
 
 (unless (eq? dry-run 'describe)
-  (display-time)
+  (display-time #:server? #t)
   (define end-seconds (current-seconds))
 
   (let ([opts (merge-options (hasheq) config)])
@@ -798,7 +804,7 @@
                       (get-opt opts '#:build-stamp (current-stamp))
                       start-seconds end-seconds
                       (hash-map failures (lambda (k v) (symbol->string k))))
-          (display-time))))
+          (display-time #:server? #t))))
     (when (get-opt opts '#:fail-on-client-failures)
       ;; exit with non-0 return code in case of any client failure
       (unless (hash-empty? failures)

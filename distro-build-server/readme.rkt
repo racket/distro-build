@@ -76,9 +76,6 @@
       License
       -------
      
-      Racket
-      Copyright (c) 2010-2016 PLT Design Inc.
-     
       Racket is distributed under the GNU Lesser General Public License
       (LGPL).  This means that you can link Racket into proprietary
       applications, provided you follow the rules stated in the LGPL.  You can
@@ -98,7 +95,7 @@
   (define src? (hash-ref config '#:source? #f))
   (define rt-src
     @~a{This distribution provides source for the Racket run-time system;
-        for build and installation instructions, see "src/README".})
+        for build and installation instructions, see "src/README.txt".})
   (define pkg-src
     @~a{(The distribution also includes the core Racket collections and any
         installed packages in source form.)})

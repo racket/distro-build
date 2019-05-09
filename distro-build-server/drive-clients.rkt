@@ -358,6 +358,7 @@
   (define versionless? (get-opt c '#:versionless? default-versionless?))
   (define source-pkgs? (get-opt c '#:source-pkgs? source?))
   (define source-runtime? (get-opt c '#:source-runtime? source?))
+  (define all-platform-pkgs? (get-opt c '#:all-platform-pkgs?))
   (define mac-pkg? (get-opt c '#:mac-pkg? #f))
   (define tgz? (get-opt c '#:tgz? #f))
   (define install-name (get-opt c '#:install-name (if release? 
@@ -403,6 +404,9 @@
       " PKG_SOURCE_MODE=" (if source-pkgs?
                               (q "--source --no-setup")
                               (q ""))
+      (if all-platform-pkgs?
+          " PKG_INSTALL_OPTIONS=--all-platforms"
+          "")
       " UNPACK_COLLECTS_FLAGS=" (if (and cs?
                                          (not serving-machine-independent?))
                                     "--skip"

@@ -478,7 +478,7 @@ spaces, etc.):
     @tt{RELEASE_MODE} makefile variable}
 
   @item{@racket[#:source? _boolean] --- determines the default value for
-    @racket[#:source-runtime?] and @racket[#:source-pkgs] settings}
+    @racket[#:source-runtime?] and @racket[#:source-pkgs?] settings}
 
   @item{@racket[#:source-runtime? _boolean] --- if true, then create
     an archive that contains the run-time system in source form
@@ -492,6 +492,14 @@ spaces, etc.):
     are included in the installer/archive only in source form; a true
     value works best when the @racket[#:source-runtime?] value is also
     @racket[#t]; the default is the value of @racket[#:source?]}
+
+  @item{@racket[#:all-platform-pkgs? _boolean] --- if true, then for
+    packages with platform-specific dependencies, the dependencies for
+    all platforms are installed; a @racket[#t] value can make sense
+    for a bundle that is primarily source but also includes native
+    binaries for third-party libraries; the default is @racket[#f]
+
+    @history[#:added "1.4"]}
 
   @item{@racket[#:versionless? _boolean] --- if true, avoids including
     the Racket version number in an installer's name or in the

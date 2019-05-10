@@ -12,12 +12,12 @@
 
 (module test racket/base)
 
-(define create-mode 'built)
+(define create-mode 'infer)
 
 (define pkg-info-file
   (command-line
    #:once-each
-   [("--mode") mode "Create package archives for <mode>"
+   [("--mode") mode "Create package archives for <mode>; defaults to `infer`"
     (set! create-mode (string->symbol mode))]
    #:args (pkg-info-file)
    pkg-info-file))
@@ -34,30 +34,36 @@
 
 (define pkg-cache (make-hash))
 
-(define (prefer-binary? pkg)
+(define (infer-mode pkg)
   (define dir (pkg-directory pkg #:cache pkg-cache))
   (define i (get-info/full dir))
   (define mode (and i (i 'distribution-preference (lambda () #f))))
-  (or (eq? mode 'binary)
-      (and
-       ;; Any ".rkt" or ".scrbl" other than "info.rkt"?
-       (not (for/or ([f (in-directory dir)])
-              (and (regexp-match? #rx"[.](scrbl|rkt)$" f)
-                   (not (let-values ([(base name dir?) (split-path f)])
-                          (equal? #"info.rkt" (path->bytes name)))))))
-       ;; Any native library?
-       (for/or ([f (in-directory dir)])
-         (regexp-match? #rx"[.](dll|so(|[.][-.0-9]+)|dylib|framework)$" f)))))
-   
+  (cond
+    [(or (eq? mode 'source)
+         (eq? mode 'built)
+         (eq? mode 'binary))
+     mode]
+    [(and
+      ;; Any ".rkt" or ".scrbl" other than "info.rkt"?
+      (not (for/or ([f (in-directory dir)])
+             (and (regexp-match? #rx"[.](scrbl|rkt)$" f)
+                  (not (let-values ([(base name dir?) (split-path f)])
+                         (equal? #"info.rkt" (path->bytes name)))))))
+      ;; Any native library?
+      (for/or ([f (in-directory dir)])
+        (regexp-match? #rx"[.](dll|so(|[.][-.0-9]+)|dylib|framework)$" f)))
+     'binary]
+    [else 'built]))
+
 (for ([pkg (in-list (installed-pkg-names))])
   (define ht (hash-ref pkg-details pkg (hash)))
   (define dest-zip (build-path pkg-dest-dir (~a pkg ".zip")))
   (pkg-create 'zip pkg
               #:source 'name
               #:dest pkg-dest-dir
-              #:mode (if (prefer-binary? pkg)
-                         'binary
-                         create-mode))
+              #:mode (cond
+                       [(eq? create-mode 'infer) (infer-mode pkg)]
+                       [else create-mode]))
   (call-with-output-file*
    (build-path catalog-pkg-dir pkg)
    #:exists 'truncate

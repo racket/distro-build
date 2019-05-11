@@ -23,7 +23,9 @@
    pkg-info-file))
 
 (define build-dir "build")
-(define dest-dir (build-path build-dir (~a create-mode)))
+(define dest-dir (build-path build-dir (~a (if (eq? create-mode 'infer)
+                                               'built
+                                               create-mode))))
 (define pkg-dest-dir (path->complete-path (build-path dest-dir "pkgs")))
 (define catalog-dir (build-path dest-dir "catalog"))
 (define catalog-pkg-dir (build-path catalog-dir "pkg"))

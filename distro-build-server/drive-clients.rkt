@@ -460,6 +460,7 @@
   (define built-native-racket
     ;; relative to build directory
     (if cs? "cross/cs/c/racketcs" "cross/racket/racket3m"))
+  (define extra-repos? (and (get-opt c '#:extra-repo-dir) #t))
   (try-until-ready c host port user server-port 'unix (sh "echo hello"))
   (ssh-script
    host port user
@@ -480,6 +481,9 @@
             "make -j " j " native-" (if cs? "cs-" "") "for-cross"
             (if scheme
                 (~a " SCHEME_SRC=" (q scheme))
+                "")
+            (if (and cs? extra-repos?)
+                (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
                 "")))
    (sh "cd " (q dir) " ; "
        "make -j " j " client" (if compile-any? "-compile-any" "")

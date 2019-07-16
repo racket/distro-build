@@ -53,7 +53,7 @@
      table-file))
   table)
 
-(struct past-success (name relative-url file) #:prefab)
+(struct past-success (name relative-url file version) #:prefab)
 
 (define (make-download-page table-file
                             #:past-successes [past-successes (hash)]
@@ -65,6 +65,7 @@
                             #:pdf-docs-url [pdf-docs-url #f]
                             #:title [page-title "Racket Downloads"]
                             #:current-rx [current-rx #f]
+                            #:version->current-rx [version->current-rx #f]
                             #:git-clone [git-clone #f]
                             #:help-table [site-help (hash)]
                             #:post-content [post-content null]
@@ -255,7 +256,8 @@
             [(2) (~a "major" (if key "" " group"))]
             [(3) "minor"]
             [else "subminor"]))
-        (define num-cols (if current-rx
+        (define num-cols (if (or current-rx
+                                 version->current-rx)
                              "7"
                              "5"))
         (cond
@@ -311,24 +313,30 @@
                                    (build-path (path-only table-file)
                                                inst)
                                    sha1)))))
-              (if current-rx
-                  (list
-                   (td nbsp)
-                   (td (span class: "detail"
-                             (let ([inst-path (if (past-success? inst)
-                                                  (past-success-file inst)
-                                                  inst)])
-                               (if (regexp-match? current-rx inst-path)
-                                   (a href: (url->string
-                                             (combine-url/relative
-                                              (string->url installers-url)
-                                              (bytes->string/utf-8
-                                               (regexp-replace current-rx
-                                                               (string->bytes/utf-8 inst-path)
-                                                               #"current"))))
-                                      "as " ldquo "current" rdquo)
-                                   nbsp)))))
-                  null))]
+              (let ([current-rx (or current-rx
+                                    (and version->current-rx
+                                         (version->current-rx
+                                          (if (past-success? inst)
+                                              (past-success-version inst)
+                                              (version)))))])
+                (if current-rx
+                    (list
+                     (td nbsp)
+                     (td (span class: "detail"
+                               (let ([inst-path (if (past-success? inst)
+                                                    (past-success-file inst)
+                                                    inst)])
+                                 (if (regexp-match? current-rx inst-path)
+                                     (a href: (url->string
+                                               (combine-url/relative
+                                                (string->url installers-url)
+                                                (bytes->string/utf-8
+                                                 (regexp-replace current-rx
+                                                                 (string->bytes/utf-8 inst-path)
+                                                                 #"current"))))
+                                        "as " ldquo "current" rdquo)
+                                     nbsp)))))
+                    null)))]
          [else
           (tr (td class: level-class
                   colspan: num-cols

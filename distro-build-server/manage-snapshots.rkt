@@ -79,6 +79,10 @@
                                    table)])
         (define past-table (get-installers-table
                             (build-path snapshots-dir s installers-dir "table.rktd")))
+        (define past-version (let ([f (build-path snapshots-dir s installers-dir "version.rktd")])
+                               (if (file-exists? f)
+                                   (call-with-input-file* f read)
+                                   (version))))
         (for/fold ([table table]) ([(k v) (in-hash past-table)])
           (if (or (hash-ref current-table k #f)
                   (hash-ref table k #f)
@@ -86,37 +90,42 @@
               table
               (hash-set table k (past-success s
                                               (string-append s "/index.html")
-                                              v))))))))
+                                              v
+                                              past-version))))))))
 
-(define current-rx (regexp (regexp-quote (version))))
+(define (version->current-rx vers)
+  (regexp (regexp-quote vers)))
+
+(define current-rx (version->current-rx (version)))
 
 (printf "Creating \"current\" links\n")
 (flush-output)
 (make-file-or-directory-link current-snapshot link-file)
 (let ([installer-dir (build-path snapshots-dir current-snapshot "installers")])
-  (define (currentize f)
+  (define (currentize f current-rx)
     (regexp-replace current-rx
                     (path->bytes f)
                     "current"))
-  (define (make-link f to-file)
+  (define (make-link f to-file current-rx)
     (define file-link (build-path
                        installer-dir
-                       (bytes->path (currentize f))))
+                       (bytes->path (currentize f current-rx))))
     (when (link-exists? file-link)
       (delete-file file-link))
     (make-file-or-directory-link to-file file-link))
   ;; Link current successes:
   (for ([f (in-list (directory-list installer-dir))])
     (when (regexp-match? current-rx f)
-      (make-link f f)))
+      (make-link f f (version))))
   ;; Link past successes:
   (for ([v (in-hash-values past-successes)])
+    (define current-rx (version->current-rx (past-success-version v)))
     (when (regexp-match? current-rx (past-success-file v))
       (make-link (string->path (past-success-file v))
                  (build-path 'up 'up 
                              (past-success-name v) installers-dir
-                             (past-success-file v))))))
-
+                             (past-success-file v))
+                 current-rx))))
 
 (printf "Generating web page\n")
 (make-download-page table-file
@@ -132,7 +141,7 @@
                                         "current/pdf-doc/")
                     #:dest (build-path snapshots-dir
                                        "index.html")
-                    #:current-rx current-rx
+                    #:version->current-rx version->current-rx
                     #:git-clone (current-directory)
                     #:help-table (hash-ref config '#:site-help (hash))
                     #:post-content (list
@@ -152,3 +161,12 @@
                                                        nbsp
                                                        (a href: (string-append s "/index.html")
                                                           s))))))))
+
+
+;; Record the current version number, because that's useful for
+;; creating "current" links when later build attempts fail
+(call-with-output-file*
+ (build-path site-dir installers-dir "version.rktd")
+ #:exists 'truncate/replace
+ (lambda (o)
+   (writeln (version) o)))

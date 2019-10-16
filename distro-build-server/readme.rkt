@@ -82,7 +82,7 @@
       also modify Racket; if you distribute a modified version, you must
       distribute it under the terms of the LGPL, which in particular means
       that you must release the source code for the modified software.  See
-      share/COPYING_LESSER.txt for more information.})
+      share/LICENSE-LGPL.txt for more information.})
 
 (define (drop-sort-annotations s)
   ;; Any number of spaces is allowed around "{...}" and "|",

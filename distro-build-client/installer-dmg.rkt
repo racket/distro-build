@@ -25,6 +25,7 @@
 
 (define (make-dmg volname src-dir dmg bg readme sign-identity)
   (define tmp-dmg (make-temporary-file "~a.dmg"))
+  (define tmp2-dmg (make-temporary-file "~a.dmg"))
   (define work-dir
     (let-values ([(base name dir?) (split-path src-dir)])
       (build-path base "work")))
@@ -61,11 +62,18 @@
   ;; Then do the expected dmg layout...
   (when bg
     (dmg-layout tmp-dmg volname ".bg.png"))
+  ;; the call to convert is failing with
+  ;; `resource temporarily unavailable.hdiutil: convert: result: 35`.
+  ;; internet search suggests that the problem is that the dmg is still listed as being opened by
+  ;; diskimage-helper or some other process, and copying the file appears to solve the problem.
+  ;; there may be a solution that doesn't use so much space...
+  (copy-file tmp-dmg tmp2-dmg)
   ;; And create the compressed image from the uncompressed image:
   (system*/show hdiutil
                 "convert" "-format" "UDBZ" "-imagekey" "zlib-level=9" "-ov"
-                tmp-dmg "-o" dmg)
-  (delete-file tmp-dmg))
+                tmp2-dmg "-o" dmg)
+  (delete-file tmp-dmg)
+  (delete-file tmp2-dmg))
 
 (define (sign-executables dest-dir sign-identity)
   ;; Sign any executable in "bin", top-level ".app", or either of those in "lib"

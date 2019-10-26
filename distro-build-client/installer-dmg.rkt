@@ -67,7 +67,7 @@
   ;; internet search suggests that the problem is that the dmg is still listed as being opened by
   ;; diskimage-helper or some other process, and copying the file appears to solve the problem.
   ;; there may be a solution that doesn't use so much space...
-  (copy-file tmp-dmg tmp2-dmg)
+  (copy-file tmp-dmg tmp2-dmg #t)
   ;; And create the compressed image from the uncompressed image:
   (system*/show hdiutil
                 "convert" "-format" "UDBZ" "-imagekey" "zlib-level=9" "-ov"

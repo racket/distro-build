@@ -176,6 +176,7 @@
         (list extra-repo-dir)
         null))
    #:servlet-regexp #rx""
+   #:max-request-body-length (* 1024 1024 1024)
    #:port server-port))
 
 (define readmes-dir (build-path build-dir "readmes"))

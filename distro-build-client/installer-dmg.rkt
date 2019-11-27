@@ -98,10 +98,10 @@
                        (path-replace-suffix name #"")))
         (define exe (build-path f "Contents" "MacOS" name))
         (when (file-exists? exe)
-          ;; Move a copy of the `Racket` framework into the ".app":
+          ;; Move a copy of the `Racket` framework into the ".app", if needed:
           (define lib-path (find-matching-library-path exe "Racket"))
           (define rx #rx"^@executable_path/[.][.]/[.][.]/[.][.]/lib/Racket.framework/")
-          (when (regexp-match? rx lib-path)
+          (when (and lib-path (regexp-match? rx lib-path))
             ;; Get shared library's path after "Racket.framework":
             (define orig-so (substring lib-path (cdar (regexp-match-positions rx lib-path))))
             ;; Copy the shared library:

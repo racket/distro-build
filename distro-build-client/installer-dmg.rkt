@@ -56,7 +56,7 @@
   ;; So, first create an uncompressed image...
   (parameterize ([current-directory work-dir])
     (system*/show hdiutil
-                  "create" "-format" "UDRW" "-ov"
+                  "create" "-format" "UDRW" "-fs" "HFS+" "-ov"
                   "-mode" "755" "-volname" volname "-srcfolder" "."
                   tmp-dmg))
   ;; Then do the expected dmg layout...

@@ -523,6 +523,7 @@
                                   (if (and cs? scheme)
                                       (list (~a "--enable-scheme=" scheme))
                                       null)
+                                  (list "--enable-embedfw")
                                   (get-opt c '#:configure null))
                                  'unix))
    (and (has-tests? c)

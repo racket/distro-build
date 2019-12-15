@@ -15,12 +15,12 @@
 
 (define (make-readme config)
   @~a{
-      The Racket Programming Language
-      ===============================
+     The Racket Programming Language
+     ===============================
 
-      This is the
-        @|(drop-sort-annotations (hash-ref config '#:name "Racket"))|
-      distribution for version @(version)@(maybe-stamp config).@;
+     This is the
+       @|(drop-sort-annotations (hash-ref config '#:name "Racket"))|
+     distribution for version @(version)@(maybe-stamp config).@;
 
       @(if (let ([src? (hash-ref config '#:source? #f)])
              (or (hash-ref config '#:source-runtime? src?)
@@ -70,19 +70,53 @@
 
                 }))@;
      
-      Visit http://racket-lang.org/ for more Racket resources.
+     Visit http://racket-lang.org/ for more Racket resources.
      
      
-      License
-      -------
+     License
+     -------
      
-      Racket is distributed under the GNU Lesser General Public License
-      (LGPL).  This means that you can link Racket into proprietary
-      applications, provided you follow the rules stated in the LGPL.  You can
-      also modify Racket; if you distribute a modified version, you must
-      distribute it under the terms of the LGPL, which in particular means
-      that you must release the source code for the modified software.  See
-      share/LICENSE-LGPL.txt for more information.})
+     Racket is distributed under the MIT license and the Apache version 2.0
+     license, at your option.
+
+     @(cond
+        [(hash-ref config '#:source? #f)
+         @~a{The Racket runtime system includes components distributed under
+             other licenses. See "src/LICENSE.txt" for more information.}]
+        [(eq? 'cs (hash-ref config '#:variant #f))
+          @~a{The Racket runtime system embeds Chez Scheme, which is distributed
+              under the Apache version 2.0 license.}]
+        [else
+          @~a{The Racket runtime system includes code distributed under the GNU
+              Lesser General Public License, version 3.}])
+     @(if (hash-ref config '#:source? #f)
+          ""
+          @~a{
+     The runtime system remains separate as a shared library or
+     additional executable, which means that it is dynamically linked
+     and can be replaced with a modified variant by users, except
+     for Windows executables that are created with the "embed DLLs"
+     option.
+     @(if (eq? 'cs (hash-ref config '#:variant #f))
+          ""
+          @~a{
+
+              See the file "LICENSE-LGPL.txt" in "share" for the full text of the
+              GNU Lesser General Public License.
+
+              })
+     See the file "LICENSE-APACHE.txt" in "share" for the full text of the
+     Apache version 2.0 license.
+
+     See the file "LICENSE-MIT.txt" in "share" for the full text of the
+     MIT license.
+
+     })
+     Racket packages that are included in the distribution have their own
+     licenses. See the package files in "pkgs" within "share" for more
+     information.
+
+     })
 
 (define (drop-sort-annotations s)
   ;; Any number of spaces is allowed around "{...}" and "|",

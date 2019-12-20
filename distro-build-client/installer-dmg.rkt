@@ -160,7 +160,7 @@
                        #"icv4\0\200nonebotm\0\0\0\0\0\0\0\0\0\4\0\0")
                    (ds 'same 'icvt 'shor 16) ; icon label size
                    (ds 'same 'pict 'blob alias)
-                   (ds (->path ".bg.png") 'Iloc 'blob (iloc 900 180)) ; file is hidden, anway
+                   (ds (->path ".bg.png") 'Iloc 'blob (iloc 900 180)) ; file is hidden, anyway
                    (ds (->path "Applications") 'Iloc 'blob (iloc 500 180))
                    (ds (->path volname) 'Iloc 'blob (iloc 170 180))))
   ;; Neither `hdiutil detach` nor using Finder to detach the disk works on all

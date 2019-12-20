@@ -1,0 +1,102 @@
+#lang racket/base
+(require racket/draw
+         racket/class
+         racket/math)
+
+(provide draw-trash)
+
+(define recycle-path
+  (let ([p (new dc-path%)]
+        [x 0]
+        [y 0])
+    (define (move! dx dy) (set! x (+ x dx)) (set! y (+ y dy)))
+    (define (m dx dy) (send p move-to (+ x dx) (+ y dy)) (move! dx dy))
+    (define (l dx dy) (send p line-to (+ x dx) (+ y dy)) (move! dx dy))
+    (define (c dx0 dy0 dx1 dy1 dx2 dy2)
+      (send p curve-to
+            (+ x dx0) (+ y dy0)
+            (+ x dx1) (+ y dy1)
+            (+ x dx2) (+ y dy2))
+      (move! dx2 dy2))
+    (m 13.28125 0.65625)
+    (c 0.463636 0.0842975 0.965857 0.50656 1.21875 0.84375)
+    (l 4.09375 7.09375)
+    (l -2.125 1.25)
+    (l 7.0 0.0)
+    (l 3.5 -6.0625)
+    (l -2.15625 1.21875)
+    (l -2.125 -3.78125)
+    (c -0.210743 -0.37933886 -0.630114 -0.5625 -1.09375 -0.5625)
+    (l -8.3125 0.0)
+    (m -2.40625 0.4375)
+    (c -1.0747934 0.0368802 -2.119938 0.438998 -2.5625 1.21875)
+    (l -3.21875 5.59375)
+    (l 6.15625 3.59375)
+    (l 3.9375 -6.84375)
+    (l -1.5625 -2.59375)
+    (c -0.569008 -0.6743802 -1.675207 -1.0056302 -2.75 -0.96875)
+    (m 16.65625 8.65625)
+    (l -6.21875 3.5625)
+    (l 3.9375 6.6875)
+    (l 3.3125 0)
+    (c 1.34876 -0.252893 3.398916 -2.442717 2.21875 -4.71875)
+    (l -3.25 -5.53125)
+    (m -27.4375 1.5)
+    (l 2.21875 1.28125)
+    (l -1.4375 2.40625)
+    (c -1.2644628 2.360331 0.8605372 4.956767 2.125 5.09375)
+    (l 3.28125 0.0)
+    (l 2.21875 -3.875)
+    (l 2.25 1.21875)
+    (l -3.59375 -6.125)
+    (l -7.0625 0.0)
+    (m 20.09375 7.1875)
+    (l -3.59375 6.15625)
+    (l 3.59375 6.125)
+    (l 0.0 -2.59375)
+    (l 4.375 0.0)
+    (c 0.505785 0.0 0.862655 -0.28781 1.03125 -0.625)
+    (l 3.96875 -7.0)
+    (c -0.210743 0.126446 -0.355424 0.3532 -1.15625 0.4375)
+    (l -8.21875 0.0)
+    (l 0.0 -2.5)
+    (m -18.21875 2.15625)
+    (c 0.168595 0.210744 0.1346592 0.174793 3.84375 6.75)
+    (c 0.2528926 0.379339 0.5988637 0.8234 1.0625 0.78125)
+    (l 7.875 0.0)
+    (l 0.0 -7.1875)
+    (l -11.71875 0.0)
+    (c -0.6322314 0.0 -0.8622934 -0.175155 -1.0625 -0.34375)
+    (send p close)
+    p))
+
+(define can-path
+  (let ([p (new dc-path%)])
+    (send p arc 20 25 60 20 (- pi) 0)
+    (send p line-to 70 85)
+    (send p arc 30 75 40 20 0 (- pi) #f)
+    (send p close)
+    p))
+
+(define (draw-trash dc x y logo)
+  (define base-color "gray")
+  (define top-color "darkgray")
+
+  (send dc set-pen (make-pen #:style 'transparent))
+
+  (send dc set-brush (make-brush #:color top-color))
+  (send dc draw-ellipse 20 25 60 20)
+  
+  (when logo
+    (define t (send dc get-transformation))
+    (send dc translate (+ x 27) (+ y 5))
+    (send dc scale 1/32 1/32)
+    (send dc draw-bitmap logo 0 0)
+    (send dc set-transformation t))
+
+  (send dc set-brush (make-brush #:color base-color))
+  (send dc draw-path can-path 0 0)
+
+  (send dc set-brush (make-brush #:color "forestgreen"))
+  (send dc draw-path recycle-path 35 55))
+

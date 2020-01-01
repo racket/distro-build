@@ -155,6 +155,7 @@
     [(#:vc) (string? val)]
     [(#:sign-identity) (string? val)]
     [(#:osslsigncode-args) (and (list? val) (andmap string? val))]
+    [(#:client-installer-pre-process) (and (list? val) (andmap string? val))]
     [(#:client-installer-post-process) (and (list? val) (andmap string? val))]
     [(#:server-installer-post-process) (and (list? val) (andmap path-string? val))]
     [(#:timeout) (real? val)]

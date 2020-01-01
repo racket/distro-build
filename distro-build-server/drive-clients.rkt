@@ -351,6 +351,7 @@
   (define dist-suffix (get-opt c '#:dist-suffix ""))
   (define dist-catalogs (choose-catalogs c '("")))
   (define sign-identity (get-opt c '#:sign-identity ""))
+  (define installer-pre-process (get-opt c '#:client-installer-pre-process '()))
   (define installer-post-process (get-opt c '#:client-installer-post-process '()))
   (define osslsigncode-args (get-opt c '#:osslsigncode-args))
   (define release? (get-opt c '#:release? default-release?))
@@ -393,6 +394,9 @@
       " OSSLSIGNCODE_ARGS_BASE64=" (q (if osslsigncode-args
                                           (pack-base64-strings osslsigncode-args)
                                           ""))
+      (if (pair? installer-pre-process)
+          (~a " INSTALLER_PRE_PROCESS_BASE64=" (q (pack-base64-strings installer-pre-process)))
+          "")
       (if (pair? installer-post-process)
           (~a " INSTALLER_POST_PROCESS_BASE64=" (q (pack-base64-strings installer-post-process)))
           "")

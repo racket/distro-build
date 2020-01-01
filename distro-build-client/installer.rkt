@@ -25,6 +25,7 @@
 (define upload-desc "")
 (define download-readme #f)
 (define post-process-cmd #f)
+(define pre-process-cmd #f)
 
 (define-values (short-human-name human-name base-name dir-name dist-suffix 
                                  sign-identity osslsigncode-args-base64)
@@ -48,6 +49,9 @@
    [("--readme") readme "URL for README.txt to include"
     (unless (string=? readme "")
       (set! download-readme readme))]
+   [("--pre-process") cmd-as-base64 "Program plus arguments to run on the directory before packaging"
+    (unless (string=? cmd-as-base64 "")
+      (set! pre-process-cmd cmd-as-base64))]
    [("--post-process") cmd-as-base64 "Program plus arguments to run on the installer before uploading"
     (unless (string=? cmd-as-base64 "")
       (set! post-process-cmd cmd-as-base64))]
@@ -88,6 +92,12 @@
     (error 'unpack-base64-strings
            "encoded arguments didn't decode and `read` as a list of strings: ~e" str))
   l)
+
+(when pre-process-cmd
+  (define args (append (unpack-base64-strings pre-process-cmd)
+                       (list "bundle/racket")))
+  (unless (apply system* args)
+    (error 'pre-process "failed for ~s" args)))
 
 (define installer-file
   (if (or source? tgz?)

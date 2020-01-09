@@ -189,8 +189,8 @@ Site-configuration values are created with @racket[sequential],
 
 @deftogether[(
 @defproc[(machine ...) site-config?]
-@defproc[(parallel ... [config site-config] ...) site-config?]
-@defproc[(sequential ... [config site-config] ...) site-config?]
+@defproc[(parallel ... [config site-config?] ...) site-config?]
+@defproc[(sequential ... [config site-config?] ...) site-config?]
 )]{
 
 Produces a site configuration based on the given keyword-based
@@ -234,33 +234,15 @@ spaces, etc.):
     accessed by the client; when SSH remote tunneling works, then
     @racket["localhost"] should work to reach the server; defaults to
     the @tt{SERVER} makefile variable, which in turn defaults to
-    @racket["localhost"]}
-
-  @item{@racket[#:server-port _integer] --- the port of the server as
-    accessed by the client, and also the port started on clients to
-    tunnel back to the server; defaults to the @tt{SERVER_PORT}
-    makefile variable, which in turn defaults to @racket[9440]}
-
-  @item{@racket[#:server-hosts (list _string* ...)] --- addresses that
-    determine the interfaces on which the server listens; an empty
-    list means all of the server's interfaces, while @racket[(list
-    "localhost")] listens only on the loopback device; defaults to the
-    @tt{SERVER_HOSTS} makefile variable split on commas, which in turn
-    defaults to @racket[(list "localhost")]}
+    @racket["localhost"]; see also @racket[#:server-hosts] and
+    @racket[#:server-port], which must be at the configuration top
+    level}
 
   @item{@racket[#:repo _string] --- the git repository for Racket;
     defaults to
-    @filepath{http://@nonterm{server}:@nonterm{server-port}/.git}}
-
-  @item{@racket[#:extra-repo-dir _path-string-or-false] --- a
-    server-side directory that contains additional Git repositories to
-    be served to clients, normally Chez Scheme with its submodules;
-    any subdirectory that constains a @filepath{.git} directory will
-    be prepared with @exec{git update-server-info}, and any repository
-    clones created by clients (other than the main Racket repository)
-    will use the served directory; updating on clients requires that
-    each served repository has a @filepath{master} branch; defaults to
-    @racket[#f], which disables repository redirection on clients}
+    @filepath{http://@nonterm{server}:@nonterm{server-port}/.git};
+    see also @racket[#:extra-repo-dir], which must be
+    at the configuration top level}
 
   @item{@racket[#:pkgs (list _string* ...)] --- packages to install;
     defaults to the @tt{PKGS} makefile variable}
@@ -540,9 +522,31 @@ spaces, etc.):
 
 ]
 
-Top keywords (recognized only in the configuration top-level):
+Top keywords (expected only in the configuration top-level):
 
 @itemlist[
+
+  @item{@racket[#:server-port _integer] --- the port of the server as
+    accessed by the client, and also the port started on clients to
+    tunnel back to the server; defaults to the @tt{SERVER_PORT}
+    makefile variable, which in turn defaults to @racket[9440]}
+
+  @item{@racket[#:server-hosts (list _string* ...)] --- addresses that
+    determine the interfaces on which the server listens; an empty
+    list means all of the server's interfaces, while @racket[(list
+    "localhost")] listens only on the loopback device; defaults to the
+    @tt{SERVER_HOSTS} makefile variable split on commas, which in turn
+    defaults to @racket[(list "localhost")]}
+
+  @item{@racket[#:extra-repo-dir _path-string-or-false] --- a
+    server-side directory that contains additional Git repositories to
+    be served to clients, normally Chez Scheme with its submodules;
+    any subdirectory that constains a @filepath{.git} directory will
+    be prepared with @exec{git update-server-info}, and any repository
+    clones created by clients (other than the main Racket repository)
+    will use the served directory; updating on clients requires that
+    each served repository has a @filepath{master} branch; defaults to
+    @racket[#f], which disables repository redirection on clients}
 
   @item{@racket[#:site-dest _path-string] --- destination for
     completed build, used by the @tt{site} and @tt{snapshot-site}

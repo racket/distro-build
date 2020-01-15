@@ -3,6 +3,7 @@
          web-server/dispatch
          web-server/http/response-structs
          web-server/http/request-structs
+         web-server/safety-limits
          net/url
          racket/format
          racket/cmdline
@@ -176,7 +177,7 @@
         (list extra-repo-dir)
         null))
    #:servlet-regexp #rx""
-   #:max-request-body-length (* 1024 1024 1024)
+   #:safety-limits (make-unlimited-safety-limits)
    #:port server-port))
 
 (define readmes-dir (build-path build-dir "readmes"))

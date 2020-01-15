@@ -6,7 +6,7 @@
 
 (define deps '(["base" #:version "6.1.1.6"]
                "distro-build-client"
-               "web-server-lib"
+               ["web-server-lib" #:version "1.6"]
                "ds-store-lib"
                "net-lib"
                "scribble-html-lib"

@@ -67,6 +67,7 @@
   ;; internet search suggests that the problem is that the dmg is still listed as being opened by
   ;; diskimage-helper or some other process, and copying the file appears to solve the problem.
   ;; there may be a solution that doesn't use so much space...
+  (displayln (~v (list 'copy-file tmp-dmg tmp2-dmg #t)))
   (copy-file tmp-dmg tmp2-dmg #t)
   ;; And create the compressed image from the uncompressed image:
   (system*/show hdiutil
@@ -76,6 +77,8 @@
   (delete-file tmp2-dmg))
 
 (define (sign-executables dest-dir sign-identity)
+  (define (codesign-with-args f)
+    (system*/show codesign "-s" sign-identity "-o" "runtime" "--timestamp" f))  
   ;; Sign any executable in "bin", top-level ".app", or either of those in "lib"
   (define (check-bins dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
@@ -89,7 +92,7 @@
                                  (= 4 (bytes-length bstr))
                                  (integer-bytes->integer bstr #f))))
                          '(#xFeedFace #xFeedFacf)))
-        (system*/show codesign "-s" sign-identity f))))
+        (codesign-with-args f))))
   (define (check-apps dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)
@@ -116,11 +119,11 @@
               (make-file-or-directory-link (build-path 'up 'up orig-boot-dir)
                                            (build-path f "Contents" "MacOS" "boot")))
             ;; Sign library:
-            (system*/show codesign "-s" sign-identity so)
+            (codesign-with-args so)
             ;; Update executable to point to the adjacent copy of "Racket"
             (update-matching-library-path exe "Racket" "@executable_path/Racket"))
           ;; Sign ".app":
-          (system*/show codesign "-s" sign-identity f)))))
+          (codesign-with-args f)))))
   (check-bins (build-path dest-dir "bin"))
   (check-bins (build-path dest-dir "lib"))
   (check-apps dest-dir)

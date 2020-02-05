@@ -87,7 +87,9 @@
   (define (check-bins dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (file-exists? f)
-                 (member 'execute (file-or-directory-permissions f))
+                 ;; looks like we can get the dylibs by just commenting this out.
+                 ;; this is experimental...
+                 #;(member 'execute (file-or-directory-permissions f))
                  (member (call-with-input-file 
                           f
                           (lambda (i)

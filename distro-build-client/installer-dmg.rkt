@@ -15,6 +15,12 @@
 (define osascript "/usr/bin/osascript")
 (define codesign "/usr/bin/codesign")
 
+(define (run-codesign sign-identity f)
+    (system*/show codesign "-s" sign-identity
+                  "-o" "runtime" ;; use the hardened runtime
+                  "--timestamp"  ;; apply a trusted timestamp
+                  f))
+
 (define-runtime-path bg-image "macosx-installer/racket-rising.png")
 
 (define (system*/show . l)
@@ -77,8 +83,6 @@
   (delete-file tmp2-dmg))
 
 (define (sign-executables dest-dir sign-identity)
-  (define (codesign-with-args f)
-    (system*/show codesign "-s" sign-identity "-o" "runtime" "--timestamp" f))  
   ;; Sign any executable in "bin", top-level ".app", or either of those in "lib"
   (define (check-bins dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
@@ -92,7 +96,7 @@
                                  (= 4 (bytes-length bstr))
                                  (integer-bytes->integer bstr #f))))
                          '(#xFeedFace #xFeedFacf)))
-        (codesign-with-args f))))
+        (run-codesign sign-identity f))))
   (define (check-apps dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)
@@ -119,11 +123,11 @@
               (make-file-or-directory-link (build-path 'up 'up orig-boot-dir)
                                            (build-path f "Contents" "MacOS" "boot")))
             ;; Sign library:
-            (codesign-with-args so)
+            (run-codesign sign-identity so)
             ;; Update executable to point to the adjacent copy of "Racket"
             (update-matching-library-path exe "Racket" "@executable_path/Racket"))
           ;; Sign ".app":
-          (codesign-with-args f)))))
+          (run-codesign sign-identity f)))))
   (check-bins (build-path dest-dir "bin"))
   (check-bins (build-path dest-dir "lib"))
   (check-apps dest-dir)
@@ -184,5 +188,5 @@
   (make-dmg human-name "bundle/racket" dmg-name bg-image readme sign-identity)
   ;; sign whole DMG too, for Sierra
   (unless (string=? sign-identity "")
-    (system*/show codesign "-s" sign-identity dmg-name))
+    (run-codesign sign-identity dmg-name))
   dmg-name)

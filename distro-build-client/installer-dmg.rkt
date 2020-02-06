@@ -99,6 +99,15 @@
                                  (integer-bytes->integer bstr #f))))
                          '(#xFeedFace #xFeedFacf)))
         (run-codesign sign-identity f))))
+  ;; this is total guesswork. Trying to sign the framework, let's see what happens
+  (define (check-frameworks dir)
+    (for ([f (in-list (directory-list dir #:build? #t))])
+      (when (and (directory-exists? f)
+                 ;; this line or the next one?
+                 (equal? (path->string f) "Racket.framework")
+                 #;(regexp-match? #rx#"\\.framework$" f)
+                 )
+        (run-codesign sign-identity f))))
   (define (check-apps dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)
@@ -133,7 +142,8 @@
   (check-bins (build-path dest-dir "bin"))
   (check-bins (build-path dest-dir "lib"))
   (check-apps dest-dir)
-  (check-apps (build-path dest-dir "lib")))
+  (check-apps (build-path dest-dir "lib"))
+  (check-frameworks (build-path dest-dir "lib")))
 
 (define (dmg-layout dmg volname bg)
   (define-values (mnt del?)
@@ -182,6 +192,8 @@
   (when del?
     (delete-directory mnt)))
 
+;; this wrapper function computes the dmg name, makes the dmg, signs it, and
+;; returns the path to it.
 (define (installer-dmg human-name base-name dist-suffix readme sign-identity)
   (define dmg-name (format "bundle/~a-~a~a.dmg"
                            base-name

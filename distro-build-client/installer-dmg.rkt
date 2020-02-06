@@ -146,7 +146,7 @@
 (define (sign-mach-o-files-in-dir sign-identity dir)
   (cond [(directory-exists? dir)
          (for ([f (in-list (directory-list dir #:build? #t))])
-           (when (mach-o-file?)
+           (when (mach-o-file? f)
              (run-codesign sign-identity f)))]
         [else
          (printf "WARNING: directory passed to sign-mach-o-files-in dir doesn't exist: ~e"

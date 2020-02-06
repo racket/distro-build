@@ -91,6 +91,7 @@
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)
                  (regexp-match? #rx#"\\.framework$" f))
+        (printf/flush "debug: ~v\n" f)
         ;; some frameworks have a Versions directory, some don't.
         ;; must sign every version... specifically, each twice-subdir of the Versions
         ;; directory.

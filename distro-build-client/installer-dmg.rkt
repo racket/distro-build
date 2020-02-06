@@ -11,6 +11,9 @@
 (provide installer-dmg
          make-dmg)
 
+;; important documentation on the signing process appears in Apple's Tech Note 2206,
+;; online at https://developer.apple.com/library/archive/technotes/tn2206/_index.html
+
 (define hdiutil "/usr/bin/hdiutil")
 (define osascript "/usr/bin/osascript")
 (define codesign "/usr/bin/codesign")
@@ -103,11 +106,17 @@
   (define (check-frameworks dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)
-                 ;; this line or the next one?
-                 (equal? (path->string f) "Racket.framework")
-                 #;(regexp-match? #rx#"\\.framework$" f)
-                 )
-        (run-codesign sign-identity f))))
+                 ;; looks like we only want to sign Racket.framework
+                 (regexp-match? #rx#"Racket\\.framework$" f))
+        ;; must sign every version... specifically, each twice-subdir of the Versions
+        ;; directory.
+        (define versions-dir
+          (build-path dir "Versions"))
+        (when (not (directory-exists? versions-dir))
+          (error 'check-frameworks "found framework with no versions: ~e" f))
+        (for ([v (in-list (directory-list versions-dir #:build? #t))])
+          (for ([thing (in-list (directory-list v #:build? #t))])
+            (run-codesign sign-identity thing))))))
   (define (check-apps dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)

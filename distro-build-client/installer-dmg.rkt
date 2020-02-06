@@ -97,9 +97,9 @@
         (define versions-dir (build-path dir "Versions"))
         (cond [(directory-exists? versions-dir)
                (for ([version-name (in-list (directory-list versions-dir #:build? #t))])
-                 (sign-mach-o-files-in-dir version-name))]
+                 (sign-mach-o-files-in-dir sign-identity version-name))]
               [else
-               (sign-mach-o-files-in-dir dir)]))))
+               (sign-mach-o-files-in-dir sign-identity dir)]))))
   (define (check-apps dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)

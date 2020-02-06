@@ -86,37 +86,20 @@
   (delete-file tmp2-dmg))
 
 (define (sign-executables dest-dir sign-identity)
-  ;; Sign any executable in "bin", top-level ".app", or either of those in "lib"
-  (define (check-bins dir)
-    (for ([f (in-list (directory-list dir #:build? #t))])
-      (when (and (file-exists? f)
-                 ;; looks like we can get the dylibs by just commenting this out.
-                 ;; this is experimental...
-                 #;(member 'execute (file-or-directory-permissions f))
-                 (member (call-with-input-file 
-                          f
-                          (lambda (i)
-                            (define bstr (read-bytes 4 i))
-                            (and (bytes? bstr)
-                                 (= 4 (bytes-length bstr))
-                                 (integer-bytes->integer bstr #f))))
-                         '(#xFeedFace #xFeedFacf)))
-        (run-codesign sign-identity f))))
-  ;; this is total guesswork. Trying to sign the framework, let's see what happens
+  ;; sign the mach-o files in any frameworks in the given directory
   (define (check-frameworks dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)
-                 ;; looks like we only want to sign Racket.framework
-                 (regexp-match? #rx#"Racket\\.framework$" f))
+                 (regexp-match? #rx#"\\.framework$" f))
+        ;; some frameworks have a Versions directory, some don't.
         ;; must sign every version... specifically, each twice-subdir of the Versions
         ;; directory.
-        (define versions-dir
-          (build-path dir "Versions"))
-        (when (not (directory-exists? versions-dir))
-          (error 'check-frameworks "found framework with no versions: ~e" f))
-        (for ([v (in-list (directory-list versions-dir #:build? #t))])
-          (for ([thing (in-list (directory-list v #:build? #t))])
-            (run-codesign sign-identity thing))))))
+        (define versions-dir (build-path dir "Versions"))
+        (cond [(directory-exists? versions-dir)
+               (for ([version-name (in-list (directory-list versions-dir #:build? #t))])
+                 (sign-mach-o-files-in-dir version-name))]
+              [else
+               (sign-mach-o-files-in-dir dir)]))))
   (define (check-apps dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)
@@ -148,11 +131,38 @@
             (update-matching-library-path exe "Racket" "@executable_path/Racket"))
           ;; Sign ".app":
           (run-codesign sign-identity f)))))
-  (check-bins (build-path dest-dir "bin"))
-  (check-bins (build-path dest-dir "lib"))
+  (sign-mach-o-files-in-dir sign-identity (build-path dest-dir "bin"))
+  (sign-mach-o-files-in-dir sign-identity (build-path dest-dir "lib"))
   (check-apps dest-dir)
   (check-apps (build-path dest-dir "lib"))
-  (check-frameworks (build-path dest-dir "lib")))
+  (check-frameworks (build-path dest-dir "lib"))
+  ;; not sure about this one...
+  (sign-mach-o-files-in-dir
+   sign-identity
+   (build-path dest-dir "share/pkgs/draw-x86_64-macosx-3/racket/draw/"))
+  )
+
+;; sign all of the mach-o files in a directory
+(define (sign-mach-o-files-in-dir sign-identity dir)
+  (cond [(directory-exists? dir)
+         (for ([f (in-list (directory-list dir #:build? #t))])
+           (when (mach-o-file?)
+             (run-codesign sign-identity f)))]
+        [else
+         (printf "WARNING: directory passed to sign-mach-o-files-in dir doesn't exist: ~e"
+                 dir)
+         (flush-output)]))
+
+;; is this a Mach-O file? (That is, does it start with #xfeedface or #xfeedfacf ?
+(define (mach-o-file? file)
+  (and (file-exists? file)
+       (member (call-with-input-file file
+                 (lambda (i)
+                   (define bstr (read-bytes 4 i))
+                   (and (bytes? bstr)
+                        (= 4 (bytes-length bstr))
+                        (integer-bytes->integer bstr #f))))
+               '(#xFeedFace #xFeedFacf))))
 
 (define (dmg-layout dmg volname bg)
   (define-values (mnt del?)

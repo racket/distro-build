@@ -95,12 +95,12 @@
         ;; some frameworks have a Versions directory, some don't.
         ;; must sign every version... specifically, each twice-subdir of the Versions
         ;; directory.
-        (define versions-dir (build-path dir "Versions"))
+        (define versions-dir (build-path f "Versions"))
         (cond [(directory-exists? versions-dir)
                (for ([version-name (in-list (directory-list versions-dir #:build? #t))])
                  (sign-mach-o-files-in-dir sign-identity version-name))]
               [else
-               (sign-mach-o-files-in-dir sign-identity dir)]))))
+               (sign-mach-o-files-in-dir sign-identity f)]))))
   (define (check-apps dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)

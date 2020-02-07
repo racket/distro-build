@@ -132,22 +132,15 @@
             (update-matching-library-path exe "Racket" "@executable_path/Racket"))
           ;; Sign ".app":
           (run-codesign sign-identity f)))))
-  (printf/flush "a\n")
   (sign-mach-o-files-in-dir sign-identity (build-path dest-dir "bin"))
-  (printf/flush "b\n")
   (sign-mach-o-files-in-dir sign-identity (build-path dest-dir "lib"))
-  (printf/flush "c\n")
   (check-apps dest-dir)
-  (printf/flush "d\n")
   (check-apps (build-path dest-dir "lib"))
-  (printf/flush "e\n")
   (check-frameworks (build-path dest-dir "lib"))
-  (printf/flush "f\n")
   ;; not sure about this one...
   (sign-mach-o-files-in-dir
    sign-identity
    (build-path dest-dir "share/pkgs/draw-x86_64-macosx-3/racket/draw/"))
-  (printf/flush "g\n")
   )
 
 (define (printf/flush . args)

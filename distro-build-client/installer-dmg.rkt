@@ -6,7 +6,8 @@
          ds-store
          ds-store/alias
          compiler/exe-dylib-path
-         setup/cross-system)
+         setup/cross-system
+         xml/plist)
 
 (provide installer-dmg
          make-dmg)
@@ -14,15 +15,22 @@
 ;; important documentation on the signing process appears in Apple's Tech Note 2206,
 ;; online at https://developer.apple.com/library/archive/technotes/tn2206/_index.html
 
+;; save this here? check entitlements with codesign -d --entitlements :- /path/to/myapp.app
+
 (define hdiutil "/usr/bin/hdiutil")
 (define osascript "/usr/bin/osascript")
 (define codesign "/usr/bin/codesign")
 
+;; NB it's very possible that the hardened runtime & entitlements
+;; are required only on the top-level binaries....
 (define (run-codesign sign-identity f)
-    (system*/show codesign "-s" sign-identity
-                  "-o" "runtime" ;; use the hardened runtime
-                  "--timestamp"  ;; apply a trusted timestamp
-                  f))
+  (define entitlements-file (write-entitlements-file!))
+  (system*/show codesign "-s" sign-identity
+                "-o" "runtime" ;; use the hardened runtime
+                "--timestamp"  ;; apply a trusted timestamp
+                "--entitlements" (path->string entitlements-file)
+                f)
+  (delete-file entitlements-file))
 
 (define-runtime-path bg-image "macosx-installer/racket-rising.png")
 
@@ -137,10 +145,6 @@
   (check-apps dest-dir)
   (check-apps (build-path dest-dir "lib"))
   (check-frameworks (build-path dest-dir "lib"))
-  ;; not sure about this one...
-  (sign-mach-o-files-in-dir
-   sign-identity
-   (build-path dest-dir "share/pkgs/draw-x86_64-macosx-3/racket/draw/"))
   )
 
 (define (printf/flush . args)
@@ -228,3 +232,31 @@
   (unless (string=? sign-identity "")
     (run-codesign sign-identity dmg-name))
   dmg-name)
+
+
+
+(define entitlements
+  '("com.apple.security.cs.allow-jit"
+    "com.apple.security.cs.allow-unsigned-executable-memory"
+    ;; these are used by Bogdan Popa, but it looks to me like if we
+    ;; don't opt into the app-sandbox, we don't need the remainder of
+    ;; the entitlements
+    #;("com.apple.security.app-sandbox"
+    "com.apple.security.files.downloads.read-write"
+    "com.apple.security.files.user-selected.read-write"
+    "com.apple.security.network.client")))
+
+;; represent the entitlements as a plist dictionary
+(define entitlements-dict
+  (cons
+   'dict
+   (for/list ([e (in-list entitlements)])
+     (list 'assoc-pair e '(true)))))
+
+;; generate an entitlements file, in a temporary file
+(define (write-entitlements-file!)
+  (define filename (make-temporary-file "entitlements-~a"))
+  (call-with-output-file filename
+    #:exists 'truncate
+    (λ (port) (write-plist entitlements-dict port)))
+  filename)

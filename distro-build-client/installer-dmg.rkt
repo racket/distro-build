@@ -282,5 +282,5 @@
     #:exists 'truncate
     (λ (port)
       (display entitlements-text port)
-      #:(write-plist entitlements-dict port)))
+      #;(write-plist entitlements-dict port)))
   filename)

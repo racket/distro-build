@@ -253,10 +253,34 @@
    (for/list ([e (in-list entitlements)])
      (list 'assoc-pair e '(true)))))
 
+
+;; hmm, let's try the raw text from Bogdan Popa:
+
+(define entitlements-text
+#<<|
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>com.apple.security.app-sandbox</key>
+        <true/>
+        <key>com.apple.security.cs.allow-jit</key>
+        <true/>
+        <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+        <true/>
+        <key>com.apple.security.inherit</key>
+        <true/>
+</dict>
+</plist>
+|
+)
+
 ;; generate an entitlements file, in a temporary file
 (define (write-entitlements-file!)
   (define filename (make-temporary-file "entitlements-~a"))
   (call-with-output-file filename
     #:exists 'truncate
-    (λ (port) (write-plist entitlements-dict port)))
+    (λ (port)
+      (display entitlements-text port)
+      #:(write-plist entitlements-dict port)))
   filename)

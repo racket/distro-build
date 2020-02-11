@@ -255,6 +255,7 @@
 
 
 ;; hmm, let's try the raw text from Bogdan Popa:
+;; ... okay, adding dyld-environment-variables and disable-library-validation
 
 (define entitlements-text
 #<<|
@@ -267,6 +268,10 @@
         <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
         <true/>
         <key>com.apple.security.inherit</key>
+        <true/>
+        <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+        <true/>
+        <key>com.apple.security.cs.disable-library-validation</key>
         <true/>
 </dict>
 </plist>

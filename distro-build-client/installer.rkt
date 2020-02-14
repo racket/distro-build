@@ -21,6 +21,7 @@
 (define versionless? #f)
 (define tgz? #f)
 (define mac-pkg? #f)
+(define hardened-runtime? #f)
 (define upload-to #f)
 (define upload-desc "")
 (define download-readme #f)
@@ -41,6 +42,8 @@
     (set! tgz? #t)]
    [("--mac-pkg") "Create a \".pkg\" installer on Mac OS"
     (set! mac-pkg? #t)]
+   [("--hardened-runtime") "When signing for Mac OS, specify hardened runtime" 
+    (set! hardened-runtime? #t)]
    [("--upload") url "Upload installer"
     (unless (string=? url "")
       (set! upload-to url))]
@@ -114,7 +117,8 @@
              (installer-dmg (if versionless?
                                 short-human-name
                                 human-name)
-                            base-name dist-suffix readme sign-identity))]
+                            base-name dist-suffix readme sign-identity
+                            #:hardened-runtime? hardened-runtime?))]
         [(windows)
          (define osslsigncode-args
            (and (not (equal? osslsigncode-args-base64 ""))

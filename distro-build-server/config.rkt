@@ -154,6 +154,7 @@
     [(#:bits) (or (equal? val 32) (equal? val 64))]
     [(#:vc) (string? val)]
     [(#:sign-identity) (string? val)]
+    [(#:hardened-runtime?) (boolean? val)]
     [(#:osslsigncode-args) (and (list? val) (andmap string? val))]
     [(#:client-installer-pre-process) (and (list? val) (andmap string? val))]
     [(#:client-installer-post-process) (and (list? val) (andmap string? val))]

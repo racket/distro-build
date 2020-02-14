@@ -23,14 +23,18 @@
 
 ;; NB it's very possible that the hardened runtime & entitlements
 ;; are required only on the top-level binaries....
-(define (run-codesign sign-identity f)
-  (define entitlements-file (write-entitlements-file!))
-  (system*/show codesign "-s" sign-identity
-                "-o" "runtime" ;; use the hardened runtime
-                "--timestamp"  ;; apply a trusted timestamp
-                "--entitlements" (path->string entitlements-file)
-                f)
-  (delete-file entitlements-file))
+(define (run-codesign sign-identity f hardened-runtime?)
+  (cond
+    [hardened-runtime?
+     (define entitlements-file (write-entitlements-file!))
+     (system*/show codesign "-s" sign-identity
+                   "-o" "runtime" ;; use the hardened runtime
+                   "--timestamp"  ;; apply a trusted timestamp
+                   "--entitlements" (path->string entitlements-file)
+                   f)
+     (delete-file entitlements-file)]
+    [else
+     (system*/show codesign "-s" sign-identity f)]))
 
 (define-runtime-path bg-image "macosx-installer/racket-rising.png")
 
@@ -40,7 +44,8 @@
   (unless (apply system* l)
     (error "failed")))
 
-(define (make-dmg volname src-dir dmg bg readme sign-identity)
+(define (make-dmg volname src-dir dmg bg readme sign-identity
+                  #:hardened-runtime? [hardened-runtime? #t])
   (define tmp-dmg (make-temporary-file "~a.dmg"))
   (define tmp2-dmg (make-temporary-file "~a.dmg"))
   (define work-dir
@@ -63,7 +68,7 @@
   (when bg
     (copy-file bg (build-path work-dir ".bg.png")))
   (unless (string=? sign-identity "")
-    (sign-executables dest-dir sign-identity))
+    (sign-executables dest-dir sign-identity hardened-runtime?))
   ;; The following command should work fine, but it looks like hdiutil in 10.4
   ;; is miscalculating the needed size, making it too big in our case (and too
   ;; small with >8GB images).  It seems that it works to first generate an
@@ -93,7 +98,7 @@
   (delete-file tmp-dmg)
   (delete-file tmp2-dmg))
 
-(define (sign-executables dest-dir sign-identity)
+(define (sign-executables dest-dir sign-identity hardened-runtime?)
   ;; sign the mach-o files in any frameworks in the given directory
   (define (check-frameworks dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
@@ -106,9 +111,9 @@
         (define versions-dir (build-path f "Versions"))
         (cond [(directory-exists? versions-dir)
                (for ([version-name (in-list (directory-list versions-dir #:build? #t))])
-                 (sign-mach-o-files-in-dir sign-identity version-name))]
+                 (sign-mach-o-files-in-dir sign-identity hardened-runtime? version-name))]
               [else
-               (sign-mach-o-files-in-dir sign-identity f)]))))
+               (sign-mach-o-files-in-dir sign-identity hardened-runtime? f)]))))
   (define (check-apps dir)
     (for ([f (in-list (directory-list dir #:build? #t))])
       (when (and (directory-exists? f)
@@ -135,28 +140,27 @@
               (make-file-or-directory-link (build-path 'up 'up orig-boot-dir)
                                            (build-path f "Contents" "MacOS" "boot")))
             ;; Sign library:
-            (run-codesign sign-identity so)
+            (run-codesign sign-identity so hardened-runtime?)
             ;; Update executable to point to the adjacent copy of "Racket"
             (update-matching-library-path exe "Racket" "@executable_path/Racket"))
           ;; Sign ".app":
-          (run-codesign sign-identity f)))))
-  (sign-mach-o-files-in-dir sign-identity (build-path dest-dir "bin"))
-  (sign-mach-o-files-in-dir sign-identity (build-path dest-dir "lib"))
+          (run-codesign sign-identity f hardened-runtime?)))))
+  (sign-mach-o-files-in-dir sign-identity hardened-runtime? (build-path dest-dir "bin"))
+  (sign-mach-o-files-in-dir sign-identity hardened-runtime? (build-path dest-dir "lib"))
   (check-apps dest-dir)
   (check-apps (build-path dest-dir "lib"))
-  (check-frameworks (build-path dest-dir "lib"))
-  )
+  (check-frameworks (build-path dest-dir "lib")))
 
 (define (printf/flush . args)
   (apply printf args)
   (flush-output))
 
 ;; sign all of the mach-o files in a directory
-(define (sign-mach-o-files-in-dir sign-identity dir)
+(define (sign-mach-o-files-in-dir sign-identity hardened-runtime? dir)
   (cond [(directory-exists? dir)
          (for ([f (in-list (directory-list dir #:build? #t))])
            (when (mach-o-file? f)
-             (run-codesign sign-identity f)))]
+             (run-codesign sign-identity f hardened-runtime?)))]
         [else
          (printf "WARNING: directory passed to sign-mach-o-files-in dir doesn't exist: ~e"
                  dir)
@@ -222,18 +226,18 @@
 
 ;; this wrapper function computes the dmg name, makes the dmg, signs it, and
 ;; returns the path to it.
-(define (installer-dmg human-name base-name dist-suffix readme sign-identity)
+(define (installer-dmg human-name base-name dist-suffix readme sign-identity
+                       #:hardened-runtime? [hardened-runtime? #t])
   (define dmg-name (format "bundle/~a-~a~a.dmg"
                            base-name
                            (cross-system-library-subpath #f)
                            dist-suffix))
-  (make-dmg human-name "bundle/racket" dmg-name bg-image readme sign-identity)
+  (make-dmg human-name "bundle/racket" dmg-name bg-image readme sign-identity
+            #:hardened-runtime? hardened-runtime?)
   ;; sign whole DMG too, for Sierra
   (unless (string=? sign-identity "")
-    (run-codesign sign-identity dmg-name))
+    (run-codesign sign-identity dmg-name hardened-runtime?))
   dmg-name)
-
-
 
 (define entitlements
   '("com.apple.security.cs.allow-jit"

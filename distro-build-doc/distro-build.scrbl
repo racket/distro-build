@@ -413,6 +413,13 @@ spaces, etc.):
     @exec{osslsigncode}, where @Flag{n}, @Flag{t}, @Flag{in}, and
     @Flag{-out} arguments are supplied automatically}
 
+  @item{@racket[#:hardened-runtime? _boolean] --- if true and if
+    @racket[#:sign-identity] is non-empty, specifies the hardened
+    runtime and appropriate entitlements while signing; the default is
+    @racket[#t] if @racket[#:sign-identity] is non-empty
+    @history[#:added "1.6"]}
+
+
   @item{@racket[#:client-installer-pre-process (list _string ...)]
     --- an executable path followed by initial arguments; the executable
     is run with the assembled distribution directory (added as an additional

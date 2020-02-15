@@ -9,6 +9,7 @@
          racket/file
          racket/path
          racket/port
+         racket/string
          racket/system
          net/base64
          setup/cross-system
@@ -42,8 +43,16 @@
     (set! tgz? #t)]
    [("--mac-pkg") "Create a \".pkg\" installer on Mac OS"
     (set! mac-pkg? #t)]
-   [("--hardened-runtime") "When signing for Mac OS, specify hardened runtime" 
-    (set! hardened-runtime? #t)]
+   [("--packed-options") options ("Additional comma-separated options:"
+                                  "  tgz - create a \".tgz\" archive instead of an installer"
+                                  "  pkg - create a \".pkg\" installer on Mac OS"
+                                  "  hardened - specify hardened runtime for Mac OS signing")
+    (for ([h (in-list (string-split options #rx","))])
+      (case h
+        [("tgz") (set! tgz? #t)]
+        [("pkg") (set! mac-pkg? #t)]
+        [("hardened") (set! hardened-runtime? #t)]
+        [else (raise-user-error "unrecognized packed option:" h)]))]
    [("--upload") url "Upload installer"
     (unless (string=? url "")
       (set! upload-to url))]

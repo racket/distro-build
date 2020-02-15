@@ -351,7 +351,7 @@
   (define dist-suffix (get-opt c '#:dist-suffix ""))
   (define dist-catalogs (choose-catalogs c '("")))
   (define sign-identity (get-opt c '#:sign-identity ""))
-  (define hardened-runtime? (get-opt c '#:hardened-runtime? (and sign-identity #t)))
+  (define hardened-runtime? (get-opt c '#:hardened-runtime? (not (equal? sign-identity ""))))
   (define installer-pre-process (get-opt c '#:client-installer-pre-process '()))
   (define installer-post-process (get-opt c '#:client-installer-post-process '()))
   (define osslsigncode-args (get-opt c '#:osslsigncode-args))
@@ -392,7 +392,7 @@
       " DIST_SUFFIX=" (q dist-suffix)
       " DIST_CATALOGS_q=" (qq dist-catalogs kind)
       " SIGN_IDENTITY=" (q sign-identity)
-      " INSTALLER_OPTIONS_q=\"" (if hardened-runtime? " --hardened-runtime" "") "\""
+      " INSTALLER_OPTIONS=\"" (if hardened-runtime? "hardened," "") "\""
       " OSSLSIGNCODE_ARGS_BASE64=" (q (if osslsigncode-args
                                           (pack-base64-strings osslsigncode-args)
                                           ""))

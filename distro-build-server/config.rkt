@@ -171,6 +171,7 @@
     [(#:source-runtime?) (boolean? val)]
     [(#:source-pkgs?) (boolean? val)]
     [(#:all-platform-pkgs?) (boolean? val)]
+    [(#:static-libs?) (boolean? val)]
     [(#:versionless?) (boolean? val)]
     [(#:mac-pkg?) (boolean? val)]
     [(#:tgz?) (boolean? val)]

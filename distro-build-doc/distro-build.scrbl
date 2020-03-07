@@ -497,6 +497,12 @@ spaces, etc.):
 
     @history[#:added "1.4"]}
 
+  @item{@racket[#:static-libs? _boolean] --- if true, then create and
+    include static libraries and associated files for embedding Racket
+    in other applications, where supported; the default is @racket[#f]
+
+    @history[#:added "1.7"]}
+
   @item{@racket[#:versionless? _boolean] --- if true, avoids including
     the Racket version number in an installer's name or in the
     installation path; the default is determined by the

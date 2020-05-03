@@ -1,6 +1,6 @@
 #lang racket
 (require remote-shell/ssh
-         remote-shell/vbox
+         remote-shell/docker
          net/url
          racket/date
          file/zip
@@ -12,21 +12,33 @@
 (module test racket/base)
 
 (define installer-vers (version))
+(define work-dir (if (directory-exists? "/tmp")
+                     ;; Using "/tmp" helps with Docker on Mac OS
+                     "/tmp/unix-install-test"
+                     (build-path (find-system-path 'temp-dir)
+                                 "unix-install-test")))
+(define snapshot-site "https://pre-release.racket-lang.org/")
 
 (command-line
  #:once-each
  [("--version") vers "Version to download and install"
-  (set! installer-vers vers)])
+                (set! installer-vers vers)]
+ [("--work") dir "Set working directory for installers, catalog, etc."
+             (set! work-dir dir)]
+ [("--site") url "Download from <url>"
+             (set! snapshot-site url)])
 
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
 
-(define vbox-name "Ubuntu Server 14.04")
-(define vbox-host "192.168.56.107")
-(define vbox-user "racket")
-(define vbox-snapshot "init")
+(define docker-image-name "mflatt/unix-installer-test")
 
-(define snapshot-site "https://pre-release.racket-lang.org/")
+;; Created/replaced/deleted:
+(define docker-container-name "unix-installer-test")
+
+;; Working directory in Docker container:
+(define docker-dir "/home/racket")
+
 (define installers-site (~a snapshot-site "installers/"))
 (define catalog (~a snapshot-site "catalog/"))
 
@@ -39,14 +51,25 @@
 (define min-racket-natipkg-installers
   (list (~a "racket-minimal-" installer-vers "-x86_64-linux-natipkg.sh")))
 
-;; For serving packages to VM:
-(define server-port 50001)
+(define racket-src-built-installers
+  (list (~a "racket-" installer-vers "-src-builtpkgs.tgz")))
 
-(define work-dir (find-system-path 'temp-dir))
+(define min-racket-src-installers
+  (list (~a "racket-minimal-" installer-vers "-src.tgz")))
+
+(define min-racket-src-built-installers
+  (list (~a "racket-minimal-" installer-vers "-src-builtpkgs.tgz")))
 
 ;; For disabling some tests:
 (define basic? #t)
 (define natipkg? #t)
+(define from-src? #t)
+
+;; ----------------------------------------
+;; Create working directory
+
+(unless (directory-exists? work-dir)
+  (make-directory work-dir))
 
 ;; ----------------------------------------
 ;; Get installers and "base.zip" from snapshot
@@ -54,18 +77,23 @@
 (define (get f #:sub [sub ""])
   (unless (file-exists? (build-path work-dir f))
     (printf "Getting ~a\n" f)
-    (call/input-url (string->url (string-append installers-site sub f))
-                    get-pure-port
-                    (lambda (i)
-                      (call-with-output-file*
-                       (build-path work-dir f)
-                       #:exists 'truncate
-                       (lambda (o)
-                         (copy-port i o)))))))
+    (let ([i (get-pure-port (string->url (string-append installers-site sub f))
+                            #:redirections 5)])
+      (call-with-output-file*
+       (build-path work-dir f)
+       #:exists 'truncate
+       (lambda (o)
+         (copy-port i o)))
+      (close-input-port i))))
 
 (for-each get min-racket-installers)
 (for-each get racket-installers)
-(for-each get min-racket-natipkg-installers)
+(when natipkg?
+  (for-each get min-racket-natipkg-installers))
+(when from-src?
+  (for-each get (append racket-src-built-installers
+                        min-racket-src-installers
+                        min-racket-src-built-installers)))
 (get #:sub "base/" "base.zip")
 
 ;; ----------------------------------------
@@ -108,7 +136,7 @@
 
 (define pkg-archive-dir (build-path work-dir "archive"))
 
-(when natipkg?
+(when (or natipkg? from-src?)
   (pkg-catalog-archive pkg-archive-dir
                        (list catalog)
                        #:state-catalog (build-path work-dir "archive" "state.sqlite")
@@ -116,11 +144,22 @@
 
 ;; ----------------------------------------
 
-(define (set-date rt)
-  (ssh rt "sudo date --set=\""
-       (parameterize ([date-display-format 'rfc2822])
-         (date->string (seconds->date (current-seconds)) #t))
-       "\""))
+(define (make-docker-setup #:volumes volumes)
+  (lambda ()
+    (docker-create #:name docker-container-name
+                   #:image-name docker-image-name
+                   #:volumes volumes
+                   #:replace? #t)
+    (docker-start #:name docker-container-name)))
+
+(define docker-teardown
+  (lambda ()
+    (when (docker-running? #:name docker-container-name)
+      (docker-stop #:name docker-container-name))
+    (docker-remove #:name docker-container-name)))
+
+(define (at-docker-remote rt path)
+  (at-remote rt (string-append docker-dir "/" path)))
 
 ;; ----------------------------------------
 
@@ -146,23 +185,16 @@
                 (if links? "linked" "")
                 "\n"))
 
-    (restore-vbox-snapshot vbox-name vbox-snapshot)
-
     (#%app
      dynamic-wind
+
+     (make-docker-setup #:volumes '())
      
      (lambda ()
-       (start-vbox-vm vbox-name #:pause-seconds 0))
-     
-     (lambda ()
-       (define rt (remote #:host vbox-host
-                          #:user vbox-user))
+       (define rt (remote #:host docker-container-name
+                          #:kind 'docker))
        
-       (make-sure-remote-is-ready rt)
-       
-       (set-date rt)
-       
-       (scp rt (build-path work-dir f) (at-remote rt f))
+       (scp rt (build-path work-dir f) (at-docker-remote rt f))
 
        (define script (build-path work-dir "script"))
        (call-with-output-file*
@@ -201,13 +233,13 @@
           (when links?
             (fprintf o "/usr/local\n"))
           (fprintf o "\n")))
-       (scp rt script (at-remote rt "script"))
+       (scp rt script (at-docker-remote rt "script"))
 
        (when min?
-         (scp rt (build-path work-dir "base.zip") (at-remote rt "base.zip")))
-       (scp rt sample-zip-path (at-remote rt "sample.zip"))
+         (scp rt (build-path work-dir "base.zip") (at-docker-remote rt "base.zip")))
+       (scp rt sample-zip-path (at-docker-remote rt "sample.zip"))
        (unless min?
-         (scp rt progy-path (at-remote rt "progy.rkt")))
+         (scp rt progy-path (at-docker-remote rt "progy.rkt")))
 
        (define sudo? (or usr-local? links?))
        (define sudo (if sudo? "sudo " ""))
@@ -258,24 +290,11 @@
        
        (void))
 
-     (lambda ()
-       (stop-vbox-vm vbox-name)))))
-
+     docker-teardown)))
 
 ;; ----------------------------------------
 
 (when natipkg?
-  (printf "Starting web server\n")
-  (define server
-    (thread
-     (lambda ()
-       (serve/servlet
-        (lambda args #f)
-        #:command-line? #t
-        #:listen-ip "localhost"
-        #:extra-files-paths (list pkg-archive-dir)
-        #:servlet-regexp #rx"$." ; never match
-        #:port server-port))))
   (sync (system-idle-evt))
   
   (for* ([f (in-list min-racket-natipkg-installers)])
@@ -284,24 +303,16 @@
                 f
                 "\n"))
 
-    (restore-vbox-snapshot vbox-name vbox-snapshot)
-
     (#%app
      dynamic-wind
      
-     (lambda ()
-       (start-vbox-vm vbox-name #:pause-seconds 0))
+     (make-docker-setup #:volumes `((,pkg-archive-dir "/archive" ro)))
      
      (lambda ()
-       (define rt (remote #:host vbox-host
-                          #:user vbox-user
-                          #:remote-tunnels (list (cons server-port server-port))))
+       (define rt (remote #:host docker-container-name
+                          #:kind 'docker))
        
-       (make-sure-remote-is-ready rt)
-
-       (set-date rt)
-       
-       (scp rt (build-path work-dir f) (at-remote rt f))
+       (scp rt (build-path work-dir f) (at-docker-remote rt f))
 
        ;; install --------------------
        (ssh rt "sh " f " --in-place --dest racket")
@@ -316,7 +327,7 @@
 
        ;; install packages  --------------------
        (ssh rt (~a bin-dir "raco") " pkg install"
-            " --catalog http://localhost:" (~a server-port) "/catalog/"
+            " --catalog /archive/catalog/"
             " --auto"
             " drracket")
        
@@ -325,5 +336,77 @@
        
        (void))
 
+     docker-teardown)))
+
+;; ----------------------------------------
+
+(when from-src?
+  (sync (system-idle-evt))
+
+  (for* ([mode '(min-src min-src-built src-built)]
+         [f (in-list (case mode
+                       [(min-src)
+                        min-racket-src-installers]
+                       [(min-src-built)
+                        min-racket-src-built-installers]
+                       [(src-built)
+                        racket-src-built-installers]))]
+         [prefix? '(#f #t)]
+         [cs? '(#f #t)])
+    (define built? (not (eq? mode 'min-src)))
+    (define min? (not (eq? mode 'src-built)))
+    
+    (printf (~a "=================================================================\n"
+                "SOURCE: "
+                f
+                (if cs? " CS" "")
+                (if prefix? " --prefix" "")
+                "\n"))
+
+  
+    (#%app
+     dynamic-wind
+     
+     (make-docker-setup #:volumes `((,pkg-archive-dir "/archive" ro)))
+     
      (lambda ()
-       (stop-vbox-vm vbox-name)))))
+       (define rt (remote #:host docker-container-name
+                          #:kind 'docker
+                          #:timeout (if cs? 1200 600)))
+       
+       (scp rt (build-path work-dir f) (at-docker-remote rt f))
+
+       ;; build --------------------
+       (ssh rt "tar zxf " f)
+
+       (define racket-dir (~a "racket-" installer-vers "/"))
+
+       (ssh rt (~a "cd " racket-dir "src "
+                   " && mkdir build"
+                   " && cd build"
+                   " && ../configure" (~a (if prefix?
+                                              (~a " --prefix=" docker-dir "/local")
+                                              "")
+                                          (if cs?
+                                              " --enable-csdefault"
+                                              ""))
+                   " && make -j 2"
+                   " && make install"))
+
+       (define bin-dir (if prefix?
+                           "local/bin/"
+                           (~a racket-dir "bin/")))
+
+       ;; check that Racket runs --------------------
+       (ssh rt (~a bin-dir "racket") " -e '(displayln \"hello\")'")
+
+       ;; check that `raco setup` is ok --------------------
+       (ssh rt (~a bin-dir "raco") " setup")
+
+       ;; if starting from min and built, install DrRacket ------------
+       (when (and min? built?)
+         (ssh rt (~a bin-dir "raco") " pkg install drracket"))
+       
+       (void))
+
+     docker-teardown)))

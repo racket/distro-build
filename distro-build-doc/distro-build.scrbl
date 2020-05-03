@@ -352,7 +352,7 @@ spaces, etc.):
 
   @item{@racket[#:cross-target-machine _string*] --- similar to
     @racket[#:cross-target], but used only for @racket[#:variant 'cs],
-    and specifies the target machine for cross-compilation ofa
+    and specifies the target machine for cross-compilation
     as a string like @racket["ta6nt"]; use both
     @racket[#:cross-target-machine] and @racket[#:cross-target] unless
     the former can be inferred from the latter or unless options in

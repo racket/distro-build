@@ -327,6 +327,7 @@
 
        ;; install packages  --------------------
        (ssh rt (~a bin-dir "raco") " pkg install"
+            " --recompile-only"
             " --catalog /archive/catalog/"
             " --auto"
             " drracket")
@@ -391,7 +392,9 @@
                                               " --enable-csdefault"
                                               ""))
                    " && make -j 2"
-                   " && make install"))
+                   " && make install" (~a (if built?
+                                              " PLT_SETUP_OPTIONS=--recompile-only"
+                                              ""))))
 
        (define bin-dir (if prefix?
                            "local/bin/"
@@ -406,6 +409,7 @@
        ;; if starting from min and built, install DrRacket ------------
        (when (and min? built?)
          (ssh rt (~a bin-dir "raco") " pkg install"
+              " --recompile-only"
               " --catalog /archive/catalog/"
               " --auto"
               " drracket"))

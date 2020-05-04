@@ -372,7 +372,7 @@
      (lambda ()
        (define rt (remote #:host docker-container-name
                           #:kind 'docker
-                          #:timeout (if cs? 1200 600)))
+                          #:timeout (if cs? 1500 600)))
        
        (scp rt (build-path work-dir f) (at-docker-remote rt f))
 
@@ -405,7 +405,10 @@
 
        ;; if starting from min and built, install DrRacket ------------
        (when (and min? built?)
-         (ssh rt (~a bin-dir "raco") " pkg install drracket"))
+         (ssh rt (~a bin-dir "raco") " pkg install"
+              " --catalog /archive/catalog/"
+              " --auto"
+              " drracket"))
        
        (void))
 

@@ -97,6 +97,9 @@
       (get-opt opts '#:host)
       "localhost"))
 
+(define (client-stream-log? opts)
+  (get-opt opts '#:stream-log?))
+
 (define (get-path-opt opt key default #:localhost [localhost-default default])
   (define d (get-opt opt key default #:localhost localhost-default))
   (if (path? d)
@@ -696,6 +699,14 @@
        (thunk)))
    (custodian-shutdown-all cust)))
 
+
+(define (tee . p*)
+  (let-values ([(inp outp) (make-pipe)])
+    (thread
+     (lambda ()
+       (apply copy-port inp p*)))
+    outp))
+
 (define (client-thread c all-seq? proc)
   (unless stop?
     (define log-dir (build-path "build" "log"))
@@ -707,13 +718,15 @@
     (define (go shutdown)
       (define p (open-output-file log-file
                                   #:exists 'truncate/replace))
+      (define err-p (if (client-stream-log? c) (tee p (current-error-port)) p))
+      (define out-p (if (client-stream-log? c) (tee p (current-output-port)) p))
       (file-stream-buffer-mode p 'line)
       (define (report-fail)
         (record-failure (client-name c))
         (printf "Build FAILED for ~s\n" (client-name c)))
       (define start-milliseconds (current-inexact-milliseconds))
-      (unless (parameterize ([current-output-port p]
-                             [current-error-port p])
+      (unless (parameterize ([current-output-port err-p]
+                             [current-error-port out-p])
                 (proc shutdown report-fail))
         (report-fail))
       (printf "Duration for ~a: ~a\n"

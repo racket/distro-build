@@ -529,6 +529,10 @@ spaces, etc.):
     log file for the machine; defaults to @racket[#:name]'s
     value @history[#:added "1.8"]}
 
+  @item{@racket[#:stream-log? _boolean] --- if true, send log output
+    to server's output and error ports as well as logging them to a
+    file; defaults to @racket[#f] @history[#:added "1.8"]}
+
   @item{@racket[#:custom _hash-table] --- a hash table mapping
     arbitrary keywords to arbitrary values; when a value for
     @racket[#:custom] is overriden in a nested configuration, the new

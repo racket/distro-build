@@ -51,7 +51,10 @@ client machines hierarchically, where configuration options
 propagate down the hierarchy when they are not overridden more
 locally.
 
-Each client is normally built by running commands via @exec{ssh},
+Each client is either a remote machine accessible by @exec{ssh}, a
+VirtualBox virtual machine to run on the server machine, or a Docker
+container to run on the server machine. For a remote machine or
+VirtualBox machine, client build commands are run via @exec{ssh},
 where the client's host configured with @racket[#:host] (with and
 optional @racket[#:port] and/or @racket[#:user]) indicate the
 @exec{ssh} target. Each client machine must be set up with a
@@ -61,7 +64,11 @@ work without a password prompt. An exception is when the host is
 used directly instead of @exec{ssh}. When @exec{ssh} is used, @Flag{R}
 is also used to create a tunnel back to the server, and the client by
 default uses that tunnel for all communication, so the server by
-default accepts only connections via @racket["localhost"].
+default accepts only connections via @racket["localhost"]. For a
+client as a Docker container, @racket[#:docker] specifies an image
+name, #racket[#:host] is used as a container name, and @exec{ssh} is
+not used. Any container that already exists with the @racket[#:host]
+name is used as-is, to support incremental builds.
 
 On the client machine, all work is performed at a specified directory
 as specified by @racket[#:dir]. The directory defaults to
@@ -205,7 +212,9 @@ spaces, etc.):
 
 @itemlist[
 
-  @item{@racket[#:host _string*] --- defaults to @racket["localhost"]}
+  @item{@racket[#:host _string*] --- defaults to @racket["localhost"];
+    if @racket[#:docker] is provided, this host name is used as a
+    Docker container name}
 
   @item{@racket[#:name _string] --- defaults to @racket[#:host]'s
     value; this string is recorded as a description of the installer
@@ -231,7 +240,7 @@ spaces, etc.):
     only @filepath{/usr/local/bin} and @filepath{/usr/bin}}
 
   @item{@racket[#:server _string*] --- the address of the server as
-    accessed by the client; when SSH remote tunneling works, then
+    accessed by the client (except for Docker clients); when SSH remote tunneling works, then
     @racket["localhost"] should work to reach the server; defaults to
     the @tt{SERVER} makefile variable, which in turn defaults to
     @racket["localhost"]; see also @racket[#:server-hosts] and
@@ -240,8 +249,9 @@ spaces, etc.):
 
   @item{@racket[#:repo _string] --- the git repository for Racket;
     defaults to
-    @filepath{http://@nonterm{server}:@nonterm{server-port}/.git};
-    see also @racket[#:extra-repo-dir], which must be
+    @filepath{http://@nonterm{server}:@nonterm{server-port}/.git},
+    except for Docker clients, which access the server's directory
+    directly; see also @racket[#:extra-repo-dir], which must be
     at the configuration top level}
 
   @item{@racket[#:pkgs (list _string* ...)] --- packages to install;
@@ -319,13 +329,23 @@ spaces, etc.):
     the default is the @racket[make-readme] function from
     @racketmodname[distro-build/readme]}
 
-  @item{@racket[#:max-vm _real] --- maximum number of VMs allowed to
-    run with this machine, counting the machine; defaults to
+  @item{@racket[#:max-vm _real] --- for VirtualBox clients, the maximum
+    number of VirtualBox virtual machines allowed to
+    run concurrently with this machine, counting the machine; defaults to
     @racket[1]}
 
-  @item{@racket[#:vbox _string] --- Virtual Box machine name (as
+  @item{@racket[#:vbox _string] --- VirtualBox machine name (as
     shown, for example, in the Virtual Box GUI); if provided, the
     virtual machine is started and stopped on the server as needed}
+
+  @item{@racket[#:docker _string] --- Docker image name; if provided
+    and @racket[#:vbox] is not provided, then a container using the
+    @racket[#:host] name is created if it does not already exist,
+    started if it is not already running, and stopped on the server
+    after building; the image @racket["racket/unix-install-test"]
+    is suitable as a generic Unix image
+
+    @history[#:added "1.8"]}
 
   @item{@racket[#:platform _symbol] --- @racket['unix],
     @racket['macosx], @racket['windows], @racket['windows/bash] (which
@@ -351,7 +371,7 @@ spaces, etc.):
     although it is inferred from @racket[#:cross-target] if possible}
 
   @item{@racket[#:cross-target-machine _string*] --- similar to
-    @racket[#:cross-target], but used only for @racket[#:variant 'cs],
+    @racket[#:cross-target], but used only for @racket[#:v<ariant 'cs],
     and specifies the target machine for cross-compilation
     as a string like @racket["ta6nt"]; use both
     @racket[#:cross-target-machine] and @racket[#:cross-target] unless
@@ -418,7 +438,6 @@ spaces, etc.):
     runtime and appropriate entitlements while signing; the default is
     @racket[#t] if @racket[#:sign-identity] is non-empty
     @history[#:added "1.6"]}
-
 
   @item{@racket[#:client-installer-pre-process (list _string ...)]
     --- an executable path followed by initial arguments; the executable

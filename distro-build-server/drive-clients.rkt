@@ -16,7 +16,10 @@
          distro-build/url-options
          distro-build/display-time
          distro-build/readme
+         distro-build/record-installer
          remote-shell/vbox
+         remote-shell/docker
+         (prefix-in remote: remote-shell/ssh)
          "email.rkt")
 
 ;; See "config.rkt" for an overview.
@@ -114,27 +117,65 @@
                            (hash-ref c (car l) (lambda () (cadr l))))
                  (cddr l))])))
 
-;; ----------------------------------------
-;; Managing VirtualBox machines
+;; In-container root for server directories accessed by a Docker client:
+(define mnt-dir "/docker-mnt")
+
+(define (docker-upload-dir host)
+  (define dir (build-path "build" "upload" host))
+  (make-directory* dir)
+  dir)
+
+;; --------------------------------------------------
+;; Managing VirtualBox machines and Docker containers
 
 (define (start-client c max-vm)
   (define vbox (get-opt c '#:vbox))
-  (when vbox
-    (start-vbox-vm vbox
-                   #:max-vms max-vm
-                   #:dry-run? dry-run)))
+  (define docker (get-opt c '#:docker))
+  (cond
+    [vbox
+     (start-vbox-vm vbox
+                    #:max-vms max-vm
+                    #:dry-run? dry-run)]
+    [docker
+     (define container (get-opt c '#:host))
+     (unless (docker-id #:name container)
+       (docker-create #:name container
+                      #:image-name docker
+                      #:volumes `((,(path->complete-path "build")
+                                   ,(build-slash-path mnt-dir "build")
+                                   ro)
+                                  (,(path->complete-path (docker-upload-dir container))
+                                   ,(build-slash-path mnt-dir "upload")
+                                   rw)
+                                  (,(path->complete-path ".git")
+                                   ,(build-slash-path mnt-dir "server-repo")
+                                   rw)
+                                  ,@(let ([extra-repo-dir (get-opt c '#:extra-repo-dir)])
+                                      (cond
+                                        [extra-repo-dir
+                                         `((,extra-repo-dir
+                                            ,(build-slash-path mnt-dir "extra-repos")
+                                            ro))]
+                                        [else '()])))))
+     (unless (docker-running? #:name container)
+       (docker-start #:name container))]))
 
 (define (stop-client c)
   (define vbox (get-opt c '#:vbox))
-  (when vbox
-    (stop-vbox-vm vbox)))
+  (define docker (get-opt c '#:docker))
+  (cond
+    [vbox
+     (stop-vbox-vm vbox)]
+    [docker
+     (define container (get-opt c '#:host))
+     (docker-stop #:name container)]))
 
 (define (try-until-ready c host port user server-port kind cmd)
   (when (get-opt c '#:vbox)
     ;; A VM may take a little while to get networking set up and
     ;; respond, so give a dummy `cmd` a few tries
     (let loop ([tries 3])
-      (unless (ssh-script host port user server-port kind cmd)
+      (unless (ssh-script host port user '() server-port kind cmd)
         (sleep 1)
         (loop (sub1 tries))))))
 
@@ -242,39 +283,47 @@
     [else
      (apply system* exe args)]))
 
-(define (ssh-script host port user server-port kind . cmds)
+(define (ssh-script host port/kind user env server-port kind . cmds)
   (for/and ([cmd (in-list cmds)])
     (when cmd
       (unless (eq? dry-run 'describe)
         (display-time #:server? #t)))
     (or (not cmd)
-        (if (and (equal? host "localhost")
-                 (not user))
-            ;; Run client locally:
-            (parameterize ([current-environment-variables
-                            (environment-variables-copy (current-environment-variables))])
-              ;; Prevent any makefile variables from the server setup
-              ;; from being propagated to the client build:
-              (environment-variables-set! (current-environment-variables) #"MAKEFLAGS" #f)
-              ;; Run client in a shell:
-              (apply system*/show cmd))
-            ;; Run client remotely:
-            (apply system*/show ssh 
-                   "-p" (~a port)
-                   ;; create tunnel to connect back to server:
-                   "-R" (~a server-port ":localhost:" server-port)
-                   (if user 
-                       (~a user "@" host)
-                       host)
-                   (if (eq? kind 'unix)
-                       ;; ssh needs an extra level of quoting
-                       ;;  relative to sh:
-                       (for/list ([arg (in-list cmd)])
-                         (~a "'" 
-                             (regexp-replace* #rx"'" arg "'\"'\"'")
-                             "'"))
-                       ;; windows quoting built into `cmd' aready
-                       cmd))))))
+        (cond
+          [(and (equal? host "localhost")
+                (not user))
+           ;; Run client locally:
+           (parameterize ([current-environment-variables
+                           (environment-variables-copy (current-environment-variables))])
+             ;; Prevent any makefile variables from the server setup
+             ;; from being propagated to the client build:
+             (environment-variables-set! (current-environment-variables) #"MAKEFLAGS" #f)
+             ;; Run client in a shell:
+             (apply system*/show cmd))]
+          [(eq? port/kind 'docker)
+           ;; Run client in a Docker container
+           (apply remote:ssh
+                  (remote:remote #:host host #:kind 'docker #:timeout +inf.0
+                                 #:env (map (lambda (e) (cons (car e) (cadr e))) env))
+                  cmd)]
+          [else
+           ;; Run client remotely:
+           (apply system*/show ssh 
+                  "-p" (~a port/kind)
+                  ;; create tunnel to connect back to server:
+                  "-R" (~a server-port ":localhost:" server-port)
+                  (if user 
+                      (~a user "@" host)
+                      host)
+                  (if (eq? kind 'unix)
+                      ;; ssh needs an extra level of quoting
+                      ;;  relative to sh:
+                      (for/list ([arg (in-list cmd)])
+                        (~a "'" 
+                            (regexp-replace* #rx"'" arg "'\"'\"'")
+                            "'"))
+                      ;; windows quoting built into `cmd' aready
+                      cmd))]))))
 
 (define (q s)
   (~a "\"" s "\""))
@@ -336,7 +385,21 @@
   (bytes->string/utf-8 (base64-encode (string->bytes/utf-8 (format "~s" args))
                                       #"")))
 
-(define (client-args c server server-port kind readme)
+(define build-slash-path
+  (case-lambda
+    [(a b)
+     (define len (string-length a))
+     (string-append
+      a
+      (if (and (len . >= . 1)
+               (equal? #\/ (string-ref a (sub1 len))))
+          ""
+          "/")
+      b)]
+    [(a b . cs)
+     (apply build-slash-path (build-slash-path a b) cs)]))
+
+(define (client-args c server server-port kind readme mnt-dir)
   (define desc (client-name c))
   (define pkgs (let ([l (get-opt c '#:pkgs)])
                  (if l
@@ -377,8 +440,16 @@
   (define build-stamp (get-opt c '#:build-stamp (if release?
                                                     ""
                                                     (current-stamp))))
-  (~a " SERVER=" server
-      " SERVER_PORT=" server-port
+  (~a (cond
+        [(not mnt-dir)
+         (~a " SERVER=" server
+             " SERVER_PORT=" server-port)]
+        [else
+         (~a " SERVER="
+             " SERVER_PORT=0"
+             " SERVER_URL_SCHEME=file"
+             " SERVER_CATALOG_PATH=" (build-slash-path mnt-dir "build/built/catalog/")
+             " SERVER_COLLECTS_PATH=" (build-slash-path mnt-dir "build/origin/"))])
       " PKGS=" (q pkgs)
       (if racket
           (~a " PLAIN_RACKET=" (q racket))
@@ -390,7 +461,11 @@
           (~a " SCHEME_SRC=" (q scheme))
           "")
       (if extra-repos?
-          (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
+          (cond
+            [(not mnt-dir)
+             (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")]
+            [else
+             (~a " EXTRA_REPOS_BASE=" (build-slash-path mnt-dir "extra-repos/"))])
           "")
       " DOC_SEARCH=" (q doc-search)
       " DIST_DESC=" (q desc)
@@ -430,8 +505,13 @@
                                     "")
       " MAC_PKG_MODE=" (if mac-pkg? "--mac-pkg" (q ""))
       " TGZ_MODE=" (if tgz? "--tgz" (q ""))
-      " UPLOAD=http://" server ":" server-port "/upload/"
-      " README=http://" server ":" server-port "/" (q (file-name-from-path readme))
+      (cond
+        [(not mnt-dir)
+         (~a " UPLOAD=http://" server ":" server-port "/upload/"
+             " README=http://" server ":" server-port "/" (q (file-name-from-path readme)))]
+        [else
+         (~a " UPLOAD=file://" (build-slash-path mnt-dir "upload/")
+             " README=file://" (build-slash-path mnt-dir "build/readmes/" (q (file-name-from-path readme))))])
       " TEST_PKGS=" (q (apply ~a #:separator " " (get-opt c '#:test-pkgs '())))
       " TEST_ARGS_q=" (qq (get-opt c '#:test-args '()) kind)))
 
@@ -447,17 +527,24 @@
     [("i686-w64-mingw32") "ti3nt"]
     [else #f]))
 
+(define (get-unix-dir c)
+  (get-path-opt c '#:dir "build/plt" #:localhost (current-directory)))
+
 (define (unix-build c platform host port user server server-port repo init clean? pull? readme)
-  (define dir (get-path-opt c '#:dir "build/plt" #:localhost (current-directory)))
+  (define port/kind (if (get-opt c '#:docker #f) 'docker port))
+  (define dir (get-unix-dir c))
   (define env (get-opt c '#:env null))
   (define (sh . args)
-    (append
-     (if (null? env)
-         null
-         (list* "/usr/bin/env"
-                (for/list ([e (in-list env)])
-                  (format "~a=~a" (car e) (cadr e)))))
-     (list "/bin/sh" "-c" (apply ~a args))))
+    (cond
+      [(eq? port/kind 'docker) (map ~a args)]
+      [else
+       (append
+        (if (null? env)
+            null
+            (list* "/usr/bin/env"
+                   (for/list ([e (in-list env)])
+                     (format "~a=~a" (car e) (cadr e)))))
+        (list "/bin/sh" "-c" (apply ~a args)))]))
   (define j (or (get-opt c '#:j) 1))
   (define variant (or (get-opt c '#:variant) '3m))
   (define cs? (eq? variant 'cs))
@@ -478,78 +565,101 @@
     ;; relative to build directory
     (if cs? "cross/cs/c/racketcs" "cross/racket/racket3m"))
   (define extra-repos? (and (get-opt c '#:extra-repo-dir) #t))
-  (try-until-ready c host port user server-port 'unix (sh "echo hello"))
-  (ssh-script
-   host port user
-   server-port
-   'unix
-   (and init
-        (sh init))
-   (and clean?
-        (sh "rm -rf  " (q dir)))
-   (sh "if [ ! -d " (q dir) " ] ; then"
-       " git clone " (q repo) " " (q dir) " ; "
-       "fi")
-   (and pull?
-        (sh "cd " (q dir) " ; "
-            "git pull"))
-   (and need-native-racket?
-        (sh "cd " (q dir) " ; "
-            "make -j " j " native-" (if cs? "cs-" "") "for-cross"
-            (if scheme
-                (~a " SCHEME_SRC=" (q scheme))
-                "")
-            (if (and cs? extra-repos?)
-                (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
-                "")))
-   (sh "cd " (q dir) " ; "
-       "make -j " j " client" (if compile-any? "-compile-any" "")
-       (client-args c server server-port 'unix readme)
-       " JOB_OPTIONS=\"-j " j "\""
-       (if need-native-racket?
-           (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket
-               (if cs?
-                   (~a " RACKET=`pwd`/racket/src/build/" built-native-racket
-                       (if scheme
-                           ""
-                           " SCHEME_SRC=`pwd`/racket/src/build/cross/ChezScheme"))
-                   ""))
-           "")
-       (if cs?
-           " CLIENT_BASE=cs-base RACKETCS_SUFFIX= "
-           "")
-       (if cross?
-           " BUNDLE_FROM_SERVER_TARGET=bundle-cross-from-server"
-           "")
-       (if (and cross? cs?)
-           " CS_CROSS_SUFFIX=-cross"
-           "")
-       (if cross-target-machine
-           (~a " SETUP_MACHINE_FLAGS=\"--cross-compiler " cross-target-machine
-               " `pwd`/racket/src/build/cs/c/ -MCR `pwd`/build/zo:\"")
-           "")
-       " CONFIGURE_ARGS_qq=" (qq (append
-                                  (if cross-target
-                                      (list (~a "--host=" cross-target))
-                                      null)
-                                  (if cross?
-                                      (list (~a "--enable-racket="
-                                                (or given-racket
-                                                    (~a "`pwd`/" built-native-racket))))
-                                      null)
-                                  (if (and cs? scheme)
-                                      (list (~a "--enable-scheme=" scheme))
-                                      null)
-                                  (list "--enable-embedfw")
-                                  (get-opt c '#:configure null))
-                                 'unix))
-   (and (has-tests? c)
-        (sh "cd " (q dir) " ; "
-            "make test-client"
-            (client-args c server server-port 'unix readme)
-            (if need-native-racket?
-                (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)
-                "")))))
+  (define client-mnt-dir (and (eq? port/kind 'docker) mnt-dir))
+  (define (build)
+    (ssh-script
+     host port/kind user env
+     server-port
+     'unix
+     (and init
+          (sh init))
+     (and clean?
+          (sh "rm -rf  " (q dir)))
+     (sh "if [ ! -d " (q dir) " ] ; then"
+         " git clone " (q repo) " " (q dir) " ; "
+         "fi")
+     (and pull?
+          (sh "cd " (q dir) " ; "
+              "git pull"))
+     (and need-native-racket?
+          (sh "cd " (q dir) " ; "
+              "make -j " j " native-" (if cs? "cs-" "") "for-cross"
+              (if scheme
+                  (~a " SCHEME_SRC=" (q scheme))
+                  "")
+              (if (and cs? extra-repos?)
+                  (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
+                  "")))
+     (sh "cd " (q dir) " ; "
+         "make -j " j " client" (if compile-any? "-compile-any" "")
+         (client-args c server server-port 'unix readme client-mnt-dir)
+         " JOB_OPTIONS=\"-j " j "\""
+         (if need-native-racket?
+             (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket
+                 (if cs?
+                     (~a " RACKET=`pwd`/racket/src/build/" built-native-racket
+                         (if scheme
+                             ""
+                             " SCHEME_SRC=`pwd`/racket/src/build/cross/ChezScheme"))
+                     ""))
+             "")
+         (if cs?
+             " CLIENT_BASE=cs-base RACKETCS_SUFFIX= "
+             "")
+         (if cross?
+             " BUNDLE_FROM_SERVER_TARGET=bundle-cross-from-server"
+             "")
+         (if (and cross? cs?)
+             " CS_CROSS_SUFFIX=-cross"
+             "")
+         (if cross-target-machine
+             (~a " SETUP_MACHINE_FLAGS=\"--cross-compiler " cross-target-machine
+                 " `pwd`/racket/src/build/cs/c/ -MCR `pwd`/build/zo:\"")
+             "")
+         " CONFIGURE_ARGS_qq=" (qq (append
+                                    (if cross-target
+                                        (list (~a "--host=" cross-target))
+                                        null)
+                                    (if cross?
+                                        (list (~a "--enable-racket="
+                                                  (or given-racket
+                                                      (~a "`pwd`/" built-native-racket))))
+                                        null)
+                                    (if (and cs? scheme)
+                                        (list (~a "--enable-scheme=" scheme))
+                                        null)
+                                    (list "--enable-embedfw")
+                                    (get-opt c '#:configure null))
+                                   'unix))
+     (and (has-tests? c)
+          (sh "cd " (q dir) " ; "
+              "make test-client"
+              (client-args c server server-port 'unix readme client-mnt-dir)
+              (if need-native-racket?
+                  (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)
+                  "")))))
+  (cond
+    [(not (eq? port/kind 'docker))
+     (try-until-ready c host port user server-port 'unix (sh "echo hello"))
+     (build)]
+    [else
+     ;; For Docker mode, we need to manage the upload as a directory
+     (define upload-dir (docker-upload-dir host))
+     (for ([f (in-directory upload-dir)]) (delete-file f))
+
+     (define result (build))
+
+     (define uploads (directory-list upload-dir))
+     (unless (null? uploads)
+       (define filename (car uploads))
+       (define installers-dir (build-path "build" "installers"))
+       (make-directory* installers-dir)
+       (copy-file (build-path upload-dir filename)
+                  (build-path installers-dir filename)
+                  #t)
+       (record-installer installers-dir (path->string filename) (client-name c)))
+
+     result]))
 
 (define (windows-build c platform host port user server server-port repo init clean? pull? readme)
   (define dir (get-path-opt c '#:dir "build\\plt" #:localhost (current-directory)))
@@ -567,7 +677,7 @@
       [else (list "cmd" "/c" command)]))
   (try-until-ready c host port user server-port 'windows (cmd "echo hello"))
   (ssh-script
-   host port user
+   host port user '()
    server-port
    platform
    (and init
@@ -585,12 +695,12 @@
         (if (eq? variant 'cs)
             " WIN32_CLIENT_BASE=win32-cs-base RACKETCS_SUFFIX= "
             "")
-        (client-args c server server-port platform readme))
+        (client-args c server server-port platform readme #f))
    (and (has-tests? c)
         (cmd "cd " (q dir)
              " && racket\\src\\worksp\\msvcprep.bat " vc
              " && nmake win32-test-client"
-             (client-args c server server-port platform readme)))))
+             (client-args c server server-port platform readme #f)))))
 
 (define (client-build c)
   (describe (client-name c))
@@ -605,7 +715,9 @@
   (define server-port (or (get-opt c '#:server-port)
                           default-server-port))
   (define repo (or (get-opt c '#:repo)
-                   (~a "http://" server ":" server-port "/.git")))
+                   (if (get-opt c '#:docker)
+                       (build-slash-path mnt-dir "server-repo")
+                       (~a "http://" server ":" server-port "/.git"))))
   (define init (get-opt c '#:init))
   (define clean? (get-opt c '#:clean? default-clean? #:localhost #f))
   (define pull? (get-opt c '#:pull? #t #:localhost #f))

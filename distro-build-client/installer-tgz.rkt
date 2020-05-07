@@ -18,6 +18,7 @@
   (define dest (path->complete-path dest-path))
   (when (file-exists? dest) (delete-file dest))
   (printf "Tarring to ~s\n" dest)
+  (flush-output)
   (when readme
     (call-with-output-file*
      (build-path src-dir "README")

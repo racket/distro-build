@@ -54,7 +54,7 @@
   (when (file-exists? dmg) (delete-file dmg))
   (delete-directory/files work-dir #:must-exist? #f)
   (make-directory* work-dir)
-  (printf "Copying ~a\n" src-dir)
+  (printf/flush "Copying ~a\n" src-dir)
   (define dest-dir (build-path work-dir volname))
   (copy-directory/files src-dir dest-dir
                         #:preserve-links? #t

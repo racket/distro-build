@@ -152,14 +152,21 @@
 (when upload-to
   (printf "Upload ~a to ~a\n" installer-file upload-to)
   (flush-output)
-  (define i
-    (put-pure-port
-     (string->url (format "~a~a"
-                          upload-to
-                          (path->string (file-name-from-path installer-file))))
-     (file->bytes installer-file)
-     (list (string-append "Description: " upload-desc))))
-  (unless (equal? (read i) #t)
-    (error "file upload failed")))
+  (define url (string->url (format "~a~a"
+                                   upload-to
+                                   (path->string (file-name-from-path installer-file)))))
+  (cond
+    [(equal? (url-scheme url) "file")
+     (copy-file installer-file
+                (url->path url)
+                #t)]
+    [else
+     (define i
+       (put-pure-port
+        url
+        (file->bytes installer-file)
+        (list (string-append "Description: " upload-desc))))
+     (unless (equal? (read i) #t)
+       (error "file upload failed"))]))
 
 (display-time)

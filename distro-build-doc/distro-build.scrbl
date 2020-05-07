@@ -525,6 +525,10 @@ spaces, etc.):
     seconds to wait after stopping a machine; the default is
     @racket[0]}
 
+  @item{@racket[#:log-file _string] --- the file name to use for the
+    log file for the machine; defaults to @racket[#:name]'s
+    value @history[#:added "1.8"]}
+
   @item{@racket[#:custom _hash-table] --- a hash table mapping
     arbitrary keywords to arbitrary values; when a value for
     @racket[#:custom] is overriden in a nested configuration, the new

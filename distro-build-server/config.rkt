@@ -195,6 +195,7 @@
     [(#:smtp-user) (or (not val) (string? val))]
     [(#:smtp-password) (or (not val) (string? val))]
     [(#:fail-on-client-failures) (boolean? val)]
+    [(#:log-file) (string? val)]
     [(#:custom) (and (hash? val)
                      (for/and ([k (in-hash-keys val)])
                        (keyword? k)))]

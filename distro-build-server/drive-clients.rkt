@@ -88,6 +88,10 @@
 (define (get-content c)
   (site-config-content c))
 
+(define (client-log-file opts)
+  (or (get-opt opts '#:log-file)
+      (client-name opts)))
+
 (define (client-name opts)
   (or (get-opt opts '#:name)
       (get-opt opts '#:host)
@@ -695,7 +699,7 @@
 (define (client-thread c all-seq? proc)
   (unless stop?
     (define log-dir (build-path "build" "log"))
-    (define log-file (build-path log-dir (client-name c)))
+    (define log-file (build-path log-dir (client-log-file c)))
     (make-directory* log-dir)
     (printf "Logging build: ~a\n" log-file)
     (flush-output)

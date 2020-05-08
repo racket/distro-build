@@ -824,7 +824,7 @@
     (define log-dir (build-path "build" "log"))
     (define log-file (build-path log-dir (client-log-file c)))
     (make-directory* log-dir)
-    (printf "Logging build: ~a\n" log-file)
+    (printf "Logging build: ~a (log: ~a)\n" (client-name c) log-file)
     (flush-output)
     (define cust (make-custodian))
     (define (go shutdown)

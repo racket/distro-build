@@ -399,6 +399,8 @@
     [(a b . cs)
      (apply build-slash-path (build-slash-path a b) cs)]))
 
+(define default-variant 'bc) ; 'cs or 'bc/'3m
+
 (define (client-args c server server-port kind readme mnt-dir)
   (define desc (client-name c))
   (define pkgs (let ([l (get-opt c '#:pkgs)])
@@ -406,10 +408,8 @@
                      (apply ~a #:separator " " l)
                      default-pkgs)))
   (define racket (get-opt c '#:racket))
-  (define variant (or (get-opt c '#:variant) '3m))
+  (define variant (or (get-opt c '#:variant) default-variant))
   (define cs? (eq? variant 'cs))
-  (define scheme (and cs?
-                      (get-opt c '#:scheme)))
   (define extra-repos? (and (get-opt c '#:extra-repo-dir) #t))
   (define doc-search (choose-doc-search c default-doc-search))
   (define dist-name (or (get-opt c '#:dist-name)
@@ -456,9 +456,6 @@
           "")
       (if (and racket cs?)
           (~a " RACKET=" (q racket))
-          "")
-      (if scheme
-          (~a " SCHEME_SRC=" (q scheme))
           "")
       (if extra-repos?
           (cond
@@ -546,7 +543,7 @@
                      (format "~a=~a" (car e) (cadr e)))))
         (list "/bin/sh" "-c" (apply ~a args)))]))
   (define j (or (get-opt c '#:j) 1))
-  (define variant (or (get-opt c '#:variant) '3m))
+  (define variant (or (get-opt c '#:variant) default-variant))
   (define cs? (eq? variant 'cs))
   (define compile-any? (get-opt c '#:compile-any?))
   (define cross-target (get-opt c '#:cross-target))
@@ -557,13 +554,11 @@
   (define cross? (or cross-target cross-target-machine))
   (define given-racket (and cross?
                             (get-opt c '#:racket)))
-  (define scheme (and cs?
-                      (get-opt c '#:scheme)))
   (define need-native-racket? (and cross?
                                    (not given-racket)))
   (define built-native-racket
     ;; relative to build directory
-    (if cs? "cross/cs/c/racketcs" "cross/racket/racket3m"))
+    (if cs? "cross/cs/c/racketcs" "cross/bc/racket3m"))
   (define extra-repos? (and (get-opt c '#:extra-repo-dir) #t))
   (define client-mnt-dir (and (eq? port/kind 'docker) mnt-dir))
   (define (build)
@@ -584,9 +579,6 @@
      (and need-native-racket?
           (sh "cd " (q dir) " ; "
               "make -j " j " native-" (if cs? "cs-" "") "for-cross"
-              (if scheme
-                  (~a " SCHEME_SRC=" (q scheme))
-                  "")
               (if (and cs? extra-repos?)
                   (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
                   "")))
@@ -597,15 +589,12 @@
          (if need-native-racket?
              (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket
                  (if cs?
-                     (~a " RACKET=`pwd`/racket/src/build/" built-native-racket
-                         (if scheme
-                             ""
-                             " SCHEME_SRC=`pwd`/racket/src/build/cross/ChezScheme"))
+                     (~a " RACKET=`pwd`/racket/src/build/" built-native-racket)
                      ""))
              "")
          (if cs?
              " CLIENT_BASE=cs-base RACKETCS_SUFFIX= "
-             "")
+             " CLIENT_BASE=bc-base RACKETBC_SUFFIX= ")
          (if cross?
              " BUNDLE_FROM_SERVER_TARGET=bundle-cross-from-server"
              "")
@@ -624,9 +613,6 @@
                                         (list (~a "--enable-racket="
                                                   (or given-racket
                                                       (~a "`pwd`/" built-native-racket))))
-                                        null)
-                                    (if (and cs? scheme)
-                                        (list (~a "--enable-scheme=" scheme))
                                         null)
                                     (list "--enable-embedfw")
                                     (get-opt c '#:configure null))
@@ -669,7 +655,7 @@
                      "x86"
                      "x86_amd64")))
   (define j (or (get-opt c '#:j) 1))
-  (define variant (or (get-opt c '#:variant) '3m))
+  (define variant (or (get-opt c '#:variant) default-variant))
   (define (cmd . args) 
     (define command (shell-protect (apply ~a args) platform))
     (case platform
@@ -690,16 +676,16 @@
              " && git pull"))
    (cmd "cd " (q dir)
         " && racket\\src\\worksp\\msvcprep.bat " vc
-        " && nmake win32-client" 
+        " && nmake win-client" 
         " JOB_OPTIONS=\"-j " j "\""
         (if (eq? variant 'cs)
-            " WIN32_CLIENT_BASE=win32-cs-base RACKETCS_SUFFIX= "
-            "")
+            " WIN32_CLIENT_BASE=win-cs-base RACKETCS_SUFFIX= "
+            " WIN32_CLIENT_BASE=win-bc-base RACKETBC_SUFFIX= ")
         (client-args c server server-port platform readme #f))
    (and (has-tests? c)
         (cmd "cd " (q dir)
              " && racket\\src\\worksp\\msvcprep.bat " vc
-             " && nmake win32-test-client"
+             " && nmake win-test-client"
              (client-args c server server-port platform readme #f)))))
 
 (define (client-build c)

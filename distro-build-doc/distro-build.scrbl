@@ -371,7 +371,7 @@ spaces, etc.):
     although it is inferred from @racket[#:cross-target] if possible}
 
   @item{@racket[#:cross-target-machine _string*] --- similar to
-    @racket[#:cross-target], but used only for @racket[#:v<ariant 'cs],
+    @racket[#:cross-target], but used only for @racket[#:variant 'cs],
     and specifies the target machine for cross-compilation
     as a string like @racket["ta6nt"]; use both
     @racket[#:cross-target-machine] and @racket[#:cross-target] unless
@@ -390,12 +390,8 @@ spaces, etc.):
     value for @racket[#:racket] is propagated to @racket[#:configure]
     via @DFlag{enable-racket}}
 
-  @item{@racket[#:scheme _string-or-false] --- an absolute path to a
-    directory containing Chez Scheme sources, used only for
-    @racket[#:variant 'cs]; if the value is @racket[#f], then a build
-    directory is created by cloning a Chez Scheme Git repository; a
-    non-@racket[#f] value for @racket[#:scheme] is propagated to
-    @racket[#:configure] via @DFlag{enable-scheme}
+  @item{@racket[#:scheme _string-or-false] --- obsolete; was an
+    absolute path to a directory containing Chez Scheme sources
     @history[#:added "1.3"]}
 
   @item{@racket[#:target-platform _symbol] --- @racket['unix],
@@ -405,9 +401,10 @@ spaces, etc.):
     @racket[#f], which means that the target platform should be
     inferred from arguments such as @racket[#:cross-target]}
 
-  @item{@racket[#:variant _symbol] --- @racket['3m], @racket['cgc], or
+  @item{@racket[#:variant _symbol] --- @racket['bc], @racket['3m]
+    (as a synonym for @racket['bc]), @racket['cgc], or
     @racket['cs], indicating the target build; defaults to
-    @racket['3m]}
+    @racket['bc]}
 
   @item{@racket[#:compile-any? _boolean] --- determines whether to
     build bytecode in machine-independent form, which works for all

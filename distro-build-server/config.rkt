@@ -121,7 +121,7 @@
     [(#:scheme) (or (not val) (string? val))]
     [(#:cross-target) (simple-string? val)]
     [(#:cross-target-machine) (simple-string? val)]
-    [(#:variant) (or (eq? val 'cs) (eq? val '3m) (eq? val 'cgc))]
+    [(#:variant) (or (eq? val 'cs) (eq? val 'bc) (eq? val '3m) (eq? val 'cgc))]
     [(#:compile-any?) (boolean? val)]
     [(#:doc-search) (string? val)]
     [(#:dist-name) (string? val)]

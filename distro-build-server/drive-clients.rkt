@@ -599,7 +599,7 @@
              " BUNDLE_FROM_SERVER_TARGET=bundle-cross-from-server"
              "")
          (if (and cross? cs?)
-             " CS_CROSS_SUFFIX=-cross"
+             " CS_CROSS_SUFFIX=-cross CS_HOST_WORKAREA_PREFIX=../../cross/cs/c/"
              "")
          (if cross-target-machine
              (~a " SETUP_MACHINE_FLAGS=\"--cross-compiler " cross-target-machine
@@ -612,7 +612,9 @@
                                     (if cross?
                                         (list (~a "--enable-racket="
                                                   (or given-racket
-                                                      (~a "`pwd`/" built-native-racket))))
+                                                      (~a "`pwd`/"
+                                                          (if cs? "../../" "../")
+                                                          built-native-racket))))
                                         null)
                                     (list "--enable-embedfw")
                                     (get-opt c '#:configure null))

@@ -5,20 +5,23 @@
          scribble/html
          "download-page.rkt"
          "private/find-desired-snapshots.rkt"
-         (only-in distro-build/config extract-options))
+         (only-in distro-build/config
+                  extract-options+post-processes+aliases
+                  infer-installer-alias))
 
 (module test racket/base)
 
 (define build-dir (build-path "build"))
 (define installers-dir (build-path "installers"))
 
-(define-values (config-file config-mode)
+(define-values (config-file config-mode default-dist-base)
   (command-line
    #:args
-   (config-file config-mode)
-   (values config-file config-mode)))
+   (config-file config-mode default-dist-base)
+   (values config-file config-mode default-dist-base)))
 
-(define config (extract-options config-file config-mode))
+(define-values (config ignored-post-processes aliases)
+  (extract-options+post-processes+aliases config-file config-mode default-dist-base))
 
 (define site-dir (hash-ref config
                            '#:site-dest
@@ -70,28 +73,44 @@
 
 (printf "Loading past successes\n")
 (define table-file (build-path site-dir installers-dir "table.rktd"))
+(define current-table (get-installers-table table-file))
 (define past-successes
-  (let ([current-table (get-installers-table table-file)])
-    (for/fold ([table (hash)]) ([s (in-list (reverse (remove current-snapshot (get-snapshots))))])
-      (with-handlers ([exn:fail? (lambda (exn)
-                                   (log-error "failure getting installer table: ~a"
-                                              (exn-message exn))
-                                   table)])
-        (define past-table (get-installers-table
-                            (build-path snapshots-dir s installers-dir "table.rktd")))
-        (define past-version (let ([f (build-path snapshots-dir s installers-dir "version.rktd")])
-                               (if (file-exists? f)
-                                   (call-with-input-file* f read)
-                                   (version))))
-        (for/fold ([table table]) ([(k v) (in-hash past-table)])
-          (if (or (hash-ref current-table k #f)
-                  (hash-ref table k #f)
-                  (not (file-exists? (build-path site-dir "log" k))))
-              table
-              (hash-set table k (past-success s
-                                              (string-append s "/index.html")
-                                              v
-                                              past-version))))))))
+  (for/fold ([table (hash)]) ([s (in-list (reverse (remove current-snapshot (get-snapshots))))])
+    (with-handlers ([exn:fail? (lambda (exn)
+                                 (log-error "failure getting installer table: ~a"
+                                            (exn-message exn))
+                                 table)])
+      (define past-table (get-installers-table
+                          (build-path snapshots-dir s installers-dir "table.rktd")))
+      (define past-version (let ([f (build-path snapshots-dir s installers-dir "version.rktd")])
+                             (if (file-exists? f)
+                                 (call-with-input-file* f read)
+                                 (version))))
+      (for/fold ([table table]) ([(k v) (in-hash past-table)])
+        (if (or (hash-ref current-table k #f)
+                (hash-ref table k #f)
+                (not (file-exists? (build-path site-dir "log" k))))
+            table
+            (hash-set table k (past-success s
+                                            (string-append s "/index.html")
+                                            v
+                                            past-version)))))))
+
+(define installer-aliases
+  (let ([current-aliases (for/fold ([aliases #hash()]) ([(k installer) (in-hash current-table)])
+                           (define a (hash-ref aliases k #f))
+                           (define infer-alias
+                             (lambda (alias) (infer-installer-alias installer (car a) alias)))
+                           (if a
+                               (hash-set aliases installer (map infer-alias (cdr a)))
+                               aliases))])
+    (for/fold ([current-aliases #hash()]) ([(k v) (in-hash past-successes)])
+      (define a (hash-ref aliases k #f))
+      (define infer-alias
+        (lambda (alias) (infer-installer-alias (past-success-file v) (car a) alias)))
+      (if a
+          (hash-set aliases (past-success-file v) (map infer-alias (cdr a)))
+          aliases))))
 
 (define (version->current-rx vers)
   (regexp (regexp-quote vers)))
@@ -115,17 +134,20 @@
     (make-file-or-directory-link to-file file-link))
   ;; Link current successes:
   (for ([f (in-list (directory-list installer-dir))])
-    (when (regexp-match? current-rx f)
-      (make-link f f (version))))
+    (for ([f (in-list (hash-ref installer-aliases f (list f)))])
+      (when (regexp-match? current-rx f)
+        (make-link f f (version)))))
   ;; Link past successes:
   (for ([v (in-hash-values past-successes)])
     (define current-rx (version->current-rx (past-success-version v)))
-    (when (regexp-match? current-rx (past-success-file v))
-      (make-link (string->path (past-success-file v))
-                 (build-path 'up 'up 
-                             (past-success-name v) installers-dir
-                             (past-success-file v))
-                 current-rx))))
+    (define f (past-success-file v))
+    (for ([f (in-list (hash-ref installer-aliases f (list f)))])
+      (when (regexp-match? current-rx f)
+        (make-link (string->path f)
+                   (build-path 'up 'up 
+                               (past-success-name v) installers-dir
+                               f)
+                   current-rx)))))
 
 (printf "Generating web page\n")
 (make-download-page table-file
@@ -142,6 +164,13 @@
                     #:dest (build-path snapshots-dir
                                        "index.html")
                     #:version->current-rx version->current-rx
+                    #:get-alias (lambda (key inst)
+                                  (define main+aliases (hash-ref aliases key #f))
+                                  (if main+aliases
+                                      (infer-installer-alias inst
+                                                             (car main+aliases)
+                                                             (cadr main+aliases))
+                                      inst))
                     #:git-clone (current-directory)
                     #:help-table (hash-ref config '#:site-help (hash))
                     #:post-content (list

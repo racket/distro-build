@@ -12,7 +12,7 @@ versions or with different packages pre-installed.
 
 The distribution-building tools are meant to be driven by a makefile
 in the main Racket source repository, which is currently
-@url{https://github.com/plt/racket}. See @filepath{INSTALL.txt} there
+@url{https://github.com/plt/racket}. See @filepath{BUILD.md} there
 for general build information.
 
 @; ----------------------------------------
@@ -313,8 +313,27 @@ spaces, etc.):
     variable}
 
   @item{@racket[#:dist-suffix _string*] --- a suffix for the
-    installer's name, usually used for an operating-system variant;
-    defaults to the @tt{DIST_SUFFIX} makefile variable}
+    installer's name, usually used for an operating system variant; defaults to the
+    @tt{DIST_SUFFIX} makefile variable}
+
+  @item{@racket[#:dist-vm-suffix _string*] --- a suffix for the
+    installer's name, usually used for a Racket virtual machine
+    variant, added after @racket[#:dist-suffix]; defaults to
+    @racket[""]}
+
+  @item{@racket[#:dist-aliases (list (list _string*-or-false
+     _string*-or-false _string*-or-false) ...)] --- a list of
+     @racket[_base]--@racket[_suffix]--@racket[_vm-suffix] lists
+     representing additional names to link for the installer in a
+     download site, where @racket[#f] as a list element means ``the
+     same as for the main name'' and where the first alias is used for
+     a ``current'' link when enabled at a download site; a list with
+     the @racket[#:dist-base], @racket[#:dist-suffix], and
+     @racket[#:dist-vm-suffix] values is effectively appended to the
+     end of the @racket[#:dist-aliases] list if not present already;
+     defaults to @racket['()].
+
+    @history[#:added "1.9"]}
 
   @item{@racket[#:dist-catalogs (list _string ...)] --- catalog URLs
     to install as the initial catalog configuration in generated

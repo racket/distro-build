@@ -5,7 +5,9 @@
          net/url
          "download-page.rkt"
          "indexes.rkt"
-         (only-in distro-build/config extract-options+post-processes)
+         (only-in distro-build/config
+                  extract-options+post-processes+aliases
+                  infer-installer-alias)
          (only-in plt-web site))
 
 (module test racket/base)
@@ -24,14 +26,14 @@
 (define pdf-doc-dir (build-path "pdf-doc"))
 (define log-dir (build-path "log"))
 
-(define-values (config-file config-mode)
+(define-values (config-file config-mode default-dist-base)
   (command-line
    #:args
-   (config-file config-mode)
-   (values config-file config-mode)))
+   (config-file config-mode default-dist-base)
+   (values config-file config-mode default-dist-base)))
 
-(define-values (config post-processes)
-  (extract-options+post-processes config-file config-mode))
+(define-values (config post-processes aliases)
+  (extract-options+post-processes+aliases config-file config-mode default-dist-base))
 
 (define dest-dir (hash-ref config
                            '#:site-dest
@@ -121,14 +123,25 @@
   (build-path dest-dir
               installers-dir
               "table.rktd"))
+(define installers-table (get-installers-table installers-table-path))
+
 (unless (zero? (hash-count post-processes))
-  (define installers-table (get-installers-table installers-table-path))
   (for ([(name installer) (in-hash installers-table)])
     (define post-process (hash-ref post-processes name #f))
     (when post-process
       (define args (append post-process (list (build-path dest-dir installers-dir installer))))
       (unless (apply system* args)
         (error 'post-process "failed for ~s" args)))))
+
+(for ([(name installer) (in-hash installers-table)])
+  (define main+aliases (hash-ref aliases name #f))
+  (when main+aliases
+    (define main (car main+aliases))
+    (for ([alias (in-list (cdr main+aliases))])
+      (unless (equal? alias main)
+        (define alias-name (infer-installer-alias installer main alias))
+        (make-file-or-directory-link installer
+                                     (build-path dest-dir installers-dir alias-name))))))
 
 (define doc-path (build-path docs-dir doc-dir))
 (when (directory-exists? doc-path)

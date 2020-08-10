@@ -66,6 +66,7 @@
                             #:title [page-title "Racket Downloads"]
                             #:current-rx [current-rx #f]
                             #:version->current-rx [version->current-rx #f]
+                            #:get-alias [get-alias (lambda (key inst) inst)]
                             #:git-clone [git-clone #f]
                             #:help-table [site-help (hash)]
                             #:post-content [post-content null]
@@ -90,7 +91,10 @@
          (div (a class: "detail" href: log-dir-url "Build Logs"))))
 
   (define sorted
-    (sort (hash-keys table-data) string<?))
+    (sort (hash-keys table-data) string<?
+          #:key (lambda (s)
+                  ;; treat `|` and `;` like a string terminator
+                  (regexp-replace* #rx"[;|]" s "\0"))))
   (define sorted-and-split
     (map (lambda (s)
            (map (lambda (e)
@@ -323,9 +327,11 @@
                     (list
                      (td nbsp)
                      (td (span class: "detail"
-                               (let ([inst-path (if (past-success? inst)
-                                                    (past-success-file inst)
-                                                    inst)])
+                               (let* ([inst-path (get-alias
+                                                  key
+                                                  (if (past-success? inst)
+                                                      (past-success-file inst)
+                                                      inst))])
                                  (if (regexp-match? current-rx inst-path)
                                      (a href: (url->string
                                                (combine-url/relative

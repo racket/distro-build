@@ -12,7 +12,8 @@
                   site-config?
                   site-config-tag site-config-options site-config-content
                   merge-options
-                  current-stamp)
+                  current-stamp
+                  compose-aliases)
          distro-build/url-options
          distro-build/display-time
          distro-build/readme
@@ -261,6 +262,36 @@
     [else
      (displayln s)]))
 
+(define (describe-installers c)
+  (when (eq? dry-run 'describe)
+    (define main-base (get-opt c '#:dist-base ""))
+    (define main-suffix (get-opt c '#:dist-suffix ""))
+    (define main-vm-suffix (get-opt c '#:dist-vm-suffix ""))
+    (define aliases (compose-aliases c default-dist-base))
+    (for ([a (in-list aliases)])
+      (define base (car a))
+      (define suffix (cadr a))
+      (define vm-suffix (caddr a))
+      (printf "~a => ~a-<platform>~a.~a~a\n"
+              (describe-indent)
+              base
+              (let ([suffix (cond
+                              [(equal? suffix "") vm-suffix]
+                              [(equal? vm-suffix "") suffix]
+                              [else (string-append suffix "-" vm-suffix)])])
+                (if (equal? suffix "")
+                    ""
+                    (string-append "-" suffix)))
+              (cond
+                [(get-opt c '#:tgz? #f) "tgz"]
+                [(get-opt c '#:mac-pkg? #f) "pkg"]
+                [else "<extension>"])
+              (if (and (equal? base main-base)
+                       (equal? suffix main-suffix)
+                       (equal? vm-suffix main-vm-suffix))
+                  " <="
+                  "")))))
+
 ;; ----------------------------------------
 
 (define scp (find-executable-path "scp"))
@@ -419,6 +450,7 @@
   (define dist-dir (or (get-opt c '#:dist-dir)
                        default-dist-dir))
   (define dist-suffix (get-opt c '#:dist-suffix ""))
+  (define dist-vm-suffix (get-opt c '#:dist-vm-suffix ""))
   (define dist-catalogs (choose-catalogs c '("")))
   (define sign-identity (get-opt c '#:sign-identity ""))
   (define hardened-runtime? (get-opt c '#:hardened-runtime? (not (equal? sign-identity ""))))
@@ -469,7 +501,11 @@
       " DIST_NAME=" (q dist-name)
       " DIST_BASE=" dist-base
       " DIST_DIR=" dist-dir
-      " DIST_SUFFIX=" (q dist-suffix)
+      " DIST_SUFFIX=" (q (cond
+                           [(equal? dist-vm-suffix "") dist-suffix]
+                           [(equal? dist-suffix "") dist-vm-suffix]
+                           [else
+                            (string-append dist-suffix "-" dist-vm-suffix)]))
       " DIST_CATALOGS_q=" (qq dist-catalogs kind)
       " SIGN_IDENTITY=" (q sign-identity)
       " INSTALLER_OPTIONS=\"" (if hardened-runtime? "hardened," "") "\""
@@ -578,7 +614,7 @@
               "git pull"))
      (and need-native-racket?
           (sh "cd " (q dir) " ; "
-              "make -j " j " native-" (if cs? "cs-" "") "for-cross"
+              "make -j " j " native-" (if cs? "cs" "bc") "-for-cross"
               (if (and cs? extra-repos?)
                   (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
                   "")))
@@ -692,6 +728,7 @@
 
 (define (client-build c)
   (describe (client-name c))
+  (describe-installers c)
   (describe-config c)
   (define host (or (get-opt c '#:host)
                    "localhost"))

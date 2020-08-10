@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/format
+         racket/string
          (for-syntax syntax/kerncase
                      racket/base))
 
@@ -17,7 +18,9 @@
          current-mode
          current-stamp
          extract-options
-         extract-options+post-processes
+         extract-options+post-processes+aliases
+         compose-aliases
+         infer-installer-alias
          merge-options)
 
 (module reader syntax/module-reader
@@ -128,6 +131,15 @@
     [(#:dist-base) (simple-string? val)]
     [(#:dist-dir) (simple-string? val)]
     [(#:dist-suffix) (simple-string? val)]
+    [(#:dist-vm-suffix) (simple-string? val)]
+    [(#:dist-aliases) (and (list? val)
+                           (andmap (lambda (e)
+                                     (and (list? e)
+                                          (= (length e) 3)
+                                          (andmap (lambda (i)
+                                                    (or (not i) (simple-string? i)))
+                                                  e)))
+                                   val))]
     [(#:dist-catalogs) (and (list? val) (andmap string? val))]
     [(#:dist-base-url) (string? val)]
     [(#:install-name) (string? val)]
@@ -240,22 +252,67 @@
 
 ;; Returns global options plus a hash mapping names to post-processing
 ;; executables
-(define (extract-options+post-processes config-file config-mode)
+(define (extract-options+post-processes+aliases config-file config-mode default-dist-base)
   (parameterize ([current-mode config-mode])
     (define config
       (dynamic-require (path->complete-path config-file) 'site-config))
+    (define (traverse at-leaf)
+      (let loop ([config config] [pre-opts (hasheq)] [accum (hash)])
+        (define opts (merge-options pre-opts config))
+        (case (site-config-tag config)
+          [(parallel sequential)
+           (for/fold ([accum accum]) ([c (in-list (site-config-content config))])
+             (loop c opts accum))]
+          [else
+           (at-leaf opts accum)])))
     (values (site-config-options config)
-            (let loop ([config config] [pre-opts (hasheq)] [ht (hash)])
-              (define opts (merge-options pre-opts config))
-              (case (site-config-tag config)
-                [(parallel sequential)
-                 (for/fold ([ht ht]) ([c (in-list (site-config-content config))])
-                   (loop c opts ht))]
-                [else
-                 (define post-process (hash-ref opts '#:server-installer-post-process '()))
-                 (if (pair? post-process)
-                     (hash-set ht (hash-ref opts '#:name) post-process)
-                     ht)])))))
+            (traverse (lambda (opts ht)
+                        (define post-process (hash-ref opts '#:server-installer-post-process '()))
+                        (if (pair? post-process)
+                            (hash-set ht (hash-ref opts '#:name) post-process)
+                            ht)))
+            (traverse (lambda (opts ht)
+                        (hash-set ht (hash-ref opts '#:name)
+                                  (compose-aliases opts default-dist-base)))))))
+
+(define (compose-aliases opts default-dist-base)
+  (define main (list (hash-ref opts '#:dist-base default-dist-base)
+                     (hash-ref opts '#:dist-suffix "")
+                     (hash-ref opts '#:dist-vm-suffix "")))
+  (define aliases (for/list ([a (in-list (hash-ref opts '#:dist-aliases '()))])
+                    (for/list ([a-i (in-list a)]
+                               [m-i (in-list main)])
+                      (or a-i m-i))))
+  (cons main
+        (if (member main aliases)
+            aliases
+            (append aliases (list main)))))
+
+(define (infer-installer-alias installer main alias)
+  ;; Installer is <base>-<version+arch>-<suffix>-<vm-suffix>.<extension>,
+  ;; where knowing <base>, <suffix>, and <vm-suffix> from `main` lets us
+  ;; infer the rest
+  (define base (car main))
+  (define suffix (cadr main))
+  (define vm-suffix (caddr main))
+  (define (combine-suffix suffix vm-suffix)
+    (cond
+      [(and (equal? suffix "")
+            (equal? vm-suffix ""))
+       ""]
+      [(equal? suffix "") (~a "-" vm-suffix)]
+      [(equal? vm-suffix "") (~a "-" suffix)]
+      [else (~a "-" suffix "-" vm-suffix)]))
+  (define rx (regexp (format "~a-(.*)~a[.]([^.]*)"
+                             (regexp-quote base)
+                             (regexp-quote (combine-suffix suffix vm-suffix)))))
+  (define m (regexp-match rx installer))
+  (unless m
+    (error 'infer-installer-alias
+           "inference failed for ~s from ~s"
+           main
+           installer))
+  (~a (car alias) "-" (cadr m) (combine-suffix (cadr alias) (caddr alias)) "." (caddr m)))
 
 (define (merge-options opts c)
   (for/fold ([opts opts]) ([(k v) (in-hash (site-config-options c))])

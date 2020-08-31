@@ -578,6 +578,7 @@
                    (for/list ([e (in-list env)])
                      (format "~a=~a" (car e) (cadr e)))))
         (list "/bin/sh" "-c" (apply ~a args)))]))
+  (define make-exe (or (get-opt c '#:make) "make"))
   (define j (or (get-opt c '#:j) 1))
   (define variant (or (get-opt c '#:variant) default-variant))
   (define cs? (eq? variant 'cs))
@@ -614,12 +615,12 @@
               "git pull"))
      (and need-native-racket?
           (sh "cd " (q dir) " ; "
-              "make -j " j " native-" (if cs? "cs" "bc") "-for-cross"
+              make-exe " -j " j " native-" (if cs? "cs" "bc") "-for-cross"
               (if (and cs? extra-repos?)
                   (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
                   "")))
      (sh "cd " (q dir) " ; "
-         "make -j " j " client" (if compile-any? "-compile-any" "")
+         make-exe " -j " j " client" (if compile-any? "-compile-any" "")
          (client-args c server server-port 'unix readme client-mnt-dir)
          " JOB_OPTIONS=\"-j " j "\""
          (if need-native-racket?
@@ -657,7 +658,7 @@
                                    'unix))
      (and (has-tests? c)
           (sh "cd " (q dir) " ; "
-              "make test-client"
+              make-exe "test-client"
               (client-args c server server-port 'unix readme client-mnt-dir)
               (if need-native-racket?
                   (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)

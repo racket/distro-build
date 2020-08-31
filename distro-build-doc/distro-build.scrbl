@@ -477,6 +477,12 @@ spaces, etc.):
     for the installer
     @history[#:added "1.2"]}
 
+  @item{@racket[#:make _string] --- a @tt{make} command prefix to use
+    on Unix and Mac OS clients, where the prefix is not quoted, so it
+    can include space-separated arguments after the executable name;
+    defaults to @racket["make"]
+    @history[#:added "1.10"]}
+
   @item{@racket[#:j _integer] --- parallelism for @tt{make} on Unix
     and Mac OS and for @exec{raco setup} on all platforms; defaults
     to @racket[1]}

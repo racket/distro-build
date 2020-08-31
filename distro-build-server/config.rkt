@@ -173,6 +173,7 @@
     [(#:client-installer-post-process) (and (list? val) (andmap string? val))]
     [(#:server-installer-post-process) (and (list? val) (andmap path-string? val))]
     [(#:timeout) (real? val)]
+    [(#:make) (string? val)]
     [(#:j) (exact-positive-integer? val)]
     [(#:repo) (string? val)]
     [(#:init) (or (not val) (string? val))]

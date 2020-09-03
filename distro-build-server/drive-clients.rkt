@@ -658,7 +658,7 @@
                                    'unix))
      (and (has-tests? c)
           (sh "cd " (q dir) " ; "
-              make-exe "test-client"
+              make-exe " test-client"
               (client-args c server server-port 'unix readme client-mnt-dir)
               (if need-native-racket?
                   (~a " PLAIN_RACKET=`pwd`/racket/src/build/" built-native-racket)

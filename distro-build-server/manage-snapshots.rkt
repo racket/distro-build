@@ -97,20 +97,30 @@
                                             past-version)))))))
 
 (define installer-aliases
-  (let ([current-aliases (for/fold ([aliases #hash()]) ([(k installer) (in-hash current-table)])
-                           (define a (hash-ref aliases k #f))
-                           (define infer-alias
-                             (lambda (alias) (infer-installer-alias installer (car a) alias)))
-                           (if a
-                               (hash-set aliases installer (map infer-alias (cdr a)))
-                               aliases))])
-    (for/fold ([current-aliases #hash()]) ([(k v) (in-hash past-successes)])
-      (define a (hash-ref aliases k #f))
-      (define infer-alias
-        (lambda (alias) (infer-installer-alias (past-success-file v) (car a) alias)))
-      (if a
-          (hash-set aliases (past-success-file v) (map infer-alias (cdr a)))
-          aliases))))
+  (let ([installer-aliases
+         ;; Map installer names to aliases, which is useful for creating "current" links:
+         (for/fold ([installer-aliases #hash()]) ([(k installer) (in-hash current-table)])
+           (define a (hash-ref aliases k #f))
+           (define infer-alias
+             (lambda (alias) (infer-installer-alias installer (car a) alias)))
+           (if a
+               (hash-set installer-aliases installer (map infer-alias (cdr a)))
+               installer-aliases))])
+    ;; Add extra installer aliases that we can infer from previous
+    ;; successes, so we don't lose "current" links due to a new
+    ;; failure:
+    (for/fold ([installer-aliases installer-aliases]) ([(k v) (in-hash past-successes)])
+      (define installer (past-success-file v))
+      (cond
+        [(hash-ref installer-aliases installer #f)
+         installer-aliases]
+        [else
+         (define a (hash-ref aliases k #f))
+         (define infer-alias
+           (lambda (alias) (infer-installer-alias installer (car a) alias #:must-infer? #f)))
+         (if a
+             (hash-set installer-aliases installer (filter-map infer-alias (cdr a)))
+             installer-aliases)]))))
 
 (define (version->current-rx vers)
   (regexp (regexp-quote vers)))

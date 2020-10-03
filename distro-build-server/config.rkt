@@ -289,7 +289,8 @@
             aliases
             (append aliases (list main)))))
 
-(define (infer-installer-alias installer main alias)
+(define (infer-installer-alias installer main alias
+                               #:must-infer? [must-infer? #t])
   ;; Installer is <base>-<version+arch>-<suffix>-<vm-suffix>.<extension>,
   ;; where knowing <base>, <suffix>, and <vm-suffix> from `main` lets us
   ;; infer the rest
@@ -308,12 +309,15 @@
                              (regexp-quote base)
                              (regexp-quote (combine-suffix suffix vm-suffix)))))
   (define m (regexp-match rx installer))
-  (unless m
-    (error 'infer-installer-alias
-           "inference failed for ~s from ~s"
-           main
-           installer))
-  (~a (car alias) "-" (cadr m) (combine-suffix (cadr alias) (caddr alias)) "." (caddr m)))
+  (cond
+    [(not m)
+     (when must-infer?
+       (error 'infer-installer-alias
+              "inference failed for ~s from ~s"
+              main
+              installer))]
+    [else
+     (~a (car alias) "-" (cadr m) (combine-suffix (cadr alias) (caddr alias)) "." (caddr m))]))
 
 (define (merge-options opts c)
   (for/fold ([opts opts]) ([(k v) (in-hash (site-config-options c))])

@@ -311,11 +311,12 @@
   (define m (regexp-match rx installer))
   (cond
     [(not m)
-     (when must-infer?
-       (error 'infer-installer-alias
-              "inference failed for ~s from ~s"
-              main
-              installer))]
+     (if must-infer?
+         (error 'infer-installer-alias
+                "inference failed for ~s from ~s"
+                main
+                installer)
+         #f)]
     [else
      (~a (car alias) "-" (cadr m) (combine-suffix (cadr alias) (caddr alias)) "." (caddr m))]))
 

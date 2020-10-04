@@ -176,10 +176,11 @@
                     #:version->current-rx version->current-rx
                     #:get-alias (lambda (key inst)
                                   (define main+aliases (hash-ref aliases key #f))
-                                  (if main+aliases
-                                      (infer-installer-alias inst
-                                                             (car main+aliases)
-                                                             (cadr main+aliases))
+                                  (or (and main+aliases
+                                           (infer-installer-alias inst
+                                                                  (car main+aliases)
+                                                                  (cadr main+aliases)
+                                                                  #:must-infer? #f))
                                       inst))
                     #:git-clone (current-directory)
                     #:help-table (hash-ref config '#:site-help (hash))

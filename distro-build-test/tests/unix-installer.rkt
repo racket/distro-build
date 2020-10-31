@@ -360,7 +360,7 @@
     (printf (~a "=================================================================\n"
                 "SOURCE: "
                 f
-                (if cs? " CS" "")
+                (if cs? " CS" " BC")
                 (if prefix? " --prefix" "")
                 "\n"))
 
@@ -374,7 +374,7 @@
        (define rt (remote #:host docker-container-name
                           #:kind 'docker
                           #:timeout (if cs? 1500 600)))
-       
+
        (scp rt (build-path work-dir f) (at-docker-remote rt f))
 
        ;; build --------------------
@@ -390,7 +390,7 @@
                                               "")
                                           (if cs?
                                               " --enable-csdefault"
-                                              ""))
+                                              " --enable-bcdefault"))
                    " && make -j 2"
                    " && make install" (~a (if built?
                                               " PLT_SETUP_OPTIONS=--recompile-only"

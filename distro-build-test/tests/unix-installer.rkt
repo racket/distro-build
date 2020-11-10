@@ -18,6 +18,7 @@
                      (build-path (find-system-path 'temp-dir)
                                  "unix-install-test")))
 (define snapshot-site "https://pre-release.racket-lang.org/")
+(define remote-pkg "bloggy")
 
 (command-line
  #:once-each
@@ -26,7 +27,9 @@
  [("--work") dir "Set working directory for installers, catalog, etc."
              (set! work-dir dir)]
  [("--site") url "Download from <url>"
-             (set! snapshot-site url)])
+             (set! snapshot-site url)]
+ [("--pkg") pkg "Try installing <pkg> from the default catalog; empty means none"
+            (set! remote-pkg (and (not (string=? pkg"")) pkg))])
 
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
@@ -271,6 +274,10 @@
        (ssh rt (~a bin-dir "raco") " pkg install sample.zip" (if min? " base.zip" ""))
        (ssh rt (~a bin-dir "racket") " -l sample")
 
+       ;; install a package from the package server --------------------
+       (when remote-pkg
+         (ssh rt (~a bin-dir "raco") " pkg install " remote-pkg))
+
        ;; create a stand-alone executable ----------------------------------------
        (unless min?
          (ssh rt (~a bin-dir "raco") " exe progy.rkt")
@@ -334,7 +341,11 @@
        
        ;; check that the drawing library works:
        (ssh rt (~a bin-dir "racket") " -l racket/draw")
-       
+
+       ;; install a package from the package server --------------------
+       (when remote-pkg
+         (ssh rt (~a bin-dir "raco") " pkg install " remote-pkg))
+
        (void))
 
      docker-teardown)))
@@ -414,6 +425,10 @@
               " --auto"
               " drracket"))
        
+       ;; install a package from the package server --------------------
+       (when remote-pkg
+         (ssh rt (~a bin-dir "raco") " pkg install " remote-pkg))
+
        (void))
 
      docker-teardown)))

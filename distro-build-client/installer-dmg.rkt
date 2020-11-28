@@ -25,6 +25,8 @@
 ;; NB it's very possible that the hardened runtime & entitlements
 ;; are required only on the top-level binaries....
 (define (run-codesign sign-identity f hardened-runtime?)
+  ;; remove any existing signature before trying to add a new one:
+  (system*/show codesign "--remove-signature" f)
   (cond
     [hardened-runtime?
      (define entitlements-file (write-entitlements-file!))

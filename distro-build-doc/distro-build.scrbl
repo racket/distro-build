@@ -445,6 +445,16 @@ spaces, etc.):
     package or all executables in a distribution), where an empty
     string disables signing; the default is @racket[""]}
 
+  @item{@racket[#:notarization-config _hash-or-false] --- configures
+    notarization of a signed Mac OS @filepath{.dmg} bundle via
+    @exec{xcrun altool} and @exec{xcrun stapler}; the required keys
+    are @racket['primary-bundle-id] as a string, @racket['user] as a
+    string, and @racket['app-specific-password-file] as a string that
+    is a path that contains a password; the allowed optional keys are
+    @racket['wait-seconds] as a nonnegative exact integer (defaults to
+    @racket[60]) and @racket['error-on-fail?] as a boolean (defaults
+    to @racket[#t]).}
+
   @item{@racket[#:osslsigncode-args (list _string ...)] --- provides
     arguments for signing a Windows executable using
     @exec{osslsigncode}, where @Flag{n}, @Flag{t}, @Flag{in}, and

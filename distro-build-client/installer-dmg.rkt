@@ -7,7 +7,8 @@
          ds-store/alias
          compiler/exe-dylib-path
          setup/cross-system
-         xml/plist)
+         xml/plist
+         "notarize.rkt")
 
 (provide installer-dmg
          make-dmg)
@@ -226,7 +227,8 @@
 
 ;; this wrapper function computes the dmg name, makes the dmg, signs it, and
 ;; returns the path to it.
-(define (installer-dmg human-name base-name dist-suffix readme sign-identity
+(define (installer-dmg human-name base-name dist-suffix readme
+                       sign-identity notarization-config
                        #:hardened-runtime? [hardened-runtime? #t])
   (define dmg-name (format "bundle/~a-~a~a.dmg"
                            base-name
@@ -237,6 +239,8 @@
   ;; sign whole DMG too, for Sierra
   (unless (string=? sign-identity "")
     (run-codesign sign-identity dmg-name hardened-runtime?))
+  (when notarization-config
+    (notarize-file/config dmg-name notarization-config))
   dmg-name)
 
 (define entitlements

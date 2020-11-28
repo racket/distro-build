@@ -169,6 +169,14 @@
     [(#:sign-identity) (string? val)]
     [(#:hardened-runtime?) (boolean? val)]
     [(#:osslsigncode-args) (and (list? val) (andmap string? val))]
+    [(#:notarization-config) (and (hash? val)
+                                  (for/and ([(key val) (in-hash val)])
+                                    (case key
+                                      [(primary-bundle-id user) (string? val)]
+                                      [(app-specific-password-file) (path-string? val)]
+                                      [(wait-seconds) (exact-nonnegative-integer? val)]
+                                      [(error-on-fail?) (boolean? val)]
+                                      [else #f])))]
     [(#:client-installer-pre-process) (and (list? val) (andmap string? val))]
     [(#:client-installer-post-process) (and (list? val) (andmap string? val))]
     [(#:server-installer-post-process) (and (list? val) (andmap path-string? val))]

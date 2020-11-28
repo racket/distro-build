@@ -23,6 +23,7 @@
 (define tgz? #f)
 (define mac-pkg? #f)
 (define hardened-runtime? #f)
+(define notarization-config #f)
 (define upload-to #f)
 (define upload-desc "")
 (define download-readme #f)
@@ -53,6 +54,8 @@
         [("pkg") (set! mac-pkg? #t)]
         [("hardened") (set! hardened-runtime? #t)]
         [else (raise-user-error "unrecognized packed option:" h)]))]
+   [("--notarization-config") config-as-base64 "Notarize a Mac OS installer before uploading"
+    (set! notarization-config config-as-base64)]
    [("--upload") url "Upload installer"
     (unless (string=? url "")
       (set! upload-to url))]
@@ -95,8 +98,11 @@
           (port->string i)
           (close-input-port i)))))
 
+(define (unpack-base64 str)
+  (base64-decode (string->bytes/utf-8 str)))
+
 (define (unpack-base64-strings str)
-  (define p (open-input-bytes (base64-decode (string->bytes/utf-8 str))))
+  (define p (open-input-bytes (unpack-base64 str)))
   (define l (read p))
   (unless (and (list? l)
                (andmap string? l)
@@ -126,7 +132,14 @@
              (installer-dmg (if versionless?
                                 short-human-name
                                 human-name)
-                            base-name dist-suffix readme sign-identity
+                            base-name dist-suffix readme
+                            sign-identity
+                            (and notarization-config
+                                 (with-handlers ([exn:fail? (lambda (exn)
+                                                              (error 'notarization-config "bad encoding: ~s" notarization-config))])
+                                   (define ht (read (open-input-bytes (unpack-base64 notarization-config))))
+                                   (unless (hash? ht) (error "bad config"))
+                                   ht))
                             #:hardened-runtime? hardened-runtime?))]
         [(windows)
          (define osslsigncode-args

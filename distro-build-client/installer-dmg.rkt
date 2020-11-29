@@ -24,9 +24,11 @@
 
 ;; NB it's very possible that the hardened runtime & entitlements
 ;; are required only on the top-level binaries....
-(define (run-codesign sign-identity f hardened-runtime?)
-  ;; remove any existing signature before trying to add a new one:
-  (system*/show codesign "--remove-signature" f)
+(define (run-codesign sign-identity f hardened-runtime?
+                      #:skip-remove? [skip-remove? #f])
+  (unless skip-remove?
+    ;; remove any existing signature before trying to add a new one:
+    (system*/show codesign "--remove-signature" f))
   (cond
     [hardened-runtime?
      (define entitlements-file (write-entitlements-file!))
@@ -240,7 +242,7 @@
             #:hardened-runtime? hardened-runtime?)
   ;; sign whole DMG too, for Sierra
   (unless (string=? sign-identity "")
-    (run-codesign sign-identity dmg-name hardened-runtime?))
+    (run-codesign sign-identity dmg-name hardened-runtime? #:skip-remove? #t))
   (when notarization-config
     (notarize-file/config dmg-name notarization-config))
   dmg-name)

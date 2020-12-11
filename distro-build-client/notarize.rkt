@@ -109,9 +109,9 @@
            file))
   (cond
     [(file-notarized? file)
-     (printf/flush "Binary already signed, ignoring this file\n")]
+     (printf/flush "Binary already notarized, so skipping\n")]
     [else
-     (printf/flush "Binary not notarized, so proceeding\n")
+     (printf/flush "Binary not already notarized, so proceeding\n")
      (define (failed why)
        (if error-on-fail?
            (error 'notarize-file "~a" why)

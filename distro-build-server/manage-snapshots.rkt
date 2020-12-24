@@ -51,21 +51,21 @@
 
 (define week-count (hash-ref config '#:week-count #f))
 (define to-remove-snapshots
-  (cond
-    [week-count
-     (define all-snapshots (get-snapshots))
-     (define desired-snapshots
-       (find-desired-week-and-month-snapshots week-count all-snapshots (current-seconds)))
-     (remove* desired-snapshots all-snapshots)]
-    [else
-     (define n (hash-ref config '#:max-snapshots 5))
-     (define snapshots (get-snapshots))
-     (cond
-       [(n . < . (length snapshots))
-        (remove
-         current-snapshot
-         (list-tail (sort snapshots string>?) n))]
-       [else '()])]))
+  (remove
+   current-snapshot
+   (cond
+     [week-count
+      (define all-snapshots (get-snapshots))
+      (define desired-snapshots
+        (find-desired-week-and-month-snapshots week-count all-snapshots (current-seconds)))
+      (remove* desired-snapshots all-snapshots)]
+     [else
+      (define n (hash-ref config '#:max-snapshots 5))
+      (define snapshots (get-snapshots))
+      (cond
+        [(n . < . (length snapshots))
+         (list-tail (sort snapshots string>?) n)]
+        [else '()])])))
 (for ([s (in-list to-remove-snapshots)])
   (printf "Removing snapshot ~a\n" s)
   (flush-output)

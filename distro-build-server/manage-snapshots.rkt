@@ -72,6 +72,7 @@
   (delete-directory/files (build-path snapshots-dir s)))
 
 (printf "Loading past successes\n")
+(flush-output)
 (define table-file (build-path site-dir installers-dir "table.rktd"))
 (define current-table (get-installers-table table-file))
 (define past-successes

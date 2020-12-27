@@ -8,7 +8,8 @@
          (only-in distro-build/config
                   extract-options+post-processes+aliases
                   infer-installer-alias)
-         (only-in plt-web site))
+         (only-in plt-web site)
+         (only-in xml write-xexpr))
 
 (module test racket/base)
 
@@ -111,7 +112,18 @@
    (build-path dest-dir catalog-dir "pkgs-all")
    (lambda (o)
      (write dht o)
-     (newline o))))
+     (newline o)))
+  ;; Be friendly to people who paste the catalog URL into a web browser:
+  (call-with-output-file*
+   (build-path dest-dir catalog-dir "index.html")
+   (lambda (o)
+     (write-xexpr `(html
+                    (head (title "Package Catalog"))
+                    (body (p "This is a package catalog, which is not really"
+                             " meant to be viewed in a browser. Package"
+                             " tools read " (tt "pkgs-all") ", " (tt "pkgs-all") ", or"
+                             " " (tt "pkg/" (i "package-name")) ".")))
+                  o))))
 
 (copy log-dir)
 (generate-index-html dest-dir log-dir www-site)

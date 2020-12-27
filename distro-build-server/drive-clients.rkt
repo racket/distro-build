@@ -56,8 +56,8 @@
     (set! default-clean? #t)]
    [("--dry-run") mode
     ("Don't actually use the clients;"
-     " <mode> can be `ok`, `fail`, `error`, `stuck`, or `frozen`")
-    (unless (member mode '("ok" "fail" "error" "stuck" "frozen"))
+     " <mode> can be `ok`, `fake`, `fail`, `error`, `stuck`, or `frozen`")
+    (unless (member mode '("ok" "fake" "fail" "error" "stuck" "frozen"))
       (raise-user-error 'drive-clients "bad dry-run mode: ~a" mode))
     (set! dry-run (string->symbol mode))]
    [("--describe") "Similar to `--dry-run`, but shows more details"
@@ -76,6 +76,15 @@
   (error 'drive-clients 
          "configuration module did not provide a site-configuration value: ~e"
          config))
+
+(define (call-if-not-dry-run thunk)
+  (case dry-run
+    [(ok describe fake) #t]
+    [(fail) #f]
+    [(error) (error "error")]
+    [(stuck) (semaphore-wait (make-semaphore))]
+    [(frozen) (break-enabled #f) (semaphore-wait (make-semaphore))]
+    [else (thunk)]))
 
 ;; ----------------------------------------
 
@@ -130,55 +139,61 @@
 ;; Managing VirtualBox machines and Docker containers
 
 (define (start-client c max-vm)
-  (define vbox (get-opt c '#:vbox))
-  (define docker (get-opt c '#:docker))
-  (cond
-    [vbox
-     (start-vbox-vm vbox
-                    #:max-vms max-vm
-                    #:dry-run? dry-run)]
-    [docker
-     (define container (get-opt c '#:host))
-     (unless (docker-id #:name container)
-       (docker-create #:name container
-                      #:image-name docker
-                      #:volumes `((,(path->complete-path "build")
-                                   ,(build-slash-path mnt-dir "build")
-                                   ro)
-                                  (,(path->complete-path (docker-upload-dir container))
-                                   ,(build-slash-path mnt-dir "upload")
-                                   rw)
-                                  (,(path->complete-path ".git")
-                                   ,(build-slash-path mnt-dir "server-repo")
-                                   rw)
-                                  ,@(let ([extra-repo-dir (get-opt c '#:extra-repo-dir)])
-                                      (cond
-                                        [extra-repo-dir
-                                         `((,extra-repo-dir
-                                            ,(build-slash-path mnt-dir "extra-repos")
-                                            ro))]
-                                        [else '()])))))
-     (unless (docker-running? #:name container)
-       (docker-start #:name container))]))
+  (call-if-not-dry-run
+   (lambda ()
+     (define vbox (get-opt c '#:vbox))
+     (define docker (get-opt c '#:docker))
+     (cond
+       [vbox
+        (start-vbox-vm vbox
+                       #:max-vms max-vm
+                       #:dry-run? dry-run)]
+       [docker
+        (define container (get-opt c '#:host))
+        (unless (docker-id #:name container)
+          (docker-create #:name container
+                         #:image-name docker
+                         #:volumes `((,(path->complete-path "build")
+                                      ,(build-slash-path mnt-dir "build")
+                                      ro)
+                                     (,(path->complete-path (docker-upload-dir container))
+                                      ,(build-slash-path mnt-dir "upload")
+                                      rw)
+                                     (,(path->complete-path ".git")
+                                      ,(build-slash-path mnt-dir "server-repo")
+                                      rw)
+                                     ,@(let ([extra-repo-dir (get-opt c '#:extra-repo-dir)])
+                                         (cond
+                                           [extra-repo-dir
+                                            `((,extra-repo-dir
+                                               ,(build-slash-path mnt-dir "extra-repos")
+                                               ro))]
+                                           [else '()])))))
+        (unless (docker-running? #:name container)
+          (docker-start #:name container))]))))
 
 (define (stop-client c)
-  (define vbox (get-opt c '#:vbox))
-  (define docker (get-opt c '#:docker))
-  (cond
-    [vbox
-     (stop-vbox-vm vbox)]
-    [docker
-     (define container (get-opt c '#:host))
-     (docker-stop #:name container)]))
+  (call-if-not-dry-run
+   (lambda ()
+     (define vbox (get-opt c '#:vbox))
+     (define docker (get-opt c '#:docker))
+     (cond
+       [vbox
+        (stop-vbox-vm vbox)]
+       [docker
+        (define container (get-opt c '#:host))
+        (docker-stop #:name container)]))))
 
 (define (try-until-ready c host port user server-port kind cmd)
-  (when (get-opt c '#:vbox)
-    ;; A VM may take a little while to get networking set up and
-    ;; respond, so give a dummy `cmd` a few tries
-    (let loop ([tries 3])
-      (unless (ssh-script host port user '() server-port kind cmd)
-        (sleep 1)
-        (loop (sub1 tries))))))
+  (call-if-not-dry-run
+   (lambda ()
+     (when (get-opt c '#:vbox)
+       ;; A VM may take a little while to get networking set up and
+       ;; respond, so give a dummy `cmd` a few tries
+       (let loop ([tries 3])
+         (unless (ssh-script host port user '() server-port kind cmd)
+           (sleep 1)
+           (loop (sub1 tries))))))))
 
 ;; ----------------------------------------
 
@@ -262,19 +277,54 @@
     [else
      (displayln s)]))
 
-(define (describe-installers c)
-  (when (eq? dry-run 'describe)
+;; returns a guess at the main installer name
+(define (describe-installers c name)
+  (when (or (eq? dry-run 'describe)
+            (eq? dry-run 'fake))
     (define main-base (get-opt c '#:dist-base ""))
     (define main-suffix (get-opt c '#:dist-suffix ""))
     (define main-vm-suffix (get-opt c '#:dist-vm-suffix ""))
+    (define platform-guess (cond
+                             [(regexp-match? #rx"(?i:source)" name) "src"]
+                             [else
+                              (string-append
+                               (cond
+                                 [(regexp-match? #rx"(?i:arm|aarch)" name)
+                                  (cond
+                                    [(regexp-match? #rx"64" name) "aarch64"]
+                                    [else "arm"])]
+                                 [else
+                                  (cond
+                                    [(regexp-match? #rx"64" name) "x86_64"]
+                                    [else "i386"])])
+                               "-"
+                               (cond
+                                 [(regexp-match? #rx"(?i:windows)" name) "win32"]
+                                 [(regexp-match? #rx"(?i:mac ?os)" name) "macosx"]
+                                 [(regexp-match? #rx"(?i:linux)" name) "linux"]
+                                 [(regexp-match? #rx"(?i:openbsd)" name) "openbsd"]
+                                 [(regexp-match? #rx"(?i:freebsd)" name) "freebsd"]
+                                 [(regexp-match? #rx"(?i:netbsd)" name) "netbsd"]
+                                 [(regexp-match? #rx"(?i:openindiana|solaris)" name) "solaris"]
+                                 [else "???"])
+                               (cond
+                                 [(regexp-match? #rx"(?i:natipkg)" name) "-natipkg"]
+                                 [else ""]))]))
+    (define extension-guess (cond
+                              [(regexp-match? #rx"(?i:windows)" name) "exe"]
+                              [(regexp-match? #rx"(?i:mac ?os)" name) "dmg"]
+                              [else "sh"]))
+    (define versionless? (get-opt c '#:versionless? default-versionless?))
     (define aliases (compose-aliases c default-dist-base))
-    (for ([a (in-list aliases)])
-      (define base (car a))
-      (define suffix (cadr a))
-      (define vm-suffix (caddr a))
-      (printf "~a => ~a-<platform>~a.~a~a\n"
-              (describe-indent)
+    (define (make-name base suffix vm-suffix show-guess?)
+      (format "~a~a-~a~a.~a"
               base
+              (if versionless?
+                  ""
+                  (format "-~a" (version)))
+              (if show-guess?
+                  (format "<platform:~a>" platform-guess)
+                  platform-guess)
               (let ([suffix (cond
                               [(equal? suffix "") vm-suffix]
                               [(equal? vm-suffix "") suffix]
@@ -285,12 +335,23 @@
               (cond
                 [(get-opt c '#:tgz? #f) "tgz"]
                 [(get-opt c '#:mac-pkg? #f) "pkg"]
-                [else "<extension>"])
-              (if (and (equal? base main-base)
-                       (equal? suffix main-suffix)
-                       (equal? vm-suffix main-vm-suffix))
-                  " <="
-                  "")))))
+                [else (if show-guess?
+                          (format "<extension:~a>" extension-guess)
+                          extension-guess)])))
+    (when (eq? dry-run 'describe)
+      (for ([a (in-list aliases)])
+        (define base (car a))
+        (define suffix (cadr a))
+        (define vm-suffix (caddr a))
+        (printf "~a => ~a~a\n"
+                (describe-indent)
+                (make-name base suffix vm-suffix #t)
+                (if (and (equal? base main-base)
+                         (equal? suffix main-suffix)
+                         (equal? vm-suffix main-vm-suffix))
+                    " <="
+                    ""))))
+    (make-name main-base main-suffix main-vm-suffix #f)))
 
 ;; ----------------------------------------
 
@@ -305,14 +366,8 @@
            (map (lambda (p) (if (path? p) (path->string p) p)) 
                 (cons exe args)))))
   (flush-output)
-  (case dry-run
-    [(ok describe) #t]
-    [(fail) #f]
-    [(error) (error "error")]
-    [(stuck) (semaphore-wait (make-semaphore))]
-    [(frozen) (break-enabled #f) (semaphore-wait (make-semaphore))]
-    [else
-     (apply system* exe args)]))
+  (call-if-not-dry-run
+   (lambda () (apply system* exe args))))
 
 (define (ssh-script host port/kind user env server-port kind . cmds)
   (for/and ([cmd (in-list cmds)])
@@ -333,10 +388,12 @@
              (apply system*/show cmd))]
           [(eq? port/kind 'docker)
            ;; Run client in a Docker container
-           (apply remote:ssh
-                  (remote:remote #:host host #:kind 'docker #:timeout +inf.0
-                                 #:env (map (lambda (e) (cons (car e) (cadr e))) env))
-                  cmd)]
+           (call-if-not-dry-run
+            (lambda ()
+              (apply remote:ssh
+                     (remote:remote #:host host #:kind 'docker #:timeout +inf.0
+                                    #:env (map (lambda (e) (cons (car e) (cadr e))) env))
+                     cmd)))]
           [else
            ;; Run client remotely:
            (apply system*/show ssh 
@@ -736,8 +793,9 @@
              (client-args c server server-port platform readme #f)))))
 
 (define (client-build c)
-  (describe (client-name c))
-  (describe-installers c)
+  (define name (client-name c))
+  (describe name)
+  (define installer-name-guess (describe-installers c name))
   (describe-config c)
   (define host (or (get-opt c '#:host)
                    "localhost"))
@@ -798,6 +856,12 @@
       [(unix macosx) unix-build]
       [else windows-build])
     c platform host port user server server-port repo init clean? pull? readme)
+
+   (when (eq? dry-run 'fake)
+     (define installers-dir (build-path "build" "installers"))
+     (make-directory* installers-dir)
+     (copy-file readme (build-path installers-dir installer-name-guess) #t)
+     (record-installer installers-dir installer-name-guess name))
 
    (unless (eq? dry-run 'describe)
      (delete-file readme))))

@@ -213,6 +213,7 @@
                                  font-size : x-small;
                                  background-color: #ffffee;
                                  border: 1px solid black;
+                                 border-radius: 1ex;
                                  vertical-align: top;
                               }
                               .helpbuttonlabel{ vertical-align: top; }

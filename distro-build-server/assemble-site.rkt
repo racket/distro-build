@@ -121,7 +121,8 @@
                     (head (title "Package Catalog"))
                     (body (p "This is a package catalog, which is not really"
                              " meant to be viewed in a browser. Package"
-                             " tools read " (tt "pkgs-all") ", " (tt "pkgs-all") ", or"
+                             " tools read " (tt (a ([href "pkgs"]) "pkgs")) ","
+                             " " (tt (a ([href "pkgs-all"]) "pkgs-all")) ", or"
                              " " (tt "pkg/" (i "package-name")) ".")))
                   o))))
 

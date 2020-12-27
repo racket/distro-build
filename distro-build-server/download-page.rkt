@@ -202,7 +202,7 @@
     (style/inline   @~a|{ 
                              .detail { font-size: small; font-weight: normal; }
                              .checksum, .path { font-family: monospace; }
-                             .group { background-color : #ccccff; padding-left: 0.5ex; }
+                             .group { border-bottom : 2px solid #88c }
                              .major { font-weight : bold; font-size : large; left-border: 1ex; }
                              .minor { font-weight : bold; }
                              .download-table { border: 0px solid white; }
@@ -262,9 +262,16 @@
         (define last-col (last elem))
         (define level-class
           (case (length elem)
-            [(2) (~a "major" (if key "" " group"))]
+            [(2) "major"]
             [(3) "minor"]
             [else "subminor"]))
+        (define row-level-class
+          (if key
+              "nongroup"
+              (case (length elem)
+                [(2) "group"]
+                [(3) "subgroup"]
+                [else "subsubgroup"])))
         (define num-cols (if (or current-rx
                                  version->current-rx)
                              "7"
@@ -349,7 +356,8 @@
                                      nbsp)))))
                     null)))]
          [else
-          (tr (td class: level-class
+          (tr class: row-level-class
+              (td class: level-class
                   colspan: num-cols
                   (for/list ([col (in-list mid-cols)])
                     (span nbsp nbsp nbsp))

@@ -2,6 +2,7 @@
 
 (require racket/format
          racket/string
+         xml
          (for-syntax syntax/kerncase
                      racket/base))
 
@@ -198,7 +199,16 @@
     [(#:mac-pkg?) (boolean? val)]
     [(#:tgz?) (boolean? val)]
     [(#:site-dest) (path-string? val)]
-    [(#:site-help) (hash? val)]
+    [(#:site-help) (and (hash? val)
+                        (for/and ([(k v) (in-hash val)])
+                          (and (string? k)
+                               (xexpr? v))))]
+    [(#:site-help-fallbacks) (and (list? val)
+                                  (for/and ([k+v (in-list val)])
+                                    (and (list? k+v)
+                                         (= 2 (length k+v))
+                                         (regexp? (car k+v))
+                                         (xexpr? (cadr k+v)))))]
     [(#:site-title) (string? val)]
     [(#:pdf-doc?) (boolean? val)]
     [(#:max-snapshots) (real? val)]

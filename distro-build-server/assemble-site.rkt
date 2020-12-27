@@ -178,4 +178,5 @@
                     #:dest (build-path dest-dir
                                        "index.html")
                     #:help-table (hash-ref config '#:site-help (hash))
+                    #:help-fallbacks (hash-ref config '#:site-help-fallbacks '())
                     #:git-clone (current-directory))

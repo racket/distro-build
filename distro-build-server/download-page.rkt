@@ -69,6 +69,7 @@
                             #:get-alias [get-alias (lambda (key inst) inst)]
                             #:git-clone [git-clone #f]
                             #:help-table [site-help (hash)]
+                            #:help-fallbacks [site-help-fallbacks '()]
                             #:post-content [post-content null]
                             #:plt-www-site [www-site #f]
                             #:plt-web-style? [plt-style? (and www-site #t)])
@@ -152,7 +153,11 @@
      [else (error "unknown xexpr")]))
 
   (define (get-site-help last-col)
-    (let ([h (hash-ref site-help last-col #f)])
+    (let ([h (or (hash-ref site-help last-col #f)
+                 (and (string? last-col)
+                      (for/or ([fb (in-list site-help-fallbacks)])
+                        (and (regexp-match? (car fb) last-col)
+                             (cadr fb)))))])
       (if h
           (let* ([id (~a "help" (gensym))]
                  [toggle (let ([elem (~a "document.getElementById" "('" id "')")])

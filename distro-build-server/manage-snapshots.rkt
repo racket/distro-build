@@ -185,6 +185,7 @@
                                       inst))
                     #:git-clone (current-directory)
                     #:help-table (hash-ref config '#:site-help (hash))
+                    #:help-fallbacks (hash-ref config '#:site-help-fallbacks '())
                     #:post-content (list
                                     (p "Snapshot ID: " 
                                        (a href: (string-append current-snapshot

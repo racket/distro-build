@@ -295,7 +295,7 @@
                              [else
                               (string-append
                                (cond
-                                 [(regexp-match? #rx"(?i:arm|aarch)" name)
+                                 [(regexp-match? #rx"(?i:arm|aarch|apple)" name)
                                   (cond
                                     [(regexp-match? #rx"64" name) "aarch64"]
                                     [else "arm"])]

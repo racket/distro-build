@@ -75,6 +75,8 @@
 (flush-output)
 (define table-file (build-path site-dir installers-dir "table.rktd"))
 (define current-table (get-installers-table table-file))
+(define rev-current-table (for/hash ([(k v) (in-hash current-table)])
+                            (values v k)))
 (define past-successes
   (for/fold ([table (hash)]) ([s (in-list (reverse (remove current-snapshot (get-snapshots))))])
     (with-handlers ([exn:fail? (lambda (exn)
@@ -90,7 +92,8 @@
       (for/fold ([table table]) ([(k v) (in-hash past-table)])
         (if (or (hash-ref current-table k #f)
                 (hash-ref table k #f)
-                (not (file-exists? (build-path site-dir "log" k))))
+                (not (file-exists? (build-path site-dir "log" k)))
+                (hash-ref rev-current-table v #f))
             table
             (hash-set table k (past-success s
                                             (string-append s "/index.html")

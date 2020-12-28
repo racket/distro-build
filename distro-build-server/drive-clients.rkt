@@ -56,8 +56,8 @@
     (set! default-clean? #t)]
    [("--dry-run") mode
     ("Don't actually use the clients;"
-     " <mode> can be `ok`, `fake`, `fail`, `error`, `stuck`, or `frozen`")
-    (unless (member mode '("ok" "fake" "fail" "error" "stuck" "frozen"))
+     " <mode> can be `ok`, `fail`, `error`, `stuck`, or `frozen`")
+    (unless (member mode '("ok" "fail" "error" "stuck" "frozen"))
       (raise-user-error 'drive-clients "bad dry-run mode: ~a" mode))
     (set! dry-run (string->symbol mode))]
    [("--describe") "Similar to `--dry-run`, but shows more details"
@@ -85,6 +85,12 @@
     [(stuck) (semaphore-wait (make-semaphore))]
     [(frozen) (break-enabled #f) (semaphore-wait (make-semaphore))]
     [else (thunk)]))
+
+(define top-opts (merge-options (hasheq) config))
+
+(unless dry-run
+  (when (hash-ref top-opts '#:fake-installers? #f)
+    (set! dry-run 'fake)))
 
 ;; ----------------------------------------
 
@@ -971,7 +977,7 @@
 
 (when (eq? dry-run 'describe)
   (describe "Top")
-  (describe-config (merge-options #hasheq() config) #:show-top? #t))
+  (describe-config top-opts #:show-top? #t))
 
 (void
  (sync
@@ -1041,7 +1047,7 @@
   (display-time #:server? #t)
   (define end-seconds (current-seconds))
 
-  (let ([opts (merge-options (hasheq) config)])
+  (let ([opts top-opts])
     (unless stop?
       (let ([to-email (get-opt opts '#:email-to null)])
         (unless (null? to-email)

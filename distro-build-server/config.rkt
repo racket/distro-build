@@ -198,6 +198,7 @@
     [(#:versionless?) (boolean? val)]
     [(#:mac-pkg?) (boolean? val)]
     [(#:tgz?) (boolean? val)]
+    [(#:fake-installers?) (boolean? val)]
     [(#:site-dest) (path-string? val)]
     [(#:site-help) (and (hash? val)
                         (for/and ([(k v) (in-hash val)])

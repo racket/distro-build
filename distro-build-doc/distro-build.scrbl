@@ -628,6 +628,15 @@ Top keywords (expected only in the configuration top-level):
   @item{@racket[#:pdf-doc? _boolean] --- whether to build PDF
     documentation when assembling a site; the default is @racket[#f]}
 
+ @item{@racket[#:fake-installers? _boolean] --- if true, instead of
+    using @tech{client machines} to build installers, just uses the
+    content of the @filepath{README} file that would be included as
+    the content of the installer file; beware that installer names are
+    normally determined on the client side, so the server must guess
+    about each installer name based on the @racket[#:name] description
+    (e.g., ``Windows'' in the description implies a Windows
+    installer); the default is @racket[#f] @history[#:added "1.11"]}
+
   @item{@racket[#:email-to (list _string ...)] --- a list of addresses
      to receive e-mail reporting build results; mail is sent via
      @exec{sendmail} unless @racket[#:smtp-...] configuration is
@@ -665,7 +674,6 @@ Top keywords (expected only in the configuration top-level):
     list containing a regexp and an X-expressions, and if no match is
     found already in @racket[#:site-help], the regexps are tried in
     order on row labels in the download table
-
     @history[#:added "1.11"]}
 
   @item{@racket[#:site-title _string] --- title for the main page

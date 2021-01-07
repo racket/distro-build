@@ -135,10 +135,17 @@
                             base-name dist-suffix readme
                             sign-identity
                             (and notarization-config
-                                 (with-handlers ([exn:fail? (lambda (exn)
-                                                              (error 'notarization-config "bad encoding: ~s" notarization-config))])
-                                   (define ht (read (open-input-bytes (unpack-base64 notarization-config))))
-                                   (unless (hash? ht) (error "bad config"))
+                                 (let ()
+                                   (define ht
+                                     (with-handlers
+                                         ([exn:fail?
+                                           (lambda (exn)
+                                             (error 'notarization-config "bad encoding: ~s"
+                                                    notarization-config))])
+                                       (read (open-input-bytes
+                                              (unpack-base64 notarization-config)))))
+                                   (unless (hash? ht)
+                                     (error 'notarization-config "expected hash, got ~e" ht))
                                    ht))
                             #:hardened-runtime? hardened-runtime?))]
         [(windows)

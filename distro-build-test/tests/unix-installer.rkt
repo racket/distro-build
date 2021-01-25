@@ -427,6 +427,12 @@
        
        ;; install a package from the package server --------------------
        (when remote-pkg
+         (when (and min? (not built?))
+           (ssh rt (~a bin-dir "raco") " pkg install"
+                " --recompile-only"
+                " --catalog /archive/catalog/"
+                " --auto"
+                " base"))
          (ssh rt (~a bin-dir "raco") " pkg install " remote-pkg))
 
        (void))

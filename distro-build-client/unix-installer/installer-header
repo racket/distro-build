@@ -412,6 +412,9 @@ show_dir_var() {
   fi
   echo "  $1 $2 ($status)"
 }
+show_yn_var() {
+  echo "  $1 $2"
+}
 
 unixstyle_install() {
 
@@ -430,6 +433,8 @@ unixstyle_install() {
   cd "$where" || failwith "Base directory does not exist: $where"
   where="`pwd`"; cd "$origwd"
 
+  libzo="yes"
+
   set_dirs "$where"
   # loop for possible changes
   done="N"; retry="N"
@@ -439,15 +444,16 @@ unixstyle_install() {
     if test "$retry" = "N"; then
       echo ""
       echo "Target Directories:"
-      show_dir_var "[e] Executables   " "$bindir"
-      show_dir_var "[o] Libraries     " "$librktdir"
-      show_dir_var "[s] Shared files  " "$sharerktdir"
-      show_dir_var "[c] Configuration " "$configdir"
-      show_dir_var "[d] Documentation " "$docdir"
-      show_dir_var "[a] .desktop files" "$appsdir"
-      show_dir_var "[m] Man Pages     " "$mandir"
-      show_dir_var "[l] C Libraries   " "$libdir"
-      show_dir_var "[h] C headers     " "$incrktdir"
+      show_dir_var "[e] Executables     " "$bindir"
+      show_dir_var "[o] Libraries       " "$librktdir"
+      show_dir_var "[s] Shared files    " "$sharerktdir"
+      show_dir_var "[c] Configuration   " "$configdir"
+      show_dir_var "[d] Documentation   " "$docdir"
+      show_dir_var "[a] .desktop files  " "$appsdir"
+      show_dir_var "[m] Man Pages       " "$mandir"
+      show_dir_var "[l] C Libraries     " "$libdir"
+      show_dir_var "[h] C headers       " "$incrktdir"
+      show_yn_var  "[z] Compiled at lib?" "$libzo"
       echo "Enter a letter to change an entry, or enter to continue."
     fi
     retry="N"
@@ -460,6 +466,13 @@ unixstyle_install() {
         *    ) eval "$1=\"$where/$new_dir\"" ;;
       esac
     }
+    read_yn() {
+      echon "$2 "; read new_yn
+      case "$new_yn" in
+        [yY]* ) eval "$1=yes" ;;
+        [nN]* ) eval "$1=no" ;;
+      esac
+    }
     case "$change_what" in
       [eE]* ) read_dir bindir ;;
       [dD]* ) read_dir docdir ;;
@@ -470,6 +483,7 @@ unixstyle_install() {
       [cC]* ) read_dir configdir ;;
       [aA]* ) read_dir appsdir ;;
       [mM]* ) read_dir mandir ;;
+      [zZ]* ) read_yn  libzo "Install compiled files as library instead of shared?" ;;
       ""    ) if test "$err" = "N"; then done="Y"
               else echo "*** Please fix erroneous paths to proceed"; fi ;;
       *     ) retry="Y" ;;
@@ -500,10 +514,16 @@ unixstyle_install() {
 
   cd "$where"
   "$tmp/bin/racket" "$tmp/collects/setup/unixstyle-install.rkt" \
-    "move" "$tmp" "$bindir" "$sharerktdir/collects" "$docdir" "$libdir" \
+    "move" "$tmp" "$bindir" "$sharerktdir/collects" "$sharerktdir/pkgs" "$docdir" "$libdir" \
     "$incrktdir" "$librktdir" "$sharerktdir" "$configdir" "$appsdir" "$mandir" \
     || failwith "installation failed"
 
+  if test "$libzo" = "yes" ; then
+    "$tmp/bin/racket" "$tmp/collects/setup/unixstyle-install.rkt" \
+      "make-install-libzo-move" "$tmp" "$bindir" "$sharerktdir/collects" "$sharerktdir/pkgs" "$docdir" "$libdir" \
+      "$incrktdir" "$librktdir" "$sharerktdir" "$configdir" "$appsdir" "$mandir" \
+      || failwith "installation failed"
+  fi
 }
 
 ###############################################################################

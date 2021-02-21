@@ -519,7 +519,7 @@ unixstyle_install() {
     || failwith "installation failed"
 
   if test "$libzo" = "yes" ; then
-    "$tmp/bin/racket" "$tmp/collects/setup/unixstyle-install.rkt" \
+    "$bindir/racket" "$sharerktdir/collects/setup/unixstyle-install.rkt" \
       "make-install-libzo-move" "$tmp" "$bindir" "$sharerktdir/collects" "$sharerktdir/pkgs" "$docdir" "$libdir" \
       "$incrktdir" "$librktdir" "$sharerktdir" "$configdir" "$appsdir" "$mandir" \
       || failwith "installation failed"

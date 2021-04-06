@@ -76,7 +76,7 @@
                   'checksum (call-with-input-file* dest-zip sha1)
                   'name pkg
                   'author (hash-ref ht 'author "plt@racket-lang.org")
-                  'description (hash-ref ht 'author "library")
+                  'description (hash-ref ht 'description "library")
                   'tags (hash-ref ht 'tags '())
                   'dependencies (hash-ref ht 'dependencies '())
                   'modules (hash-ref ht 'modules '()))

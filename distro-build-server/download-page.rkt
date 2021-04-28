@@ -6,7 +6,7 @@
          racket/date
          racket/file
          net/url
-         openssl/sha1
+         (only-in file/sha1 bytes->hex-string)
          scribble/html
          (only-in plt-web site page call-with-registered-roots)
          (only-in plt-web/style columns))
@@ -140,45 +140,72 @@
 
   (define (xexpr->html p)
     (cond
-     [(pair? p)
-      (define has-attr? (or (and (pair? (cadr p))
-                                 (pair? (cadr p)))
-                            (null? (cadr p))))
-      (apply element (car p) (if has-attr?
-                                 (cadr p)
-                                 null)
-             (map xexpr->html (if has-attr? (cddr p) (cdr p))))]
-     [(string? p) p]
-     [(or (symbol? p) (number? p)) (entity p)]
-     [else (error "unknown xexpr")]))
+      [(pair? p)
+       (define op
+         (case (car p)
+           [(table) table]
+           [(td) td]
+           [(tr) tr]
+           [(div) div]
+           [else
+            (lambda args (apply element (car p) args))]))
+       (define has-attr? (or (and (pair? (cadr p))
+                                  (pair? (caadr p)))
+                             (null? (cadr p))))
+       (apply op
+              (append
+               (if has-attr?
+                   (let loop ([attrs (cadr p)])
+                     (cond
+                       [(null? attrs) null]
+                       [else
+                        (list* (string->symbol (format "~a:" (caar attrs)))
+                               (cdar attrs)
+                               (loop (cdr attrs)))]))
+                   null)
+               (map xexpr->html (if has-attr? (cddr p) (cdr p)))))]
+      [(string? p) p]
+      [(or (symbol? p) (number? p)) (entity p)]
+      [else (error "unknown xexpr" p)]))
+
+  (define (make-popup label content
+                      #:overlay? [overlay? #f])
+    (define id (~a "help" (gensym)))
+    (define toggle (let ([elem (~a "document.getElementById" "('" id "')")])
+                     (~a elem ".style.display = ((" elem ".style.display == 'inline') ? 'none' : 'inline');"
+                         " return false;")))
+    ((if overlay? reverse values)
+     (list
+      (div class: "helpbutton"
+           (a href: "#"
+              class: "helpbuttonlabel"
+              onclick: toggle
+              title: "explain"
+              label))
+      (div class: (if overlay? "hiddendrophelp" "hiddenhelp")
+           id: id
+           onclick: (if overlay? "" toggle)
+           style: "display: none"
+           (div class: (if overlay? "helpwidecontent" "helpcontent")
+                (div class: "helptext"
+                     (xexpr->html content)))))))
 
   (define (get-site-help last-col)
-    (let ([h (or (hash-ref site-help last-col #f)
-                 (and (string? last-col)
-                      (for/or ([fb (in-list site-help-fallbacks)])
-                        (and (regexp-match? (car fb) last-col)
-                             (cadr fb)))))])
-      (if h
-          (let* ([id (~a "help" (gensym))]
-                 [toggle (let ([elem (~a "document.getElementById" "('" id "')")])
-                           (~a elem ".style.display = ((" elem ".style.display == 'inline') ? 'none' : 'inline');"
-                               " return false;"))])
-            (list
-             " "
-             (div class: "helpbutton"
-                  (a href: "#"
-                     class: "helpbuttonlabel"
-                     onclick: toggle
-                     title: "explain"
-                     nbsp "?" nbsp))
-             (div class: "hiddenhelp"
-                  id: id
-                  onclick: toggle
-                  style: "display: none"
-                  (div class: "helpcontent"
-                       (div class: "helptext"
-                            (xexpr->html h))))))
-          null)))
+    (define h (or (hash-ref site-help last-col #f)
+                  (and (string? last-col)
+                       (for/or ([fb (in-list site-help-fallbacks)])
+                         (and (regexp-match? (car fb) last-col)
+                              (cadr fb))))))
+    (if h
+        (list* " " (make-popup (list nbsp "?" nbsp) h))
+        null))
+  
+  (define (make-checksum path sha-bytes)
+    `(span ([class "checksum"])
+           ,(bytes->hex-string
+             (call-with-input-file*
+              path
+              sha-bytes))))
 
   (define page-site (and plt-style?
                          (site "download-page"
@@ -215,20 +242,28 @@
                                  border: 1px solid black;
                                  border-radius: 1ex;
                                  vertical-align: top;
-                              }
-                              .helpbuttonlabel{ vertical-align: top; }
-                             .hiddenhelp {
+                             }
+                             .helpbuttonlabel{ vertical-align: top; }
+                             .hiddenhelp, .hiddendrophelp {
                                  width: 0em;
                                  position: absolute;
                              }
-                             .helpcontent {
-                                 width: 20em;
+                             .hiddendrophelp {
+                                 top: 1em;
+                             }
+                             .helpcontent, .helpwidecontent {
                                  font-size : small;
                                  font-weight : normal;
                                  background-color: #ffffee;
                                  padding: 10px;
                                  border: 1px solid black;
                               }
+                             .helpcontent {
+                                 width: 20em;
+                             }
+                             .helpwidecontent {
+                                 width: 42em;
+                             }
                             a { text-decoration: none; }
                            }|))
 
@@ -324,12 +359,17 @@
                             (a href: (~a (past-success-relative-url inst))
                                (past-success-name inst)))
                       (span class: "detail"
-                            "SHA1: "
-                            (span class: "checksum"
-                                  (call-with-input-file*
-                                   (build-path (path-only table-file)
-                                               inst)
-                                   sha1)))))
+                            style: "position: relative"
+                            (make-popup
+                             #:overlay? #t
+                             (list nbsp nbsp "click for SHA1 and SHA256" nbsp nbsp)
+                             (let ([path (build-path (path-only table-file)
+                                                     inst)])
+                               `(span
+                                 (div "SHA1:" nbsp
+                                      ,(make-checksum path sha1-bytes))
+                                 (div "SHA256:" nbsp
+                                      ,(make-checksum path sha256-bytes))))))))
               (let ([current-rx (or current-rx
                                     (and version->current-rx
                                          (version->current-rx

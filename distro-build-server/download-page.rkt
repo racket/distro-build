@@ -225,9 +225,12 @@
 
   (define orig-directory (current-directory))
 
+  (define checksum-in-popup? #f)
+
   (define page-headers
     (style/inline   @~a|{ 
                              .detail { font-size: small; font-weight: normal; }
+                             .tinydetail { font-size: xx-small; font-weight: normal; }
                              .checksum, .path { font-family: monospace; }
                              .group { border-bottom : 2px solid #88c }
                              .major { font-weight : bold; font-size : large; left-border: 1ex; }
@@ -247,6 +250,7 @@
                              .hiddenhelp, .hiddendrophelp {
                                  width: 0em;
                                  position: absolute;
+                                 z-index: 1;
                              }
                              .hiddendrophelp {
                                  top: 1em;
@@ -358,18 +362,21 @@
                             "last success: "
                             (a href: (~a (past-success-relative-url inst))
                                (past-success-name inst)))
-                      (span class: "detail"
-                            style: "position: relative"
-                            (make-popup
-                             #:overlay? #t
-                             (list nbsp nbsp "click for SHA1 and SHA256" nbsp nbsp)
-                             (let ([path (build-path (path-only table-file)
-                                                     inst)])
-                               `(span
-                                 (div "SHA1:" nbsp
-                                      ,(make-checksum path sha1-bytes))
-                                 (div "SHA256:" nbsp
-                                      ,(make-checksum path sha256-bytes))))))))
+                      (let ([path (build-path (path-only table-file)
+                                              inst)])
+                        (if checksum-in-popup?
+                            (span class: "detail"
+                                  style: "position: relative"
+                                  (make-popup
+                                   #:overlay? #t
+                                   (list nbsp nbsp "click for SHA1 and SHA256" nbsp nbsp)
+                                   `(span
+                                     (div "SHA1:" nbsp
+                                          ,(make-checksum path sha1-bytes))
+                                     (div "SHA256:" nbsp
+                                          ,(make-checksum path sha256-bytes)))))
+                            (span class: "tinydetail"
+                                  "SHA256:" nbsp (xexpr->html (make-checksum path sha256-bytes)))))))
               (let ([current-rx (or current-rx
                                     (and version->current-rx
                                          (version->current-rx

@@ -560,6 +560,14 @@ spaces, etc.):
     installation path; the default is determined by the
     @tt{VERSIONLESS_MODE} makefile variable}
 
+  @item{@racket[#:dist-base-version _string*] --- a version identifier
+    to include in each installer's name just as the base name (as
+    determined by @racket[#:dist-base]) and before the platform, as
+    long as @racket[#:versionless?] is not specified as true; the
+    default is @racket[(version)]
+
+    @history[#:added "1.12"]}
+
   @item{@racket[#:mac-pkg? _boolean] --- if true, creates a
     @filepath{.pkg} for Mac OS (in single-file format) instead of a
     @filepath{.dmg}; the default is @racket[#f]}
@@ -624,6 +632,13 @@ Top keywords (expected only in the configuration top-level):
   @item{@racket[#:site-dest _path-string] --- destination for
     completed build, used by the @tt{site} and @tt{snapshot-site}
     makefile targets; the default is @racket["build/site"]}
+
+  @item{@racket[#:current-link-version _string] --- substring of
+    installer names to replace with @racket["current"] for ``current''
+    links on a snapshot page; the default is the value of
+    @racket[#:dist-base-version]
+
+    @history[#:added "1.12"]}
 
   @item{@racket[#:pdf-doc? _boolean] --- whether to build PDF
     documentation when assembling a site; the default is @racket[#f]}

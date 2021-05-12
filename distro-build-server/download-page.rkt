@@ -66,6 +66,7 @@
                             #:title [page-title "Racket Downloads"]
                             #:current-rx [current-rx #f]
                             #:version->current-rx [version->current-rx #f]
+                            #:current-link-version [current-link-version (version)]
                             #:get-alias [get-alias (lambda (key inst) inst)]
                             #:git-clone [git-clone #f]
                             #:help-table [site-help (hash)]
@@ -382,7 +383,7 @@
                                          (version->current-rx
                                           (if (past-success? inst)
                                               (past-success-version inst)
-                                              (version)))))])
+                                              current-link-version))))])
                 (if current-rx
                     (list
                      (td nbsp)

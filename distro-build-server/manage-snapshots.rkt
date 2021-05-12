@@ -31,6 +31,12 @@
                              '#:site-title
                              "Racket Downloads"))
 
+(define current-link-version (hash-ref config
+                                       '#:current-link-version
+                                       (hash-ref config
+                                                 '#:dist-base-version
+                                                 (version))))
+
 (define current-snapshot
   (let-values ([(base name dir?) (split-path site-dir)])
     (path-element->string name)))
@@ -88,7 +94,7 @@
       (define past-version (let ([f (build-path snapshots-dir s installers-dir "version.rktd")])
                              (if (file-exists? f)
                                  (call-with-input-file* f read)
-                                 (version))))
+                                 current-link-version)))
       (for/fold ([table table]) ([(k v) (in-hash past-table)])
         (if (or (hash-ref current-table k #f)
                 (hash-ref table k #f)
@@ -129,7 +135,7 @@
 (define (version->current-rx vers)
   (regexp (regexp-quote vers)))
 
-(define current-rx (version->current-rx (version)))
+(define current-rx (version->current-rx current-link-version))
 
 (printf "Creating \"current\" links\n")
 (flush-output)
@@ -150,7 +156,7 @@
   (for ([f (in-list (directory-list installer-dir))])
     (for ([f (in-list (hash-ref installer-aliases f (list f)))])
       (when (regexp-match? current-rx f)
-        (make-link f f (version)))))
+        (make-link f f (version->current-rx current-link-version)))))
   ;; Link past successes:
   (for ([v (in-hash-values past-successes)])
     (define current-rx (version->current-rx (past-success-version v)))
@@ -178,6 +184,7 @@
                     #:dest (build-path snapshots-dir
                                        "index.html")
                     #:version->current-rx version->current-rx
+                    #:current-link-version current-link-version
                     #:get-alias (lambda (key inst)
                                   (define main+aliases (hash-ref aliases key #f))
                                   (or (and main+aliases
@@ -214,4 +221,4 @@
  (build-path site-dir installers-dir "version.rktd")
  #:exists 'truncate/replace
  (lambda (o)
-   (writeln (version) o)))
+   (writeln current-link-version o)))

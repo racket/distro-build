@@ -29,6 +29,7 @@
 (define download-readme #f)
 (define post-process-cmd #f)
 (define pre-process-cmd #f)
+(define dist-base-version (version))
 
 (define-values (short-human-name human-name base-name dir-name dist-suffix 
                                  sign-identity osslsigncode-args-base64)
@@ -47,13 +48,19 @@
    [("--packed-options") options ("Additional comma-separated options:"
                                   "  tgz - create a \".tgz\" archive instead of an installer"
                                   "  pkg - create a \".pkg\" installer on Mac OS"
-                                  "  hardened - specify hardened runtime for Mac OS signing")
+                                  "  hardened - specify hardened runtime for Mac OS signing"
+                                  "  version=<vers> - use <vers> in installer names")
     (for ([h (in-list (string-split options #rx","))])
       (case h
         [("tgz") (set! tgz? #t)]
         [("pkg") (set! mac-pkg? #t)]
         [("hardened") (set! hardened-runtime? #t)]
-        [else (raise-user-error "unrecognized packed option:" h)]))]
+        [else
+         (cond
+           [(regexp-match #rx"^version=(.*)$" h)
+            => (lambda (m) (set! dist-base-version (cadr m)))]
+           [else
+            (raise-user-error "unrecognized packed option:" h)])]))]
    [("--notarization-config") config-as-base64 "Notarize a Mac OS installer before uploading"
     (set! notarization-config config-as-base64)]
    [("--upload") url "Upload installer"
@@ -76,11 +83,11 @@
            (format "~a v~a" human-name (version))
            (if versionless?
                base-name
-               (format "~a-~a" base-name (version)))
+               (format "~a-~a" base-name dist-base-version))
            (if (or (and release? (not source?))
                    versionless?)
                dir-name
-               (format "~a-~a" dir-name (version)))
+               (format "~a-~a" dir-name dist-base-version))
            (if (string=? dist-suffix "")
                ""
                (string-append "-" dist-suffix))

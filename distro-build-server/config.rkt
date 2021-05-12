@@ -196,6 +196,7 @@
     [(#:all-platform-pkgs?) (boolean? val)]
     [(#:static-libs?) (boolean? val)]
     [(#:versionless?) (boolean? val)]
+    [(#:dist-base-version) (simple-string? val)]
     [(#:mac-pkg?) (boolean? val)]
     [(#:tgz?) (boolean? val)]
     [(#:fake-installers?) (boolean? val)]
@@ -211,6 +212,7 @@
                                          (regexp? (car k+v))
                                          (xexpr? (cadr k+v)))))]
     [(#:site-title) (string? val)]
+    [(#:current-link-version) (simple-string? val)]
     [(#:pdf-doc?) (boolean? val)]
     [(#:max-snapshots) (real? val)]
     [(#:week-count) (exact-positive-integer? val)]

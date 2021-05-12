@@ -287,7 +287,7 @@
 (define (describe-installers c name)
   (when (or (eq? dry-run 'describe)
             (eq? dry-run 'fake))
-    (define main-base (get-opt c '#:dist-base ""))
+    (define main-base (get-opt c '#:dist-base default-dist-base))
     (define main-suffix (get-opt c '#:dist-suffix ""))
     (define main-vm-suffix (get-opt c '#:dist-vm-suffix ""))
     (define platform-guess (cond
@@ -321,13 +321,14 @@
                               [(regexp-match? #rx"(?i:mac ?os)" name) "dmg"]
                               [else "sh"]))
     (define versionless? (get-opt c '#:versionless? default-versionless?))
+    (define dist-base-version (get-opt c '#:dist-base-version (version)))
     (define aliases (compose-aliases c default-dist-base))
     (define (make-name base suffix vm-suffix show-guess?)
       (format "~a~a-~a~a.~a"
               base
               (if versionless?
                   ""
-                  (format "-~a" (version)))
+                  (format "-~a" dist-base-version))
               (if show-guess?
                   (format "<platform:~a>" platform-guess)
                   platform-guess)
@@ -524,6 +525,7 @@
   (define release? (get-opt c '#:release? default-release?))
   (define source? (get-opt c '#:source? default-source?))
   (define versionless? (get-opt c '#:versionless? default-versionless?))
+  (define dist-base-version (get-opt c '#:dist-base-version (version)))
   (define source-pkgs? (get-opt c '#:source-pkgs? source?))
   (define source-runtime? (get-opt c '#:source-runtime? source?))
   (define all-platform-pkgs? (get-opt c '#:all-platform-pkgs?))
@@ -536,6 +538,11 @@
   (define build-stamp (get-opt c '#:build-stamp (if release?
                                                     ""
                                                     (current-stamp))))
+  (define packed-options (string-append
+                          (if hardened-runtime? "hardened," "")
+                          (if (equal? dist-base-version (version))
+                              ""
+                              (format "version=~a," dist-base-version))))
   (~a (cond
         [(not mnt-dir)
          (~a " SERVER=" server
@@ -572,7 +579,7 @@
                             (string-append dist-suffix "-" dist-vm-suffix)]))
       " DIST_CATALOGS_q=" (qq dist-catalogs kind)
       " SIGN_IDENTITY=" (q sign-identity)
-      " INSTALLER_OPTIONS=\"" (if hardened-runtime? "hardened," "") "\""
+      " INSTALLER_OPTIONS=\"" packed-options "\""
       " OSSLSIGNCODE_ARGS_BASE64=" (q (if osslsigncode-args
                                           (pack-base64-strings osslsigncode-args)
                                           ""))

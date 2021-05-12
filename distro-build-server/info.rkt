@@ -2,7 +2,7 @@
 
 (define collection "distro-build")
 
-(define version "1.11")
+(define version "1.12")
 
 (define deps '(["base" #:version "6.1.1.6"]
                "distro-build-client"

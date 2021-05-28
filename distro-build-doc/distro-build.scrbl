@@ -129,7 +129,7 @@ Each Unix or Mac OS @tech{client machine} needs the following available:
 @itemlist[
 
   @item{SSH server with public-key authentication (except @racket["localhost"])}
-  
+
   @item{@exec{git} (unless the working directory is ready)}
 
   @item{@exec{gcc}, @exec{make}, etc.}
@@ -147,15 +147,15 @@ Each Windows @tech{client machine} needs the following:
   @item{SSH server with public-key authentication, providing either a
     Windows command line (like freeSSHd) or bash with access to
     @exec{cmd.exe} (like Cygwin's @exec{opensshd})}
-    
+
   @item{@exec{git} (unless the working directory is ready)}
-  
+
   @item{Microsoft Visual Studio (version at least 9.0 and no more than 12.0), installed
     in the default folder:
      @filepath{C:\Program Files\Microsoft Visual Studio @nonterm{vers}}
     or
      @filepath{C:\Program Files (x86)\Microsoft Visual Studio @nonterm{vers}}}
-     
+
   @item{Nullsoft Scriptable Install System (NSIS) version 2.x, installed
     in the default folder:
      @filepath{C:\Program Files\NSIS\makensis.exe}
@@ -874,7 +874,7 @@ create a @filepath{site.rkt} file with
   #:dist-base-url "http://my-server.domain/snapshot/"
   (machine
    ;; FIXME: the way the installer is described on the web page:
-   #:name "Minimal Racket | My Platform" 
+   #:name "Minimal Racket | My Platform"
    ;; The packages in this installer:
    #:pkgs '()))
 }
@@ -907,7 +907,7 @@ the directory for assembling the site:
   #:site-dest (build-path "build/site" (current-stamp))
   (machine
    ;; FIXME: the way the installer is described on the web page:
-   #:name "Minimal Racket | My Platform" 
+   #:name "Minimal Racket | My Platform"
    ;; The packages in this installer:
    #:pkgs '()))
 }
@@ -935,7 +935,7 @@ installers might look like this:
 
 @codeblock{
     #lang distro-build/config
-   
+
     (sequential
      #:pkgs '("drracket")
      #:server-hosts '() ; Insecure? See below.

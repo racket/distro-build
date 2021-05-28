@@ -12,7 +12,7 @@ versions or with different packages pre-installed.
 
 The distribution-building tools are meant to be driven by a makefile
 in the main Racket source repository, which is currently
-@url{https://github.com/plt/racket}. See @filepath{BUILD.md} there
+@url{https://github.com/racket/racket}. See @filepath{build.md} there
 for general build information.
 
 @; ----------------------------------------

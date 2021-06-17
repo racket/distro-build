@@ -66,7 +66,7 @@ is also used to create a tunnel back to the server, and the client by
 default uses that tunnel for all communication, so the server by
 default accepts only connections via @racket["localhost"]. For a
 client as a Docker container, @racket[#:docker] specifies an image
-name, #racket[#:host] is used as a container name, and @exec{ssh} is
+name, @racket[#:host] is used as a container name, and @exec{ssh} is
 not used. Any container that already exists with the @racket[#:host]
 name is used as-is, to support incremental builds.
 

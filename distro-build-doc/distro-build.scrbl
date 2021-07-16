@@ -422,7 +422,7 @@ spaces, etc.):
 
   @item{@racket[#:variant _symbol] --- @racket['bc], @racket['3m] (as
     a synonym for @racket['bc]), @racket['cgc], or @racket['cs],
-    indicating the target build; defaults to @racket['bc] or
+    indicating the target build; defaults to @racket['cs] or
     @racket['bc] depending on the running Racket implementation
 
     @history[#:changed "1.13" @elem{Changed the default to depend on

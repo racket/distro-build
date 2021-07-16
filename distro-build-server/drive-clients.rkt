@@ -494,7 +494,9 @@
     [(a b . cs)
      (apply build-slash-path (build-slash-path a b) cs)]))
 
-(define default-variant 'bc) ; 'cs or 'bc/'3m
+(define default-variant (case (system-type 'vm)
+                          [(chez-scheme) 'cs]
+                          [else 'bc]))
 
 (define (client-args c server server-port kind readme mnt-dir)
   (define desc (client-name c))

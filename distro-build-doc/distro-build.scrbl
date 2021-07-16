@@ -361,7 +361,7 @@ spaces, etc.):
     and @racket[#:vbox] is not provided, then a container using the
     @racket[#:host] name is created if it does not already exist,
     started if it is not already running, and stopped on the server
-    after building; the image @racket["racket/unix-install-test"]
+    after building; the image @racket["racket/distro-build:unix-installer-test"]
     is suitable as a generic Unix image
 
     @history[#:added "1.8"]}
@@ -420,10 +420,13 @@ spaces, etc.):
     @racket[#f], which means that the target platform should be
     inferred from arguments such as @racket[#:cross-target]}
 
-  @item{@racket[#:variant _symbol] --- @racket['bc], @racket['3m]
-    (as a synonym for @racket['bc]), @racket['cgc], or
-    @racket['cs], indicating the target build; defaults to
-    @racket['bc]}
+  @item{@racket[#:variant _symbol] --- @racket['bc], @racket['3m] (as
+    a synonym for @racket['bc]), @racket['cgc], or @racket['cs],
+    indicating the target build; defaults to @racket['bc] or
+    @racket['bc] depending on the running Racket implementation
+
+    @history[#:changed "1.13" @elem{Changed the default to depend on
+                                    the running Racket implementation.}]}
 
   @item{@racket[#:compile-any? _boolean] --- determines whether to
     build bytecode in machine-independent form, which works for all

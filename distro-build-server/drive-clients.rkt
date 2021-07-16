@@ -13,7 +13,8 @@
                   site-config-tag site-config-options site-config-content
                   merge-options
                   current-stamp
-                  compose-aliases)
+                  compose-aliases
+                  get-client-name)
          distro-build/url-options
          distro-build/display-time
          distro-build/readme
@@ -112,9 +113,7 @@
       (client-name opts)))
 
 (define (client-name opts)
-  (or (get-opt opts '#:name)
-      (get-opt opts '#:host)
-      "localhost"))
+  (get-client-name opts))
 
 (define (client-stream-log? opts)
   (get-opt opts '#:stream-log?))
@@ -495,8 +494,8 @@
      (apply build-slash-path (build-slash-path a b) cs)]))
 
 (define default-variant (case (system-type 'vm)
-                          [(chez-scheme) 'cs]
-                          [else 'bc]))
+                          [(racket) 'bc]
+                          [else 'cs]))
 
 (define (client-args c server server-port kind readme mnt-dir)
   (define desc (client-name c))

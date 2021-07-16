@@ -22,6 +22,7 @@
          extract-options+post-processes+aliases
          compose-aliases
          infer-installer-alias
+         get-client-name
          merge-options)
 
 (module reader syntax/module-reader
@@ -291,10 +292,10 @@
             (traverse (lambda (opts ht)
                         (define post-process (hash-ref opts '#:server-installer-post-process '()))
                         (if (pair? post-process)
-                            (hash-set ht (hash-ref opts '#:name) post-process)
+                            (hash-set ht (get-client-name opts) post-process)
                             ht)))
             (traverse (lambda (opts ht)
-                        (hash-set ht (hash-ref opts '#:name)
+                        (hash-set ht (get-client-name opts)
                                   (compose-aliases opts default-dist-base)))))))
 
 (define (compose-aliases opts default-dist-base)
@@ -340,6 +341,11 @@
          #f)]
     [else
      (~a (car alias) "-" (cadr m) (combine-suffix (cadr alias) (caddr alias)) "." (caddr m))]))
+
+(define (get-client-name opts)
+  (or (hash-ref opts '#:name #f)
+      (hash-ref opts '#:host #f)
+      "localhost"))
 
 (define (merge-options opts c)
   (for/fold ([opts opts]) ([(k v) (in-hash (site-config-options c))])

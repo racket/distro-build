@@ -4,6 +4,7 @@
          racket/string
          racket/system
          compiler/find-exe
+         file/untgz
          setup/dirs
          (only-in "config.rkt" extract-options)
          distro-build/display-time
@@ -55,6 +56,17 @@
 (when (file-exists? system.rktd)
   (make-directory* (build-path dir "lib"))
   (copy-file system.rktd (build-path dir "lib" "system.rktd")))
+
+;; If the same build directory was used for an installer client,
+;; then the main "collects" directory can have the wrong sort
+;; of compiled files in place. Unpack the old "collects.tgz"
+;; to make sure it's in sync
+(define tgz-file (build-path "build" "origin" "collects.tgz"))
+(when (file-exists? tgz-file)
+  (call-with-input-file*
+   tgz-file
+   (lambda (i)
+     (untgz i #:dest "racket"))))
 
 (display-time #:server? #t)
 (printf "Running `raco pkg install' for packages:\n")

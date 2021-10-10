@@ -398,6 +398,7 @@
            (call-if-not-dry-run
             (lambda ()
               (apply remote:ssh
+                     #:mode 'result
                      (remote:remote #:host host #:kind 'docker #:timeout +inf.0
                                     #:env (map (lambda (e) (cons (car e) (cadr e))) env))
                      cmd)))]

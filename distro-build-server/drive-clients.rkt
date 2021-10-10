@@ -138,6 +138,7 @@
 (define (docker-upload-dir host)
   (define dir (build-path "build" "upload" host))
   (make-directory* dir)
+  (file-or-directory-permissions dir #o777) ; world-writeable so Docker user ID matters less
   dir)
 
 ;; --------------------------------------------------

@@ -644,6 +644,11 @@
 (define (get-unix-dir c)
   (get-path-opt c '#:dir "build/plt" #:localhost (current-directory)))
 
+(define (add-enable-portable config-args)
+  (if (member "--disable-portable" config-args)
+      config-args
+      (cons "--enable-portable" config-args)))
+
 (define (unix-build c platform host port user server server-port repo init clean? pull? readme)
   (define port/kind (if (get-opt c '#:docker #f) 'docker port))
   (define dir (get-unix-dir c))
@@ -735,7 +740,8 @@
                                                           built-native-racket))))
                                         null)
                                     (list "--enable-embedfw")
-                                    (get-opt c '#:configure null))
+                                    (add-enable-portable
+                                     (get-opt c '#:configure null)))
                                    'unix))
      (and (has-tests? c)
           (sh "cd " (q dir) " ; "

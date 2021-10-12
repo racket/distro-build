@@ -376,7 +376,9 @@ spaces, etc.):
     to @racket[(system-type)]}
 
   @item{@racket[#:configure (list _string ...)] --- arguments to
-    @exec{configure}}
+    @exec{configure}; if @racket["--disable-portable"] is not present,
+    then @racket["--enable-portable"] is added to the start of the
+    list; defaults to @racket['()]}
 
   @item{@racket[#:cross-target _string*] --- specifies a target for
     cross-compilation, which adds @DFlag{host}@tt{=}@racket[_string*]

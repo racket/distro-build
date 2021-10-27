@@ -405,6 +405,7 @@ SectionEnd
    (lambda (o)
      (display script o)
      (newline o)))
+  ;; result from `system*` is result of `nsis-generate`:
   (parameterize ([current-directory "bundle"])
     (define verbose (if (eq? 'windows (system-type))
                         "/V3"
@@ -428,15 +429,16 @@ SectionEnd
      (build-path "bundle" "racket" "README.txt")
      (lambda (o)
        (display (regexp-replace* #rx"\n" readme "\r\n") o))))
-  (nsis-generate exe-path
-                 human-name
-                 (version)
-                 platform
-                 makensis
-                 #:versionless versionless?
-                 #:extension-registers (get-extreg "bundle/racket")
-                 #:start-menus (get-startmenu "bundle/racket")
-                 #:auto-launch (get-auto-launch "bundle/racket"))
+  (unless (nsis-generate exe-path
+                         human-name
+                         (version)
+                         platform
+                         makensis
+                         #:versionless versionless?
+                         #:extension-registers (get-extreg "bundle/racket")
+                         #:start-menus (get-startmenu "bundle/racket")
+                         #:auto-launch (get-auto-launch "bundle/racket"))
+    (error "installer creation failed"))
   (when osslsigncode-args
     (define unsigned-exe-path (let-values ([(base name dir?) (split-path exe-path)])
                                 (build-path base "unsigned" name)))

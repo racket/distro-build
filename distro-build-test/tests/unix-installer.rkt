@@ -97,7 +97,7 @@
   (for-each get (append racket-src-built-installers
                         min-racket-src-installers
                         min-racket-src-built-installers)))
-(get #:sub "base/" "base.zip")
+(get #:sub "../pkgs/" "base.zip")
 
 ;; ----------------------------------------
 ;; Construct a simple package

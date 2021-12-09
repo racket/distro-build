@@ -52,7 +52,6 @@
 (define (make-dmg volname src-dir dmg bg readme sign-identity
                   #:hardened-runtime? [hardened-runtime? #t])
   (define tmp-dmg (make-temporary-file "~a.dmg"))
-  (define tmp2-dmg (make-temporary-file "~a.dmg"))
   (define work-dir
     (let-values ([(base name dir?) (split-path src-dir)])
       (build-path base "work")))
@@ -71,7 +70,8 @@
      (lambda (o)
        (display readme o))))
   (when bg
-    (copy-file bg (build-path work-dir ".bg.png")))
+    (copy-file bg (build-path work-dir ".bg.png"))
+    (dmg-layout work-dir volname ".bg.png"))
   (unless (string=? sign-identity "")
     (sign-executables dest-dir sign-identity hardened-runtime?))
   ;; The following command should work fine, but it looks like hdiutil in 10.4
@@ -86,22 +86,11 @@
                   "create" "-format" "UDRW" "-fs" "HFS+" "-ov"
                   "-mode" "755" "-volname" volname "-srcfolder" "."
                   tmp-dmg))
-  ;; Then do the expected dmg layout...
-  (when bg
-    (dmg-layout tmp-dmg volname ".bg.png"))
-  ;; the call to convert is failing with
-  ;; `resource temporarily unavailable.hdiutil: convert: result: 35`.
-  ;; internet search suggests that the problem is that the dmg is still listed as being opened by
-  ;; diskimage-helper or some other process, and copying the file appears to solve the problem.
-  ;; there may be a solution that doesn't use so much space...
-  (displayln (~v (list 'copy-file tmp-dmg tmp2-dmg #t)))
-  (copy-file tmp-dmg tmp2-dmg #t)
   ;; And create the compressed image from the uncompressed image:
   (system*/show hdiutil
                 "convert" "-format" "UDBZ" "-imagekey" "zlib-level=9" "-ov"
-                tmp2-dmg "-o" dmg)
-  (delete-file tmp-dmg)
-  (delete-file tmp2-dmg))
+                tmp-dmg "-o" dmg)
+  (delete-file tmp-dmg))
 
 (define (sign-executables dest-dir sign-identity hardened-runtime?)
   ;; sign the mach-o files in any frameworks in the given directory
@@ -182,23 +171,12 @@
                         (integer-bytes->integer bstr #f))))
                '(#xFeedFace #xFeedFacf))))
 
-(define (dmg-layout dmg volname bg)
-  (define-values (mnt del?)
-    (let ([preferred (build-path "/Volumes/" volname)])
-      (if (not (directory-exists? preferred))
-          ;; Use the preferred path so that the alias is as
-          ;; clean as possible:
-          (values preferred #f)
-          ;; fall back to using a temporary directory
-          (values (make-temporary-file "~a-mnt" 'directory) #t))))
-  (system*/show hdiutil
-                "attach" "-readwrite" "-noverify" "-noautoopen"
-                "-mountpoint" mnt dmg)
-  (define alias (path->alias-bytes (build-path mnt bg)
-                                   #:wrt mnt))
-  (make-file-or-directory-link "/Applications" (build-path mnt "Applications"))
+(define (dmg-layout dir volname bg)
+  (define alias (path->alias-bytes (build-path dir bg)
+                                   #:wrt dir))
+  (make-file-or-directory-link "/Applications" (build-path dir "Applications"))
   (define (->path s) (string->path s))
-  (write-ds-store (build-path mnt ".DS_Store")
+  (write-ds-store (build-path dir ".DS_Store")
                   (list
                    (ds 'same 'BKGD 'blob 
                        (bytes-append #"PctB"
@@ -218,16 +196,7 @@
                    (ds 'same 'pict 'blob alias)
                    (ds (->path ".bg.png") 'Iloc 'blob (iloc 900 180)) ; file is hidden, anyway
                    (ds (->path "Applications") 'Iloc 'blob (iloc 500 180))
-                   (ds (->path volname) 'Iloc 'blob (iloc 170 180))))
-  ;; Neither `hdiutil detach` nor using Finder to detach the disk works on all
-  ;; systems. So try one, then the other.
-  (with-handlers ([exn:fail? (lambda _ (system*/show hdiutil "detach" mnt))])
-    (system*/show osascript
-                  "-e" "tell application \"Finder\""
-                  "-e" (~a "eject \"" volname "\"")
-                  "-e" "end tell"))
-  (when del?
-    (delete-directory mnt)))
+                   (ds (->path volname) 'Iloc 'blob (iloc 170 180)))))
 
 ;; this wrapper function computes the dmg name, makes the dmg, signs it, and
 ;; returns the path to it.

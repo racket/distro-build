@@ -7,7 +7,8 @@
          pkg/lib
          web-server/servlet-env
          racket/cmdline
-         racket/format)
+         racket/format
+         version/utils)
 
 (module test racket/base)
 
@@ -62,6 +63,9 @@
 
 (define min-racket-src-built-installers
   (list (~a "racket-minimal-" installer-vers "-src-builtpkgs.tgz")))
+
+(define (min-needs-base?)
+  (version<? installer-vers "8.3.900"))
 
 ;; For disabling some tests:
 (define basic? #t)
@@ -187,6 +191,7 @@
                 (if usr-local? "/usr/local " "")
                 (if links? "linked" "")
                 "\n"))
+    (define need-base? (and min? (min-needs-base?)))
 
     (#%app
      dynamic-wind
@@ -238,7 +243,7 @@
           (fprintf o "\n")))
        (scp rt script (at-docker-remote rt "script"))
 
-       (when min?
+       (when need-base?
          (scp rt (build-path work-dir "base.zip") (at-docker-remote rt "base.zip")))
        (scp rt sample-zip-path (at-docker-remote rt "sample.zip"))
        (unless min?
@@ -271,7 +276,7 @@
                                                 ""))
 
        ;; install and use a package --------------------
-       (ssh rt (~a bin-dir "raco") " pkg install sample.zip" (if min? " base.zip" ""))
+       (ssh rt (~a bin-dir "raco") " pkg install sample.zip" (if need-base? " base.zip" ""))
        (ssh rt (~a bin-dir "racket") " -l sample")
 
        ;; install a package from the package server --------------------
@@ -367,6 +372,7 @@
          [cs? '(#f #t)])
     (define built? (not (eq? mode 'min-src)))
     (define min? (not (eq? mode 'src-built)))
+    (define need-base? (and min? (min-needs-base?)))
     
     (printf (~a "=================================================================\n"
                 "SOURCE: "
@@ -427,7 +433,7 @@
        
        ;; install a package from the package server --------------------
        (when remote-pkg
-         (when (and min? (not built?))
+         (when (and need-base? (not built?))
            (ssh rt (~a bin-dir "raco") " pkg install"
                 " --recompile-only"
                 " --catalog /archive/catalog/"

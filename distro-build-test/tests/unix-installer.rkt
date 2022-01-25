@@ -20,6 +20,7 @@
                                  "unix-install-test")))
 (define snapshot-site "https://pre-release.racket-lang.org/")
 (define remote-pkg "bloggy")
+(define pkg-no-verify? #f)
 
 (command-line
  #:once-each
@@ -30,7 +31,9 @@
  [("--site") url "Download from <url>"
              (set! snapshot-site url)]
  [("--pkg") pkg "Try installing <pkg> from the default catalog; empty means none"
-            (set! remote-pkg (and (not (string=? pkg"")) pkg))])
+            (set! remote-pkg (and (not (string=? pkg"")) pkg))]
+ [("--ssl-no-verify") "Skip SSL verification for package-install check"
+                      (set! pkg-no-verify? #t)])
 
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
@@ -66,6 +69,11 @@
 
 (define (min-needs-base?)
   (version<? installer-vers "8.3.900"))
+
+(define remote-adjust
+  (if pkg-no-verify?
+      "env PLT_PKG_SSL_NO_VERIFY=y "
+      ""))
 
 ;; For disabling some tests:
 (define basic? #t)
@@ -281,7 +289,7 @@
 
        ;; install a package from the package server --------------------
        (when remote-pkg
-         (ssh rt (~a bin-dir "raco") " pkg install " remote-pkg))
+         (ssh rt remote-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
 
        ;; create a stand-alone executable ----------------------------------------
        (unless min?
@@ -349,7 +357,7 @@
 
        ;; install a package from the package server --------------------
        (when remote-pkg
-         (ssh rt (~a bin-dir "raco") " pkg install " remote-pkg))
+         (ssh rt remote-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
 
        (void))
 
@@ -439,7 +447,7 @@
                 " --catalog /archive/catalog/"
                 " --auto"
                 " base"))
-         (ssh rt (~a bin-dir "raco") " pkg install " remote-pkg))
+         (ssh rt remote-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
 
        (void))
 

@@ -28,7 +28,8 @@
                       #:skip-remove? [skip-remove? #f])
   (unless skip-remove?
     ;; remove any existing signature before trying to add a new one:
-    (system*/show codesign "--remove-signature" f))
+    (system*/show codesign "--remove-signature" f
+                  #:ignore-failure? #t))
   (cond
     [hardened-runtime?
      (define entitlements-file (write-entitlements-file!))
@@ -43,11 +44,12 @@
 
 (define-runtime-path bg-image "macosx-installer/racket-rising.png")
 
-(define (system*/show . l)
+(define (system*/show #:ignore-failure? [ignore-failure? #f] . l)
   (displayln (apply ~a #:separator " " l))
   (flush-output)
   (unless (apply system* l)
-    (error "failed")))
+    (unless ignore-failure?
+      (error "failed"))))
 
 (define (make-dmg volname src-dir dmg bg readme sign-identity
                   #:hardened-runtime? [hardened-runtime? #t])

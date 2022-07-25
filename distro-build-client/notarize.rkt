@@ -47,6 +47,9 @@
 ;; posts on Stack Overflow suggest that you might need to delete *.token files
 ;; from ~/Library/Caches/com.apple.amp.itmstransporter/UploadTokens
 
+;; Number of failures to tolerate in each of the two steps (upload and status checking)
+(define NUM-TRIES 3)
+
 ;; find the path to the named binary (using the current shell settings).
 ;; Signal an error if it's not found
 (define (find-binary name)
@@ -119,7 +122,9 @@
      (define (system*/filter exe
                              #:filter filter-rx
                              #:filter-result filter-result
-                             #:fail-message why
+                             #:fail-message [why "failed"]
+                             #:fail-k [fail-k #f]
+                             #:success-k [success-k (lambda (v) v)]
                              . args)
        (define orig-out (current-output-port))
        (define-values (i o) (make-pipe))
@@ -139,41 +144,53 @@
                      (apply system* exe args)))
        (close-output-port o)
        (thread-wait t)
-       (unless ok? (failed why))
-       result)
-     (define request-id
-       (system*/filter (force xcrun-path)
-                       "altool" "--notarize-app"
-                       "-f" file
-                       "--primary-bundle-id" primary-bundle-id
-                       "-u" user
-                       "-p" app-specific-password
-                       #:filter #rx"RequestUUID = ([-a-fA-F0-9]+)"
-                       #:filter-result (lambda (m) (cadr m))
-                       #:fail-message "request upload failed"))
+       (if ok?
+           (success-k result)
+           (if fail-k
+               (fail-k)
+               (failed why))))
+     (let request-loop ([tries NUM-TRIES])
+       (printf/flush "Upload ~a\n" file)
+       (system*/filter
+        (force xcrun-path)
+        "altool" "--notarize-app"
+        "-f" file
+        "--primary-bundle-id" primary-bundle-id
+        "-u" user
+        "-p" app-specific-password
+        #:filter #rx"RequestUUID = ([-a-fA-F0-9]+)"
+        #:filter-result (lambda (m) (cadr m))
+        #:fail-message "request upload failed"
+        #:fail-k (and (positive? tries)
+                      (lambda ()
+                        (request-loop (sub1 tries))))
+        #:success-k
+        (lambda (request-id)
+          (when request-id
+            (let loop ([tries NUM-TRIES])
+              (printf/flush "Wait ~a seconds\n" wait-seconds)
+              (sleep wait-seconds)
+              (printf/flush "Ping ~a\n" request-id)
+              (system*/filter (force xcrun-path)
+                              "altool" "--notarization-info" request-id
+                              "-u" user
+                              "-p" app-specific-password
+                              #:filter #rx"Status: (.*)"
+                              #:filter-result (lambda (m) (cadr m))
+                              #:fail-message "status check failed"
+                              #:fail-k (and (positive? tries)
+                                            (lambda ()
+                                              (loop (sub1 tries))))
+                              #:success-k (lambda (status)
+                                            (when (equal? status "in progress")
+                                              (loop tries)))))
 
-     (when request-id
-       (let loop ()
-         (printf/flush "Wait ~a seconds\n" wait-seconds)
-         (sleep wait-seconds)
-         (printf/flush "Ping ~a\n" request-id)
-         (define status
-           (system*/filter (force xcrun-path)
-                           "altool" "--notarization-info" request-id
-                           "-u" user
-                           "-p" app-specific-password
-                           #:filter #rx"Status: (.*)"
-                           #:filter-result (lambda (m) (cadr m))
-                           #:fail-message "status check failed"))
-         (when (equal? status "in progress")
-           (loop)))
-       
-       ;; proceed with stapler even if notarization fails; the failure may
-       ;; be simply that the file has already been notarized, but still
-       ;; needs to be stapled
-       (printf/flush "Stapling file: ~e\n" file)
-       (unless (system* (force xcrun-path) "stapler" "staple" file)
-         (failed "stapling failed")))])
+            ;; proceed with stapler even if notarization fails; the failure may
+            ;; be simply that the file has already been notarized, but still
+            ;; needs to be stapled
+            (printf/flush "Stapling file: ~e\n" file)
+            (unless (system* (force xcrun-path) "stapler" "staple" file)
+              (failed "stapling failed"))))))])
   (display-time))
 
 (define (notarize-file/config file ht)

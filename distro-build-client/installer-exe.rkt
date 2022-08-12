@@ -82,7 +82,7 @@
 !define RKTStartName "@|distname|@(if versionless? "" @~a{ v@|version|})"
 !define RKTDirName "@|distdir|@(if versionless? "" @~a{-@|version|})"
 !define RKTRegName "@|distdir|-@|winplatform|-@|version|"
-!define RKTProgFiles "$PROGRAMFILES@(if (equal? winplatform "x86_64") "64" "")"
+!define RKTProgFiles "$PROGRAMFILES@(if (equal? winplatform "i386") "" "64")"
 @(if simple? @~a{!define SimpleInstaller} "")
 @(if auto-launch @~a{!define RKTLaunchProgram "@|auto-launch|"} "")
 

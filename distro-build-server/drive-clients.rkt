@@ -159,6 +159,7 @@
         (unless (docker-id #:name container)
           (docker-create #:name container
                          #:image-name docker
+                         #:platform (get-opt c '#:docker-platform)
                          #:volumes `((,(path->complete-path "build")
                                       ,(build-slash-path mnt-dir "build")
                                       ro)
@@ -703,7 +704,11 @@
           (sh "cd " (q dir) " ; "
               make-exe " -j " j " native-" (if cs? "cs" "bc") "-for-cross"
               (if (and cs? extra-repos?)
-                  (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")
+                  (cond
+                    [(not mnt-dir)
+                     (~a " EXTRA_REPOS_BASE=http://" server ":" server-port "/")]
+                    [else
+                     (~a " EXTRA_REPOS_BASE=" (build-slash-path mnt-dir "extra-repos/"))])
                   "")))
      (sh "cd " (q dir) " ; "
          make-exe " -j " j " client" (if compile-any? "-compile-any" "")

@@ -361,10 +361,23 @@ spaces, etc.):
     and @racket[#:vbox] is not provided, then a container using the
     @racket[#:host] name is created if it does not already exist,
     started if it is not already running, and stopped on the server
-    after building; the image @racket["racket/distro-build:unix-installer-test"]
-    is suitable as a generic Unix image
+    after building; the image @racket["racket/distro-build"] is
+    suitable as a generic Linux image, and an image such as
+    @racket["racket/distro-build:i386-linux"] is suitable for building
+    for a specific architecture
 
     @history[#:added "1.8"]}
+
+  @item{@racket[#:docker-platform _string-or-false] --- Docker image
+    platform; specifies a platform other than the default one for a
+    host and @racket[#:docker] image, which is useful when multiple
+    platforms are supported by both the image and host machine;
+    however, specifying a platform-specific Docker image like
+    @racket["racket/distro-build:i386-linux"] is better when running
+    multiple platforms on the same host; defaults to @racket[#f],
+    which means a default or image-determined platform
+
+    @history[#:added "1.14"]}
 
   @item{@racket[#:platform _symbol] --- @racket['unix],
     @racket['macosx], @racket['windows], @racket['windows/bash] (which

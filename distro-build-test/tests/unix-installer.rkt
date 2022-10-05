@@ -38,7 +38,7 @@
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
 
-(define docker-image-name "mflatt/unix-installer-test")
+(define docker-image-name "racket/distro-build")
 
 ;; Created/replaced/deleted:
 (define docker-container-name "unix-installer-test")

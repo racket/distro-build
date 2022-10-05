@@ -163,6 +163,7 @@
                           val))]
     [(#:vbox) (string? val)]
     [(#:docker) (string? val)]
+    [(#:docker-platform) (or (not val) (string? val))]
     [(#:platform) (memq val '(unix macosx windows windows/bash windows/cmd))]
     [(#:target-platform) (memq val '(unix macosx windows #f))]
     [(#:configure) (and (list? val) (andmap string? val))]

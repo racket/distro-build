@@ -2,7 +2,7 @@
 
 (define collection "distro-build")
 
-(define version "1.13")
+(define version "1.14")
 
 (define deps '(["base" #:version "6.1.1.6"]
                "distro-build-client"
@@ -11,7 +11,7 @@
                "net-lib"
                "scribble-html-lib"
                "plt-web-lib"
-               "remote-shell-lib"))
+               ["remote-shell-lib" #:version "1.6"]))
 (define build-deps '("at-exp-lib"
                      "rackunit-lib"))
 

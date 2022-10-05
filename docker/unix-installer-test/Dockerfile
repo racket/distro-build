@@ -1,3 +1,6 @@
+# This is an old image, kept only for backward compatibility.
+# Use "latest", instead.
+#
 # x86_64: use jessie ; arm64: use xenial
 FROM buildpack-deps:jessie 
 RUN apt-get update && apt-get install -y sudo

@@ -636,10 +636,15 @@
        (not (or (get-opt c '#:cross-target)
                 (get-opt c '#:cross-target-machine)))))
 
-(define (infer-machine target)
+(define (infer-cross-machine target)
   (case target
     [("x86_64-w64-mingw32") "ta6nt"]
     [("i686-w64-mingw32") "ti3nt"]
+    [("aarch64-w64-mingw32") "tarm64nt"]
+    [("x86_64-apple-darwin") "ta6osx"]
+    [("i386-apple-darwin") "ti3osx"]
+    [("aarch64-apple-darwin") "tarm64osx"]
+    [("arm-linux-gnueabihf") "tarm32le"]
     [else #f]))
 
 (define (get-unix-dir c)
@@ -674,7 +679,7 @@
   (define cross-target-machine (and cs?
                                     (or (get-opt c '#:cross-target-machine)
                                         (and cross-target
-                                             (infer-machine cross-target)))))
+                                             (infer-cross-machine cross-target)))))
   (define cross? (or cross-target cross-target-machine))
   (define given-racket (and cross?
                             (get-opt c '#:racket)))

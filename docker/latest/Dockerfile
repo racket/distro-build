@@ -5,7 +5,7 @@
 #  docker image tag racket/distro-build:latest racket/distro-build:i386-linux
 #  docker push racket/distro-build:i386-linux
 #
-#  docker pull --platform linux/am664 racket/distro-build:latest
+#  docker pull --platform linux/amd64 racket/distro-build:latest
 #  docker image tag racket/distro-build:latest racket/distro-build:x86_64-linux
 #  docker push racket/distro-build:x86_64-linux
 #

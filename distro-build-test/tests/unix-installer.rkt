@@ -38,7 +38,7 @@
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
 
-(define docker-image-name "racket/distro-build")
+(define docker-image-name "racket/distro-build:x86_64-linux")
 
 ;; Created/replaced/deleted:
 (define docker-container-name "unix-installer-test")

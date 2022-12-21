@@ -51,7 +51,7 @@
 
 (module+ test
   (require rackunit racket/format)
-  (define dec-25-2016 1482645600)
+  (define dec-25-2016 (find-seconds 0 0 0 25 12 2016))
   (define (try dates #:today [today dec-25-2016])
     (define ans
       (find-desired-week-and-month-snapshots

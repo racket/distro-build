@@ -8,6 +8,7 @@
          web-server/servlet-env
          racket/cmdline
          racket/format
+         racket/runtime-path
          version/utils)
 
 (module test racket/base)
@@ -21,6 +22,7 @@
 (define snapshot-site "https://pre-release.racket-lang.org/")
 (define remote-pkg "bloggy")
 (define pkg-no-verify? #f)
+(define fast-mode #f)
 
 (command-line
  #:once-each
@@ -33,7 +35,12 @@
  [("--pkg") pkg "Try installing <pkg> from the default catalog; empty means none"
             (set! remote-pkg (and (not (string=? pkg"")) pkg))]
  [("--ssl-no-verify") "Skip SSL verification for package-install check"
-                      (set! pkg-no-verify? #t)])
+                      (set! pkg-no-verify? #t)]
+ #:once-any
+ [("--fast") "Run only basic installer checks"
+             (set! fast-mode 'fast)]
+ [("--fast-src") "Run only basic source checks"
+                 (set! fast-mode 'src)])
 
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
@@ -76,9 +83,12 @@
       ""))
 
 ;; For disabling some tests:
-(define basic? #t)
-(define natipkg? #t)
-(define from-src? #t)
+(define basic? (not (eq? fast-mode 'src)))
+(define natipkg? (not fast-mode))
+(define from-src? (not (eq? fast-mode 'fast)))
+
+(define-runtime-path embed_cs.c "embed_cs.c")
+(define-runtime-path embed_bc.c "embed_bc.c")
 
 ;; ----------------------------------------
 ;; Create working directory
@@ -101,14 +111,17 @@
          (copy-port i o)))
       (close-input-port i))))
 
-(for-each get min-racket-installers)
-(for-each get racket-installers)
+(when basic?
+  (for-each get min-racket-installers)
+  (for-each get racket-installers))
 (when natipkg?
   (for-each get min-racket-natipkg-installers))
 (when from-src?
-  (for-each get (append racket-src-built-installers
-                        min-racket-src-installers
-                        min-racket-src-built-installers)))
+  (for-each get (if fast-mode
+                    min-racket-src-installers
+                    (append racket-src-built-installers
+                            min-racket-src-installers
+                            min-racket-src-built-installers))))
 (get #:sub "../pkgs/" "base.zip")
 
 ;; ----------------------------------------
@@ -151,7 +164,8 @@
 
 (define pkg-archive-dir (build-path work-dir "archive"))
 
-(when (or natipkg? from-src?)
+(when (and (or natipkg? from-src?)
+           (not (eq? fast-mode 'src)))
   (pkg-catalog-archive pkg-archive-dir
                        (list catalog)
                        #:state-catalog (build-path work-dir "archive" "state.sqlite")
@@ -184,13 +198,13 @@
                          min-racket-installers
                          racket-installers))]
          ;; Unix-style install?
-         [unix-style? '(#f #t)]
+         [unix-style? (if fast-mode '(#f) '(#f #t))]
          ;; Change path of "shared" to "mine-all-mine"?
          [mv-shared? (if unix-style? '(#t #f) '(#f))]
          ;; Install into "/usr/local"?
-         [usr-local? '(#t #f)]
+         [usr-local? (if fast-mode '(#t) '(#t #f))]
          ;; Link in-place install executables in "/usr/local/bin"?
-         [links? (if unix-style? '(#f) '(#t #f))])
+         [links? (if (or unix-style? fast-mode) '(#f) '(#t #f))])
     (printf (~a "=================================================================\n"
                 "CONFIGURATION: "
                 (if min? "minimal" "full") " "
@@ -368,7 +382,7 @@
 (when from-src?
   (sync (system-idle-evt))
 
-  (for* ([mode '(min-src min-src-built src-built)]
+  (for* ([mode (if fast-mode '(min-src) '(min-src min-src-built src-built))]
          [f (in-list (case mode
                        [(min-src)
                         min-racket-src-installers]
@@ -376,8 +390,8 @@
                         min-racket-src-built-installers]
                        [(src-built)
                         racket-src-built-installers]))]
-         [prefix? '(#f #t)]
-         [cs? '(#f #t)])
+         [prefix? (if fast-mode '(#f) '(#f #t))]
+         [cs? (if fast-mode '(#t) '(#f #t))])
     (define built? (not (eq? mode 'min-src)))
     (define min? (not (eq? mode 'src-built)))
     (define need-base? (and min? (min-needs-base?)))
@@ -430,6 +444,25 @@
 
        ;; check that `raco setup` is ok --------------------
        (ssh rt (~a bin-dir "raco") " setup")
+
+       ;; compile and link an embedding program --------------------
+       (scp rt (if cs? embed_cs.c embed_bc.c) (at-docker-remote rt "embed.c"))
+       (ssh rt (~a "gcc -o embed embed.c"
+                   " -pthread"
+                   " -I" (if prefix?
+                             "local/include/racket"
+                             (~a racket-dir "include"))
+                   " -L" (if prefix?
+                             "local/lib"
+                             (~a racket-dir "lib"))
+                   (if cs?
+                       " -lracketcs"
+                       " -lracket3m -lrktio")
+                   " -lm -ldl -lrt -lncurses"
+                   (if cs?
+                       " -lz"
+                       " -lffi")))
+       (ssh rt "./embed")
 
        ;; if starting from min and built, install DrRacket ------------
        (when (and min? built?)

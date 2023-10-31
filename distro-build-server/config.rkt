@@ -175,7 +175,7 @@
     [(#:notarization-config) (and (hash? val)
                                   (for/and ([(key val) (in-hash val)])
                                     (case key
-                                      [(primary-bundle-id user) (string? val)]
+                                      [(primary-bundle-id user team) (string? val)]
                                       [(app-specific-password-file) (path-string? val)]
                                       [(wait-seconds) (exact-nonnegative-integer? val)]
                                       [(error-on-fail?) (boolean? val)]

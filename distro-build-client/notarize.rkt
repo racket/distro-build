@@ -98,8 +98,9 @@
 (define (notarize-file file
                        #:primary-bundle-id primary-bundle-id
                        #:user user
+                       #:team team
                        #:app-specific-password app-specific-password
-                       #:wait-seconds [wait-seconds 60]
+                       #:wait-seconds [wait-seconds 120]
                        #:error-on-fail? [error-on-fail? #t])
   (printf/flush "Notarize-file: ~v\n"
                 file)
@@ -110,15 +111,47 @@
     (error 'notarize-file
            "input file does not exist: ~e"
            file))
+  (define (failed why)
+    (if error-on-fail?
+        (error 'notarize-file "~a" why)
+        (printf/flush "~a\n" why)))
+  (define (xcrun-notarytool cmd)
+    (let request-loop ([tries NUM-TRIES])
+      (printf/flush "Upload ~a\n" file)
+      (define ok?
+        (apply system* (append cmd
+                               (list "submit"
+                                     "--apple-id" user
+                                     "--team-id" team
+                                     "--password" app-specific-password
+                                     "--wait"
+                                     "--timeout" (format "~as" wait-seconds)
+                                     file))))
+      (cond
+        [ok?
+         (staple)]
+        [(positive? tries)
+         (request-loop (sub1 tries))]
+        [else
+         (failed "notarization failed")])))
+  (define (staple)
+    (printf/flush "Stapling file: ~e\n" file)
+    (unless (system* (force xcrun-path) "stapler" "staple" file)
+      (failed "stapling failed")))
   (cond
     [(file-notarized? file)
      (printf/flush "Binary already notarized, so skipping\n")]
+    [(find-executable-path "notarytool")
+     => (lambda (notarytool)
+          (printf/flush "Binary not already notarized, so proceeding with notarytool\n")
+          (xcrun-notarytool (list notarytool)))]
+    [(xcrun-tool-works? "notarytool")
+     (printf/flush "Binary not already notarized, so proceeding with xcrun notarytool\n")
+     (xcrun-notarytool (list (force xcrun-path) "notarytool"))]
     [else
-     (printf/flush "Binary not already notarized, so proceeding\n")
-     (define (failed why)
-       (if error-on-fail?
-           (error 'notarize-file "~a" why)
-           (printf/flush "~a\n" why)))
+     ;; Apple is discontinuing `altool` as of 01-NOV-2023, so the following mode
+     ;; is unlikely to be useful by the time you read this
+     (printf/flush "Binary not already notarized, so proceeding with xcrun altool\n")
      (define (system*/filter exe
                              #:filter filter-rx
                              #:filter-result filter-result
@@ -184,13 +217,10 @@
                               #:success-k (lambda (status)
                                             (when (equal? status "in progress")
                                               (loop tries)))))
-
             ;; proceed with stapler even if notarization fails; the failure may
             ;; be simply that the file has already been notarized, but still
             ;; needs to be stapled
-            (printf/flush "Stapling file: ~e\n" file)
-            (unless (system* (force xcrun-path) "stapler" "staple" file)
-              (failed "stapling failed"))))))])
+            (staple)))))])
   (display-time))
 
 (define (notarize-file/config file ht)
@@ -200,11 +230,12 @@
   (notarize-file file
                  #:primary-bundle-id (ref 'primary-bundle-id)
                  #:user (ref 'user)
+                 #:team (ref 'team)
                  #:app-specific-password (check-password
                                           (string-trim
                                            (file->string
                                             (ref 'app-specific-password-file))))
-                 #:wait-seconds (ref 'wait-seconds 60)
+                 #:wait-seconds (ref 'wait-seconds 120)
                  #:error-on-fail? (ref 'error-on-fail? #t)))
 
 ;; sanity check password
@@ -216,10 +247,16 @@
                  password)])
   password)
 
+(define (xcrun-tool-works? tool)
+  (parameterize ([current-output-port (open-output-bytes)]
+                 [current-error-port (open-output-bytes)])
+    (system* (force xcrun-path) tool)))
+
 (module+ main
   (require racket/cmdline)
   (command-line
-   #:args (bundle-path primary-bundle-id user app-specific-password-file)
+   #:args (bundle-path primary-bundle-id user team app-specific-password-file)
    (notarize-file/config bundle-path (hash 'primary-bundle-id primary-bundle-id
                                            'user user
+                                           'team team
                                            'app-specific-password-file app-specific-password-file))))

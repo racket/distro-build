@@ -465,13 +465,17 @@ spaces, etc.):
 
   @item{@racket[#:notarization-config _hash-or-false] --- configures
     notarization of a signed Mac OS @filepath{.dmg} bundle via
-    @exec{xcrun altool} and @exec{xcrun stapler}; the required keys
+    @exec{xcrun notarytool} and @exec{xcrun stapler}; the required keys
     are @racket['primary-bundle-id] as a string, @racket['user] as a
+    string, @racket['team] as a
     string, and @racket['app-specific-password-file] as a string that
     is a path that contains a password; the allowed optional keys are
     @racket['wait-seconds] as a nonnegative exact integer (defaults to
-    @racket[60]) and @racket['error-on-fail?] as a boolean (defaults
-    to @racket[#t]).}
+    @racket[120]) and @racket['error-on-fail?] as a boolean (defaults
+    to @racket[#t])
+
+    @history[#:changed "1.15" @elem{Added @racket['team] and changed
+                                    @racket['wait-seconds] default to @racket[120].}]}
 
   @item{@racket[#:osslsigncode-args (list _string ...)] --- provides
     arguments for signing a Windows executable using

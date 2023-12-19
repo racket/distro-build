@@ -337,9 +337,9 @@ spaces, etc.):
 
   @item{@racket[#:dist-catalogs (list _string ...)] --- catalog URLs
     to install as the initial catalog configuration in generated
-    installed, where @racket[""] is replaced with the PLT default
+    installer, where @racket[""] is replaced with the PLT default
     catalogs; defaults to the @racket[#:dist-base-url] value (if
-    present) extended with @racket["catalogs"] in a list followed by
+    present) extended with @racket["catalog/"] in a list followed by
     @racket[""]}
 
   @item{@racket[#:readme _string-or-procedure] --- the content of a

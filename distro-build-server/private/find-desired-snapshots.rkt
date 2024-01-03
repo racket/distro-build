@@ -7,7 +7,7 @@
 (define (find-desired-week-and-month-snapshots week-count snapshots now)
   (define snapshots+seconds
     (for/list ([snapshot-name (in-list snapshots)])
-      (define m (regexp-match #rx"^([0-9][0-9][0-9][0-9])-?([0-9][0-9])-?([0-9][0-9])-"
+      (define m (regexp-match #rx"^([0-9][0-9][0-9][0-9])-?([0-9][0-9])-?([0-9][0-9])"
                               snapshot-name))
       (unless m
         (error 'manage-snapshots.rkt "couldn't parse snapshot date: ~s"

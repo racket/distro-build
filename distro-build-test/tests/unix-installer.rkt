@@ -77,7 +77,12 @@
 (define (min-needs-base?)
   (version<? installer-vers "8.3.900"))
 
-(define remote-adjust
+(define home-env
+  '())
+(define no-home-env
+  '(("HOME" . "/nonexistent")))
+
+(define remote-pkg-adjust
   (if pkg-no-verify?
       "env PLT_PKG_SSL_NO_VERIFY=y "
       ""))
@@ -204,14 +209,17 @@
          ;; Install into "/usr/local"?
          [usr-local? (if fast-mode '(#t) '(#t #f))]
          ;; Link in-place install executables in "/usr/local/bin"?
-         [links? (if (or unix-style? fast-mode) '(#f) '(#t #f))])
+         [links? (if (or unix-style? fast-mode) '(#f) '(#t #f))]
+         ;; Package user scope?
+         [user-scope? (if (or fast-mode usr-local? links?) '(#t) '(#t #f))])
     (printf (~a "=================================================================\n"
                 "CONFIGURATION: "
                 (if min? "minimal" "full") " "
                 (if unix-style? "unix-style" "in-place") " "
                 (if mv-shared? "mine-all-mine " "")
                 (if usr-local? "/usr/local " "")
-                (if links? "linked" "")
+                (if links? "linked " "")
+                (if user-scope? "user-scope" "")
                 "\n"))
     (define need-base? (and min? (min-needs-base?)))
 
@@ -222,7 +230,10 @@
      
      (lambda ()
        (define rt (remote #:host docker-container-name
-                          #:kind 'docker))
+                          #:kind 'docker
+                          #:env (if user-scope?
+                                    home-env
+                                    no-home-env)))
        
        (scp rt (build-path work-dir f) (at-docker-remote rt f))
 
@@ -298,12 +309,13 @@
                                                 ""))
 
        ;; install and use a package --------------------
-       (ssh rt (~a bin-dir "raco") " pkg install sample.zip" (if need-base? " base.zip" ""))
+       (define scope (if user-scope? "" "-i "))
+       (ssh rt (~a bin-dir "raco") " pkg install " scope "sample.zip" (if need-base? " base.zip" ""))
        (ssh rt (~a bin-dir "racket") " -l sample")
 
        ;; install a package from the package server --------------------
        (when remote-pkg
-         (ssh rt remote-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
+         (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " scope remote-pkg))
 
        ;; create a stand-alone executable ----------------------------------------
        (unless min?
@@ -344,7 +356,8 @@
      
      (lambda ()
        (define rt (remote #:host docker-container-name
-                          #:kind 'docker))
+                          #:kind 'docker
+                          #:env home-env))
        
        (scp rt (build-path work-dir f) (at-docker-remote rt f))
 
@@ -371,7 +384,7 @@
 
        ;; install a package from the package server --------------------
        (when remote-pkg
-         (ssh rt remote-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
+         (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
 
        (void))
 
@@ -391,7 +404,8 @@
                        [(src-built)
                         racket-src-built-installers]))]
          [prefix? (if fast-mode '(#f) '(#f #t))]
-         [cs? (if fast-mode '(#t) '(#f #t))])
+         [cs? (if fast-mode '(#t) '(#f #t))]
+         [user-scope? (if fast-mode '(#t) '(#t #f))])
     (define built? (not (eq? mode 'min-src)))
     (define min? (not (eq? mode 'src-built)))
     (define need-base? (and min? (min-needs-base?)))
@@ -401,6 +415,7 @@
                 f
                 (if cs? " CS" " BC")
                 (if prefix? " --prefix" "")
+                (if user-scope? " --user" " --installation")
                 "\n"))
 
   
@@ -412,6 +427,9 @@
      (lambda ()
        (define rt (remote #:host docker-container-name
                           #:kind 'docker
+                          #:env (if user-scope?
+                                    home-env
+                                    no-home-env)
                           #:timeout (if cs? 1500 600)))
 
        (scp rt (build-path work-dir f) (at-docker-remote rt f))
@@ -465,11 +483,13 @@
        (ssh rt "./embed")
 
        ;; if starting from min and built, install DrRacket ------------
+       (define scope (if user-scope? "" " -i "))
        (when (and min? built?)
          (ssh rt (~a bin-dir "raco") " pkg install"
               " --recompile-only"
               " --catalog /archive/catalog/"
               " --auto"
+              scope
               " drracket"))
        
        ;; install a package from the package server --------------------
@@ -479,8 +499,9 @@
                 " --recompile-only"
                 " --catalog /archive/catalog/"
                 " --auto"
+                scope
                 " base"))
-         (ssh rt remote-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
+         (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " scope remote-pkg))
 
        (void))
 

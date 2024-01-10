@@ -23,6 +23,7 @@
 (define remote-pkg "bloggy")
 (define pkg-no-verify? #f)
 (define fast-mode #f)
+(define src-mode #f)
 
 (command-line
  #:once-each
@@ -40,7 +41,10 @@
  [("--fast") "Run only basic installer checks"
              (set! fast-mode 'fast)]
  [("--fast-src") "Run only basic source checks"
-                 (set! fast-mode 'src)])
+                 (set! fast-mode 'src)]
+ [("--slow-src") "Run only longest source check"
+                 (set! fast-mode 'src)
+                 (set! src-mode 'slow)])
 
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
@@ -67,6 +71,9 @@
 
 (define racket-src-built-installers
   (list (~a "racket-" installer-vers "-src-builtpkgs.tgz")))
+
+(define racket-src-installers
+  (list (~a "racket-" installer-vers "-src.tgz")))
 
 (define min-racket-src-installers
   (list (~a "racket-minimal-" installer-vers "-src.tgz")))
@@ -123,8 +130,11 @@
   (for-each get min-racket-natipkg-installers))
 (when from-src?
   (for-each get (if fast-mode
-                    min-racket-src-installers
+                    (if (eq? src-mode 'slow)
+                        racket-src-installers
+                        min-racket-src-installers)
                     (append racket-src-built-installers
+                            racket-src-installers
                             min-racket-src-installers
                             min-racket-src-built-installers))))
 (get #:sub "../pkgs/" "base.zip")
@@ -395,19 +405,29 @@
 (when from-src?
   (sync (system-idle-evt))
 
-  (for* ([mode (if fast-mode '(min-src) '(min-src min-src-built src-built))]
+  (for* ([mode (if fast-mode
+                   (if (eq? src-mode 'slow)
+                       '(src)
+                       '(min-src))
+                   '(min-src min-src-built src-built src))]
          [f (in-list (case mode
                        [(min-src)
                         min-racket-src-installers]
                        [(min-src-built)
                         min-racket-src-built-installers]
                        [(src-built)
-                        racket-src-built-installers]))]
+                        racket-src-built-installers]
+                       [(src)
+                        racket-src-installers]))]
          [prefix? (if fast-mode '(#f) '(#f #t))]
          [cs? (if fast-mode '(#t) '(#f #t))]
-         [user-scope? (if fast-mode '(#t) '(#t #f))])
-    (define built? (not (eq? mode 'min-src)))
-    (define min? (not (eq? mode 'src-built)))
+         [user-scope? (if (or fast-mode (not cs?))
+                          (if (eq? src-mode 'slow)
+                              '(#f)
+                              '(#t))
+                          '(#t #f))])
+    (define built? (not (or (eq? mode 'min-src) (eq? mode 'src))))
+    (define min? (not (or (eq? mode 'src-built) (eq? mode 'src))))
     (define need-base? (and min? (min-needs-base?)))
     
     (printf (~a "=================================================================\n"
@@ -430,7 +450,9 @@
                           #:env (if user-scope?
                                     home-env
                                     no-home-env)
-                          #:timeout (if cs? 1500 600)))
+                          #:timeout (if (eq? mode 'src)
+                                        3600
+                                        (if cs? 1500 600))))
 
        (scp rt (build-path work-dir f) (at-docker-remote rt f))
 

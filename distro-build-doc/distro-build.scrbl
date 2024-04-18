@@ -688,14 +688,22 @@ Top keywords (expected only in the configuration top-level):
         @racket[#:smtp-connect _symbol],
         @racket[#:smtp-user _string-or-false]
         @racket[#:smtp-password _string-or-false]
+        @racket[#:smtp-user+password-file _path-string-or-false]
+        @racket[#:smtp-sending-server _string*]
     --- configuration for sending e-mail through SMTP instead of
     @exec{sendmail}; the @racket[#:smtp-port] default (@racket[25],
     @racket[465], or @racket[587]) is picked based on
     @racket[#:smtp-connect], which can be @racket['plain],
     @racket['ssl], or @racket['tls] and defaults to @racket['plain];
     supply a non-@racket[#f] @racket[#:smtp-user] and
-    @racket[#:smtp-password] when authentication is required by the
-    server}
+    @racket[#:smtp-password] or @racket[#:smtp-user+password-file]
+    when authentication is required by the
+    server, where a file is used by @racket[read]ing twice to get
+    a default user and password value; supply @racket[#:smtp-sending-server] when the server
+    needs a name other than @scheme["localhost"] for the sender
+
+    @history[#:changed "1.16" @elem{Added @racket[#:smtp-user+password-file]
+                                    and @racket[#:smtp-sending-server].}]}
 
   @item{@racket[#:site-help _hash-table] --- hash table of extra
     ``help'' information for entries on a web page created by the

@@ -48,23 +48,37 @@
                                  [(plain) 25]
                                  [(ssl) 465]
                                  [(tls) 587]))])
-        (smtp-send-message server
-                           #:port-no port-no
-                           #:tcp-connect (if (eq? 'ssl smtp-connect)
-                                             ssl-connect
-                                             tcp-connect)
-                           #:tls-encode (and (eq? 'tls smtp-connect)
-                                             ports->ssl-ports)
-                           #:auth-user (get-opt '#:smtp-user #f)
-                           #:auth-passwd (get-opt '#:smtp-password #f)
-                           from-email
-                           to-email
-                           (standard-message-header from-email
-                                                    to-email
-                                                    null
-                                                    null
-                                                    subject)
-                           message))]
+        (define-values (user password)
+          (let ([path (get-opt '#:smtp-user+password-file #f)])
+            (if path
+                (call-with-input-file path (lambda (i) (values (read i) (read i))))
+                (values #f #f))))
+        (parameterize ([smtp-sending-server (or (get-opt '#:smtp-sending-server 'plain)
+                                                "localhost")])
+          (smtp-send-message server
+                             #:port-no port-no
+                             #:tcp-connect (if (eq? 'ssl smtp-connect)
+                                               (lambda (server port)
+                                                 (ssl-connect server port 'secure))
+                                               tcp-connect)
+                             #:tls-encode (and (eq? 'tls smtp-connect)
+                                               (lambda (i o
+                                                          #:mode mode
+                                                          #:encrypt encrypt ; dropped
+                                                          #:close-original? close?)
+                                                 (ports->ssl-ports i o
+                                                                   #:mode mode
+                                                                   #:close-original? close?)))
+                             #:auth-user (or user (get-opt '#:smtp-user #f))
+                             #:auth-passwd (or password (get-opt '#:smtp-password #f))
+                             from-email
+                             to-email
+                             (standard-message-header from-email
+                                                      to-email
+                                                      null
+                                                      null
+                                                      subject)
+                             message)))]
      [else
       (send-mail-message from-email
                          subject	 	 	 	 

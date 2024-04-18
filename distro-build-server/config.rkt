@@ -231,6 +231,8 @@
     [(#:smtp-connect) (memq val '(plain ssl tls))]
     [(#:smtp-user) (or (not val) (string? val))]
     [(#:smtp-password) (or (not val) (string? val))]
+    [(#:smtp-user+password-file) (or (not val) (path-string? val))]
+    [(#:smtp-sending-server) (simple-string? val)]
     [(#:fail-on-client-failures) (boolean? val)]
     [(#:log-file) (string? val)]
     [(#:stream-log?) (boolean? val)]

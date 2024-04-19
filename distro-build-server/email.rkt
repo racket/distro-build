@@ -53,7 +53,7 @@
             (if path
                 (call-with-input-file path (lambda (i) (values (read i) (read i))))
                 (values #f #f))))
-        (parameterize ([smtp-sending-server (or (get-opt '#:smtp-sending-server 'plain)
+        (parameterize ([smtp-sending-server (or (get-opt '#:smtp-sending-server #f)
                                                 "localhost")])
           (smtp-send-message server
                              #:port-no port-no
@@ -69,8 +69,8 @@
                                                  (ports->ssl-ports i o
                                                                    #:mode mode
                                                                    #:close-original? close?)))
-                             #:auth-user (or user (get-opt '#:smtp-user #f))
-                             #:auth-passwd (or password (get-opt '#:smtp-password #f))
+                             #:auth-user (or (get-opt '#:smtp-user #f) user)
+                             #:auth-passwd (or (get-opt '#:smtp-password #f) password)
                              from-email
                              to-email
                              (standard-message-header from-email

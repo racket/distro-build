@@ -114,8 +114,18 @@
 (define (get f #:sub [sub ""])
   (unless (file-exists? (build-path work-dir f))
     (printf "Getting ~a\n" f)
-    (let ([i (get-pure-port (string->url (string-append installers-site sub f))
-                            #:redirections 5)])
+    (define f-addr (if (regexp-match? #rx"^[.][.]/" sub)
+                       ;; manually resolve ".." to work with a release site's redirections
+                       (string-append (regexp-replace #rx"/[^/]+/$" installers-site "")
+                                      (substring sub 2)
+                                      f)
+                       (string-append installers-site sub f)))
+    (printf " as ~a\n" f-addr)
+    (let-values ([(i headers) (get-pure-port/headers (string->url f-addr)
+                                                     #:redirections 5
+                                                     #:status? #t)])
+      (unless (regexp-match? #rx"HTTP/[0-9.]* 200" headers)
+        (error 'download "failed: ~a" (read-line (open-input-string headers))))
       (call-with-output-file*
        (build-path work-dir f)
        #:exists 'truncate
@@ -425,7 +435,17 @@
                           (if (eq? src-mode 'slow)
                               '(#f)
                               '(#t))
-                          '(#t #f))])
+                          '(#t #f))]
+         ;; specifying a package directory not next to "collects"
+         ;; triggers a fixup step during installation, so check that
+         ;; in a limited set of configurations
+         [alt-pkgs? (if (or (not prefix?)
+                            (not cs?)
+                            (memq mode '(min-src))
+                            user-scope?
+                            (eq? src-mode 'slow))
+                        '(#f)
+                        '(#f #t))])
     (define built? (not (or (eq? mode 'min-src) (eq? mode 'src))))
     (define min? (not (or (eq? mode 'src-built) (eq? mode 'src))))
     (define need-base? (and min? (min-needs-base?)))
@@ -436,6 +456,7 @@
                 (if cs? " CS" " BC")
                 (if prefix? " --prefix" "")
                 (if user-scope? " --user" " --installation")
+                (if alt-pkgs? " --pkgsdir=..." "")
                 "\n"))
 
   
@@ -466,6 +487,9 @@
                    " && cd build"
                    " && ../configure" (~a (if prefix?
                                               (~a " --prefix=" docker-dir "/local")
+                                              "")
+                                          (if alt-pkgs?
+                                              (~a " --pkgsdir=" docker-dir "/pkgs-local")
                                               "")
                                           (if cs?
                                               " --enable-csdefault"

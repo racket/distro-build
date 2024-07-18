@@ -4,7 +4,7 @@
 
 (define version "1.16")
 
-(define deps '(["base" #:version "6.1.1.6"]
+(define deps '(["base" #:version "8.14.0.2"]
                "distro-build-client"
                ["web-server-lib" #:version "1.6"]
                "ds-store-lib"

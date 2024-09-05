@@ -103,7 +103,10 @@
                        [(equal? default localhost-default) default]
                        [(and (equal? "localhost" (get-opt opts '#:host "localhost"))
                              (equal? #f (get-opt opts '#:user #f))
-                             (equal? #f (get-opt opts '#:dir #f)))
+                             (equal? #f (get-opt opts '#:dir #f))
+                             (equal? '() (get-opt opts '#:configure '()))
+                             (equal? #f (get-opt opts '#:cross-target #f))
+                             (equal? #f (get-opt opts '#:cross-target-machine #f)))
                         localhost-default]
                        [else default]))))
 

@@ -227,10 +227,19 @@ spaces, etc.):
   @item{@racket[#:user _string*-or-false] --- SSH user for the client;
     defaults to @racket[#f], which means the current user}
 
-  @item{@racket[#:dir _path-string] --- defaults to
-    @racket["build/plt"] or @racket["build\\plt"], or to the current
-    directory if the host is @racket["localhost"] and the user is
-    @racket[#f]}
+  @item{@racket[#:dir _path-string] --- normally defaults to
+    @racket["build/plt"] or @racket["build\\plt"], but defaults to the current
+    directory if @deftech{local mode} is enabled: @racket[#:host] is @racket["localhost"],
+    @racket[#:user] is @racket[#f], @racket[#:configure] is @racket['()],
+    @racket[#:cross-target] is @racket[#f], and
+    @racket[#:cross-target-machine] is @racket[#f]; for other defaults,
+    @tech{local mode} depends on @racket[#:dir] also being unspecified so
+    that its default is used
+
+    @history[#:changed "1.17" @elem{Made @tech{local mode} depend on
+                                    @racket[#:configure],
+                                    @racket[#:cross-target], and
+                                    @racket[#:cross-target-machine].}]}
 
   @item{@racket[#:env (list (list _string* _string) ...)] ---
     environment-variable settings to prefix all client-machine
@@ -396,8 +405,8 @@ spaces, etc.):
     then @racket["--enable-portable"] is added to the start of the
     list; defaults to @racket['()]}
 
-  @item{@racket[#:cross-target _string*] --- specifies a target for
-    cross-compilation, which adds @DFlag{host}@tt{=}@racket[_string*]
+  @item{@racket[#:cross-target _string*-or-false] --- specifies a target for
+    cross-compilation when a @racket[_string*], which adds @DFlag{host}@tt{=}@racket[_string*]
     to the start of the list of @exec{configure} arguments; in
     addition, if no @racket[#:racket] value is provided, a native
     @exec{racket} executable for the client machine is created (by
@@ -405,16 +414,18 @@ spaces, etc.):
     cross-compilation in the same way as a @racket[#:racket] value;
     note that cross-compilation for the @racket['cs] variant may also
     also requires a @racket[#:cross-target-machine] specification,
-    although it is inferred from @racket[#:cross-target] if possible}
+    although it is inferred from @racket[#:cross-target] if possible;
+    the default for @racket[#:cross-target] is @racket[#f]}
 
-  @item{@racket[#:cross-target-machine _string*] --- similar to
-    @racket[#:cross-target], but used only for @racket[#:variant 'cs],
+  @item{@racket[#:cross-target-machine _string**-or-false] --- similar to
+    @racket[#:cross-target] when a @racket[_string*], but used only for @racket[#:variant 'cs],
     and specifies the target machine for cross-compilation
     as a string like @racket["ta6nt"]; use both
     @racket[#:cross-target-machine] and @racket[#:cross-target] unless
     the former can be inferred from the latter or unless options in
     @racket[#:configure] instead of @racket[#:cross-target] select the
     cross-build target
+
     @history[#:added "1.3"]}
 
   @item{@racket[#:racket _string-or-false] --- an absolute path to a
@@ -534,16 +545,14 @@ spaces, etc.):
     on the client machine starts by removing @racket[#:dir]'s value;
     use @racket[#f] for a shared repo checkout; the default is
     determined by the @tt{CLEAN_MODE} makefile variable, unless
-    @racket[#:host] is @racket["localhost"], @racket[#:user] is
-    @racket[#f], and @racket[#:dir] is not specified, in which case
+    @tech{local mode} is enabled, in which case
     the default is @racket[#f]}
 
   @item{@racket[#:pull? _boolean] --- if true, then the build process
     on the client machine starts by a @exec{git pull} in
     @racket[#:dir]'s value; use @racket[#f], for example, for a repo
     checkout that is shared with server; the default is @racket[#t],
-    unless @racket[#:host] is @racket["localhost"], @racket[#:user] is
-    @racket[#f], and @racket[#:dir] is not specified, in which case
+    unless @tech{local mode} is enabled, in which case
     the default is @racket[#f]}
 
   @item{@racket[#:release? _boolean] --- if true, then create

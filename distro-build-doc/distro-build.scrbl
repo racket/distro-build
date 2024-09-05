@@ -293,8 +293,11 @@ spaces, etc.):
   @item{@racket[#:install-name _string] --- string used as the name of
     the installation for package operations in the @tt{user} package
     scope, where @racket[""] keeps the name as the Racket version; the
-    default is @racket["snapshot"] if the value of @racket[#:release?]
-    is @racket[#f], @racket[""] otherwise}
+    default is @racket[""]
+
+    @history[#:changed "1.17" @elem{Made the default always
+                                    @racket[""] independent of
+                                    @racket[#:release?].}]}
 
   @item{@racket[#:build-stamp _string] --- a string representing a
      build stamp, recorded in installers; the default is from the

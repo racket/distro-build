@@ -37,7 +37,9 @@
 (define serving-machine-independent? #f)
 (define dry-run #f)
 
-(define snapshot-install-name "snapshot")
+;; an empty string here implies the current version number
+(define release-install-name "")
+(define snapshot-install-name "")
 
 (define-values (config-file config-mode
                             default-server default-server-port default-server-hosts
@@ -537,7 +539,7 @@
   (define mac-pkg? (get-opt c '#:mac-pkg? #f))
   (define tgz? (get-opt c '#:tgz? #f))
   (define install-name (get-opt c '#:install-name (if release? 
-                                                      "" 
+                                                      release-install-name
                                                       snapshot-install-name)))
   (define build-stamp (get-opt c '#:build-stamp (if release?
                                                     ""
@@ -855,7 +857,7 @@
                                                '#:versionless? default-versionless?
                                                '#:pkgs (string-split default-pkgs)
                                                '#:install-name (if (get-opt c '#:release? default-release?)
-                                                                   ""
+                                                                   release-install-name
                                                                    snapshot-install-name)
                                                '#:build-stamp (if (get-opt c '#:release? default-release?)
                                                                   ""

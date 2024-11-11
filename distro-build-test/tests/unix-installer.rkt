@@ -20,7 +20,9 @@
                      (build-path (find-system-path 'temp-dir)
                                  "unix-install-test")))
 (define snapshot-site "https://pre-release.racket-lang.org/")
+(define platform-suffix "")
 (define remote-pkg "bloggy")
+(define ignore-suggested-paths? #f)
 (define pkg-no-verify? #f)
 (define fast-mode #f)
 (define src-mode #f)
@@ -33,10 +35,14 @@
              (set! work-dir dir)]
  [("--site") url "Download from <url>"
              (set! snapshot-site url)]
+ [("--suffix") suffix "Platform installer suffix, such as Linux variant"
+               (set! platform-suffix suffix)]
  [("--pkg") pkg "Try installing <pkg> from the default catalog; empty means none"
             (set! remote-pkg (and (not (string=? pkg"")) pkg))]
  [("--ssl-no-verify") "Skip SSL verification for package-install check"
                       (set! pkg-no-verify? #t)]
+ [("--ignore-suggested-paths") "Don't use installer's suggested paths"
+                               (set! ignore-suggested-paths? #t)]
  #:once-any
  [("--fast") "Run only basic installer checks"
              (set! fast-mode 'fast)]
@@ -44,7 +50,9 @@
                  (set! fast-mode 'src)]
  [("--slow-src") "Run only longest source check"
                  (set! fast-mode 'src)
-                 (set! src-mode 'slow)])
+                 (set! src-mode 'slow)]
+ [("--natipkg") "Run only natipkg checks"
+                (set! fast-mode 'natipkg)])
 
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
@@ -61,13 +69,13 @@
 (define catalog (~a snapshot-site "catalog/"))
 
 (define min-racket-installers
-  (list (~a "racket-minimal-" installer-vers "-x86_64-linux.sh")))
+  (list (~a "racket-minimal-" installer-vers "-x86_64-linux" platform-suffix ".sh")))
 
 (define racket-installers
-  (list (~a "racket-" installer-vers "-x86_64-linux.sh")))
+  (list (~a "racket-" installer-vers "-x86_64-linux" platform-suffix ".sh")))
 
 (define min-racket-natipkg-installers
-  (list (~a "racket-minimal-" installer-vers "-x86_64-linux-natipkg.sh")))
+  (list (~a "racket-minimal-" installer-vers "-x86_64-linux-natipkg" platform-suffix ".sh")))
 
 (define racket-src-built-installers
   (list (~a "racket-" installer-vers "-src-builtpkgs.tgz")))
@@ -95,9 +103,9 @@
       ""))
 
 ;; For disabling some tests:
-(define basic? (not (eq? fast-mode 'src)))
-(define natipkg? (not fast-mode))
-(define from-src? (not (eq? fast-mode 'fast)))
+(define basic? (not (memq fast-mode '(src natipkg))))
+(define natipkg? (or (not fast-mode) (eq? fast-mode 'natipkg)))
+(define from-src? (not (memq fast-mode '(fast natipkg))))
 
 (define-runtime-path embed_cs.c "embed_cs.c")
 (define-runtime-path embed_bc.c "embed_bc.c")
@@ -284,8 +292,12 @@
           ;;     Prefix for link?
           (fprintf o "~a\n" (if unix-style? "yes" "no"))
           (fprintf o (if usr-local?
-                         "2\n"
-                         "4\n"))
+                         (if ignore-suggested-paths?
+                             "/usr/local/racket\n"
+                             "2\n")
+                         (if ignore-suggested-paths?
+                             "./racket\n"
+                             "4\n")))
           (when mv-shared?
             (fprintf o "s\n") ; "shared" path
             (fprintf o "~a\n" (if usr-local?
@@ -385,6 +397,9 @@
        (ssh rt "sh " f " --in-place --dest racket")
 
        (define bin-dir "racket/bin/")
+       (define etc-dir "racket/etc/")
+       (define lib-dir "racket/lib")
+       (define lib-copy-dir "/tmp/xlib")
 
        ;; check that Racket runs --------------------
        (ssh rt (~a bin-dir "racket") " -e '(displayln \"hello\")'")
@@ -397,7 +412,9 @@
             " --recompile-only"
             " --catalog /archive/catalog/"
             " --auto"
-            " drracket")
+            (if fast-mode
+                " draw-lib"
+                " drracket"))
        
        ;; check that the drawing library works:
        (ssh rt (~a bin-dir "racket") " -l racket/draw")
@@ -405,6 +422,29 @@
        ;; install a package from the package server --------------------
        (when remote-pkg
          (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
+
+       ;; check shared-library handling  --------------------
+       ;; add to the shared-library search path, copy libraries there,
+       ;; then make sure that installed libraries are not deleted
+       (ssh rt (~a bin-dir "racket") (format " -e '~s'"
+                                             `(let ([config (call-with-input-file
+                                                             (build-path ,etc-dir "config.rktd")
+                                                             read)])
+                                                (let ([config (hash-set config
+                                                                        (quote lib-search-dirs)
+                                                                        (list #f ,lib-copy-dir))])
+                                                  (call-with-output-file
+                                                      #:exists (quote truncate)
+                                                      (build-path ,etc-dir "config.rktd")
+                                                      (lambda (o)
+                                                        (write config o)))))))
+       (ssh rt "mkdir -p " lib-copy-dir)
+       (ssh rt "cp " (~a lib-dir "/*.so.*") " " lib-copy-dir)
+       (define old-count (ssh rt "ls -1 " lib-dir " | wc -l" #:mode 'output))
+       (ssh rt (~a bin-dir "raco") " setup")
+       (define new-count (ssh rt "ls -1 " lib-dir " | wc -l" #:mode 'output))
+       (unless (equal? old-count new-count)
+         (error "shared library was removed by raco setup"))
 
        (void))
 

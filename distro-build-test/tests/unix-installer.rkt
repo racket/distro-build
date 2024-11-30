@@ -539,6 +539,13 @@
                                               " PLT_SETUP_OPTIONS=--recompile-only"
                                               ""))))
 
+       (when prefix?
+         ;; a second `make install` should work, overwriting the first one
+         (ssh rt (~a "cd " racket-dir "src "
+                     " && make install" (~a (if built?
+                                                " PLT_SETUP_OPTIONS=--recompile-only"
+                                                "")))))
+
        (define bin-dir (if prefix?
                            "local/bin/"
                            (~a racket-dir "bin/")))

@@ -78,6 +78,12 @@
      'binary]
     [else 'built]))
 
+;; clear out old packages so they don't pollute the new catalog
+(for ([dir (list pkg-dest-dir
+                 catalog-pkg-dir)])
+  (for ([f (directory-list dir #:build? #t)])
+    (delete-directory/files f)))
+
 (for ([pkg (in-list (installed-pkg-names))])
   (define original (get-original-source pkg))
   (define ht (hash-ref pkg-details pkg (hash)))

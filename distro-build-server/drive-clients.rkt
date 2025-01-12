@@ -161,6 +161,12 @@
                        #:dry-run? dry-run)]
        [docker
         (define container (get-opt c '#:host))
+        ;; Create the upload dir if it doesn't already exist --- and
+        ;; make sure this stays before starting an existing Docker
+        ;; instance, since otherwise that may (re-)create the dir
+        ;; with with wrong permission:
+        (define upload-dir (docker-upload-dir container))
+        ;; Create a Docker instance if it doesn't exist already:
         (unless (docker-id #:name container)
           (docker-create #:name container
                          #:image-name docker
@@ -168,7 +174,7 @@
                          #:volumes `((,(path->complete-path "build")
                                       ,(build-slash-path mnt-dir "build")
                                       ro)
-                                     (,(path->complete-path (docker-upload-dir container))
+                                     (,(path->complete-path upload-dir)
                                       ,(build-slash-path mnt-dir "upload")
                                       rw)
                                      (,(path->complete-path ".git")
@@ -181,6 +187,7 @@
                                                ,(build-slash-path mnt-dir "extra-repos")
                                                ro))]
                                            [else '()])))))
+        ;; Start the Docker instance:
         (unless (docker-running? #:name container)
           (docker-start #:name container))]))))
 

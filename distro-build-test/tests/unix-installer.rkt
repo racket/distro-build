@@ -542,6 +542,7 @@
        (when prefix?
          ;; a second `make install` should work, overwriting the first one
          (ssh rt (~a "cd " racket-dir "src "
+                     " && cd build"
                      " && make install" (~a (if built?
                                                 " PLT_SETUP_OPTIONS=--recompile-only"
                                                 "")))))

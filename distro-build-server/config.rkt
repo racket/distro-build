@@ -172,6 +172,11 @@
     [(#:sign-identity) (string? val)]
     [(#:hardened-runtime?) (boolean? val)]
     [(#:osslsigncode-args) (and (list? val) (andmap string? val))]
+    [(#:pref-defaults) (and (list? val) (andmap (lambda (p)
+                                                  (and (list? p)
+                                                       (= 2 (length p))
+                                                       (symbol? (car p))))
+                                                val))]
     [(#:notarization-config) (and (hash? val)
                                   (for/and ([(key val) (in-hash val)])
                                     (case key

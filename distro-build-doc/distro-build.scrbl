@@ -354,6 +354,13 @@ spaces, etc.):
     present) extended with @racket["catalog/"] in a list followed by
     @racket[""]}
 
+  @item{@racket[#:pref-defaults _list] --- preference defaults to
+    merge into a @filepath{racket-prefs.rktd} file in a distribution,
+    which is used to initialize preferences when the user has no
+    Racket preferences file already; each list item must be a
+    2-element list where the first element is a symbol
+    @history[#:added "1.18"]}
+
   @item{@racket[#:readme _string-or-procedure] --- the content of a
     @filepath{README} file to include in installers, or a function
     that takes a hash table for a configuration and returns a string;

@@ -534,6 +534,7 @@
   (define dist-catalogs (choose-catalogs c '("")))
   (define sign-identity (get-opt c '#:sign-identity ""))
   (define hardened-runtime? (get-opt c '#:hardened-runtime? (not (equal? sign-identity ""))))
+  (define pref-defaults (get-opt c '#:pref-defaults '()))
   (define installer-pre-process (get-opt c '#:client-installer-pre-process '()))
   (define installer-post-process (get-opt c '#:client-installer-post-process '()))
   (define notarization-config (get-opt c '#:notarization-config #f))
@@ -599,6 +600,9 @@
       " OSSLSIGNCODE_ARGS_BASE64=" (q (if osslsigncode-args
                                           (pack-base64-strings osslsigncode-args)
                                           ""))
+      (if (pair? pref-defaults)
+          (~a " PREF_DEFAULTS_BASE64=" (q (pack-base64-strings pref-defaults)))
+          "")
       (if (pair? installer-pre-process)
           (~a " INSTALLER_PRE_PROCESS_BASE64=" (q (pack-base64-strings installer-pre-process)))
           "")

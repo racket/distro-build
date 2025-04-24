@@ -32,7 +32,7 @@
 (define dist-base-version (version))
 
 (define-values (short-human-name human-name base-name dir-name dist-suffix 
-                                 sign-identity osslsigncode-args-base64)
+                                 sign-identity osslsigncode-args-base64 sign-cert-base64)
   (command-line
    #:once-each
    [("--release") "Create a release installer"
@@ -78,7 +78,7 @@
     (unless (string=? cmd-as-base64 "")
       (set! post-process-cmd cmd-as-base64))]
    #:args
-   (human-name base-name dir-name dist-suffix sign-identity osslsigncode-args-base64)
+   (human-name base-name dir-name dist-suffix sign-identity osslsigncode-args-base64 sign-cert-base64)
    (values human-name
            (format "~a v~a" human-name (version))
            (if versionless?
@@ -91,7 +91,7 @@
            (if (string=? dist-suffix "")
                ""
                (string-append "-" dist-suffix))
-           sign-identity osslsigncode-args-base64)))
+           sign-identity osslsigncode-args-base64 sign-cert-base64)))
 
 (display-time)
 
@@ -118,6 +118,19 @@
            "encoded arguments didn't decode and `read` as a list of strings: ~e" str))
   l)
 
+(define (unpack-base64-hash who config)
+  (define ht
+    (with-handlers
+        ([exn:fail?
+          (lambda (exn)
+            (error who "bad encoding: ~s"
+                   config))])
+      (read (open-input-bytes
+             (unpack-base64 config)))))
+  (unless (hash? ht)
+    (error who "expected hash, got ~e" ht))
+  ht)
+
 (when pre-process-cmd
   (define args (append (unpack-base64-strings pre-process-cmd)
                        (list "bundle/racket")))
@@ -141,19 +154,10 @@
                                 human-name)
                             base-name dist-suffix readme
                             sign-identity
+                            (and (not (equal? sign-cert-base64 ""))
+                                 (unpack-base64-hash 'sign-cert-base64 sign-cert-base64))
                             (and notarization-config
-                                 (let ()
-                                   (define ht
-                                     (with-handlers
-                                         ([exn:fail?
-                                           (lambda (exn)
-                                             (error 'notarization-config "bad encoding: ~s"
-                                                    notarization-config))])
-                                       (read (open-input-bytes
-                                              (unpack-base64 notarization-config)))))
-                                   (unless (hash? ht)
-                                     (error 'notarization-config "expected hash, got ~e" ht))
-                                   ht))
+                                 (unpack-base64-hash 'notarization-config notarization-config))
                             #:hardened-runtime? hardened-runtime?))]
         [(windows)
          (define osslsigncode-args

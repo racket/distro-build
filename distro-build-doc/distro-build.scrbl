@@ -479,24 +479,44 @@ spaces, etc.):
     the default is @racket["x86"] or @racket["x86_amd64"], depending
     on the value of @racket[#:bits]}
 
-  @item{@racket[#:sign-identity _string] --- provides an identity to
+ @item{@racket[#:sign-identity _string] --- provides an identity to
     be passed to @exec{codesign} for code signing on Mac OS (for a
-    package or all executables in a distribution), where an empty
-    string disables signing; the default is @racket[""]}
+    package or a disk image and all executables in the image), where an empty
+    string disables signing (unless @racket[#:sign-cert-config]
+    provides a configuration); the default is @racket[""]}
+
+  @item{@racket[#:sign-cert-config _hash-or-false] --- configures
+    signing for Mac OS (for a package or for a disk image and all
+    executables within the image) via @exec{rcodesign}; the required
+    keys are @racket['p12-file] as a path and
+    @racket['p12-password-file] as a path, and the optional key
+    @racket['p12-dir] can be included as a path; if @racket['p12-dir]
+    is specified and the client machine is a Docker container, the
+    file paths are relative to the directory path on the server, otherwise
+    the file paths are client-machine paths; beware that adding or changing @racket['p12-dir]
+    requires recreating a Docker container; defaults to @racket[#f]
+
+    @history[#:added "1.19"]}
 
   @item{@racket[#:notarization-config _hash-or-false] --- configures
     notarization of a signed Mac OS @filepath{.dmg} bundle via
-    @exec{xcrun notarytool} and @exec{xcrun stapler}; the required keys
-    are @racket['primary-bundle-id] as a string, @racket['user] as a
+    @exec{xcrun notarytool} and @exec{xcrun stapler} or via @exec{rcodesign}; the required keys
+    for @exec{xcrun notarytool} are @racket['primary-bundle-id] as a string, @racket['user] as a
     string, @racket['team] as a
     string, and @racket['app-specific-password-file] as a string that
-    is a path that contains a password; the allowed optional keys are
+    is a path that contains a password; the required key for @exec{rcodesign}
+    is @racket['api-key-file] as a string; the allowed optional keys are
+    @racket['app-specific-password-dir] as a string for a server-machine path
+    that @racket['app-specific-password-file] or @racket['api-key-file] is relative to when
+    the client machine is a Docker container (otherwise, the file is a client-machine path),
     @racket['wait-seconds] as a nonnegative exact integer (defaults to
     @racket[120]) and @racket['error-on-fail?] as a boolean (defaults
-    to @racket[#t])
+    to @racket[#t]; beware that adding or changing @racket['app-specific-password-dir]
+    requires recreating a Docker container)
 
     @history[#:changed "1.15" @elem{Added @racket['team] and changed
-                                    @racket['wait-seconds] default to @racket[120].}]}
+                                    @racket['wait-seconds] default to @racket[120].}
+             #:changed "1.19" @elem{Added @racket['app-specific-password-dir].}]}
 
   @item{@racket[#:osslsigncode-args (list _string ...)] --- provides
     arguments for signing a Windows executable using

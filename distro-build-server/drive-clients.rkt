@@ -180,6 +180,22 @@
                                      (,(path->complete-path ".git")
                                       ,(build-slash-path mnt-dir "server-repo")
                                       rw)
+                                     ,@(let* ([config (get-opt c '#:sign-cert-config #f)]
+                                              [dir (and config
+                                                        (hash-ref config 'p12-dir #f))])
+                                         (if dir
+                                             `((,(path->complete-path dir)
+                                                ,(build-slash-path mnt-dir "sign-p12")
+                                                ro))
+                                             null))
+                                     ,@(let* ([config (get-opt c '#:notarization-config #f)]
+                                              [dir (and config
+                                                        (hash-ref config 'app-specific-password-dir #f))])
+                                         (if dir
+                                             `((,(path->complete-path dir)
+                                                ,(build-slash-path mnt-dir "notarization")
+                                                ro))
+                                             null))
                                      ,@(let ([extra-repo-dir (get-opt c '#:extra-repo-dir)])
                                          (cond
                                            [extra-repo-dir
@@ -508,6 +524,19 @@
     [(a b . cs)
      (apply build-slash-path (build-slash-path a b) cs)]))
 
+(define (adjust-dir-config config
+                           mnt-dir
+                           key
+                           dir-name)
+  (cond
+    [(and config
+          mnt-dir
+          (hash-ref config key #f))
+     (hash-set config
+               key
+               (build-slash-path mnt-dir dir-name))]
+    [else config]))
+
 (define default-variant (case (system-type 'vm)
                           [(racket) 'bc]
                           [else 'cs]))
@@ -533,11 +562,19 @@
   (define dist-vm-suffix (get-opt c '#:dist-vm-suffix ""))
   (define dist-catalogs (choose-catalogs c '("")))
   (define sign-identity (get-opt c '#:sign-identity ""))
+  (define sign-cert-config (adjust-dir-config (get-opt c '#:sign-cert-config #f)
+                                              mnt-dir
+                                              'p12-dir
+                                              "sign-p12"))
   (define hardened-runtime? (get-opt c '#:hardened-runtime? (not (equal? sign-identity ""))))
   (define pref-defaults (get-opt c '#:pref-defaults '()))
   (define installer-pre-process (get-opt c '#:client-installer-pre-process '()))
   (define installer-post-process (get-opt c '#:client-installer-post-process '()))
-  (define notarization-config (get-opt c '#:notarization-config #f))
+  (define notarization-config (let ([config (get-opt c '#:notarization-config #f)])
+                                (adjust-dir-config config
+                                                   mnt-dir
+                                                   'app-specific-password-dir
+                                                   "notarization")))
   (define osslsigncode-args (get-opt c '#:osslsigncode-args))
   (define release? (get-opt c '#:release? default-release?))
   (define source? (get-opt c '#:source? default-source?))
@@ -596,6 +633,9 @@
                             (string-append dist-suffix "-" dist-vm-suffix)]))
       " DIST_CATALOGS_q=" (qq dist-catalogs kind)
       " SIGN_IDENTITY=" (q sign-identity)
+      (if (hash? sign-cert-config)
+          (~a " SIGN_CERT_BASE64=" (pack-base64-strings sign-cert-config))
+          "")
       " INSTALLER_OPTIONS=\"" packed-options "\""
       " OSSLSIGNCODE_ARGS_BASE64=" (q (if osslsigncode-args
                                           (pack-base64-strings osslsigncode-args)

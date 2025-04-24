@@ -170,6 +170,14 @@
     [(#:bits) (or (equal? val 32) (equal? val 64))]
     [(#:vc) (string? val)]
     [(#:sign-identity) (string? val)]
+    [(#:sign-cert-config) (or (not val)
+                              (and (hash? val)
+                                   (for/and ([(key val) (in-hash val)])
+                                     (case key
+                                       [(p12-file) (path-string? val)]
+                                       [(p12-password-file) (path-string? val)]
+                                       [(p12-dir) (or (not val) (path-string? val))]
+                                       [else #f]))))]
     [(#:hardened-runtime?) (boolean? val)]
     [(#:osslsigncode-args) (and (list? val) (andmap string? val))]
     [(#:pref-defaults) (and (list? val) (andmap (lambda (p)
@@ -177,14 +185,17 @@
                                                        (= 2 (length p))
                                                        (symbol? (car p))))
                                                 val))]
-    [(#:notarization-config) (and (hash? val)
-                                  (for/and ([(key val) (in-hash val)])
-                                    (case key
-                                      [(primary-bundle-id user team) (string? val)]
-                                      [(app-specific-password-file) (path-string? val)]
-                                      [(wait-seconds) (exact-nonnegative-integer? val)]
-                                      [(error-on-fail?) (boolean? val)]
-                                      [else #f])))]
+    [(#:notarization-config) (or (not val)
+                                 (and (hash? val)
+                                      (for/and ([(key val) (in-hash val)])
+                                        (case key
+                                          [(primary-bundle-id user team) (string? val)]
+                                          [(app-specific-password-file) (path-string? val)]
+                                          [(app-specific-password-dir) (or (not val) (path-string? val))]
+                                          [(api-key-file) (path-string? val)]
+                                          [(wait-seconds) (exact-nonnegative-integer? val)]
+                                          [(error-on-fail?) (boolean? val)]
+                                          [else #f]))))]
     [(#:client-installer-pre-process) (and (list? val) (andmap string? val))]
     [(#:client-installer-post-process) (and (list? val) (andmap string? val))]
     [(#:server-installer-post-process) (and (list? val) (andmap path-string? val))]

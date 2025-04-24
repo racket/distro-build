@@ -6,7 +6,8 @@
          racket/string
          "display-time.rkt")
 
-(provide notarize-file
+(provide notarize-file-via-rcodesign
+         notarize-file
          notarize-file/config
          file-notarized?)
 
@@ -90,6 +91,33 @@
 (define (printf/flush . args)
   (apply printf args)
   (flush-output))
+
+(define (notarize-file-via-rcodesign file
+                                     #:api-key-file api-key-file
+                                     #:wait-seconds [wait-seconds 120]
+                                     #:error-on-fail? [error-on-fail? #t])
+  (printf/flush "Notarize-file-via-rcodesign: ~v\n"
+                file)
+  (display-time)
+  (let request-loop ([tries NUM-TRIES])
+    (printf/flush "Upload ~a\n" file)
+    (define ok?
+      (system* (or (find-executable-path "rcodesign")
+                   (error 'notarize-file-via-rcodesign "could not find rcodesign"))
+               "notary-submit"
+               "--staple"
+               "--api-key-file" api-key-file
+               "--max-wait-seconds" (format "~a" wait-seconds)
+               file))
+    (cond
+      [ok?
+       (printf/flush "Success\n")]
+      [(positive? tries)
+       (request-loop (sub1 tries))]
+      [else
+       (if error-on-fail?
+           (error ''notarize-file-via-rcodesign "notarization failed")
+           (printf/flush "notarization failed\n"))])))
 
 ;; these could be run in parallel. Wouldn't help during the upload
 ;; period, but it might parallelize perfectly during the apple-side
@@ -227,16 +255,29 @@
   (define (ref sym [default (lambda ()
                               (error 'notarize-file/config "missing key: ~e" sym))])
     (hash-ref ht sym default))
-  (notarize-file file
-                 #:primary-bundle-id (ref 'primary-bundle-id)
-                 #:user (ref 'user)
-                 #:team (ref 'team)
-                 #:app-specific-password (check-password
-                                          (string-trim
-                                           (file->string
-                                            (ref 'app-specific-password-file))))
-                 #:wait-seconds (ref 'wait-seconds 120)
-                 #:error-on-fail? (ref 'error-on-fail? #t)))
+  (define (file-path file)
+    (let ([dir (ref 'app-specific-password-dir #f)])
+      (if dir
+          (build-path dir file)
+          file)))
+  (cond
+    [(ref 'api-key-file #f)
+     => (lambda (api-key-file)
+          (notarize-file-via-rcodesign file
+                                       #:api-key-file (file-path api-key-file)
+                                       #:wait-seconds (ref 'wait-seconds 120)
+                                       #:error-on-fail? (ref 'error-on-fail? #t)))]
+    [else
+     (notarize-file file
+                    #:primary-bundle-id (ref 'primary-bundle-id)
+                    #:user (ref 'user)
+                    #:team (ref 'team)
+                    #:app-specific-password (check-password
+                                             (string-trim
+                                              (file->string
+                                               (file-path (ref 'app-specific-password-file)))))
+                    #:wait-seconds (ref 'wait-seconds 120)
+                    #:error-on-fail? (ref 'error-on-fail? #t))]))
 
 ;; sanity check password
 (define (check-password password)

@@ -1047,7 +1047,12 @@ independent of the target machine in the case of cross-compilation).
   (code:comment "to enable notarization:")
   #:notarization-config (hash 'app-specific-password-dir @#,nonterm{path_to_file}
                               'api-key-file @#,nonterm{api_key_filename})
- ]}
+ ]
+
+ Beware that if @racket[#:sign-cert-config] or
+ @racket[#:notarization-config] is added to a configuration, the
+ Docker container will need to be recreated so that it mounts the
+ relevant directories.}
 
 
  @item{@dockerimage{osxcross-aarch64}: For cross-building Mac OS 11 (and up)
@@ -1065,7 +1070,12 @@ independent of the target machine in the case of cross-compilation).
   (code:comment "to enable notarization:")
   #:notarization-config (hash 'app-specific-password-dir @#,nonterm{path_to_file}
                               'api-key-file @#,nonterm{api_key_filename})
- ]}
+ ]
+
+ Beware that if @racket[#:sign-cert-config] or
+ @racket[#:notarization-config] is added to a configuration, the
+ Docker container will need to be recreated so that it mounts the
+ relevant directories.}
 
 
  @item{@dockerimage{osxcross-i386}: For cross-building Mac OS 10.6 (and up)

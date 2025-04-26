@@ -27,6 +27,7 @@ RUN if [ ${RKT_ARCH} = "i386" ]; then apt install -y gcc-i686-linux-gnu binutils
 RUN if [ ${RKT_ARCH} = "aarch64" ]; then apt install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu; fi
 RUN if [ ${RKT_ARCH} = "arm" ]; then apt install -y gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf; fi
 
+# x86_64 host only:
 RUN if [ ${RKT_ARCH} = "arm-debian7" ]; then git clone --depth 1 https://github.com/raspberrypi/tools pi-tools; fi
 ENV PATH="$PATH${PATH_EXTRA}"
 

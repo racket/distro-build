@@ -905,6 +905,198 @@ angle-bracketed pieces are details.
 
 @; ----------------------------------------
 
+@section{Available Docker Images}
+
+Several Docker images are available to build Racket distributions for
+different platforms, especially for cross-compiling to different
+operating systems and architectures. These images are available from
+@hyperlink["https://hub.docker.com/r/racket/distro-build/tags"]{DockerHub}
+as @filepath{racket/distro-build} plus a tag indicating the target platform.
+
+To use one of these images, supply @racket[#:docker] to
+@racket[machine] or similar functions as shown below. For cross-build
+images, additional configuration arguments are needed as shown. Unless
+otherwise noted, the image is available for two architectures:
+@tt{linux/amd64} and @tt{linux/arm64} (i.e., to run on those hosts,
+independent of the target machine in the case of cross-compilation).
+
+@(define (dockerimage tag) @filepath{racket/distro-build:@tag})
+
+@itemlist[
+
+ @item{@dockerimage{latest}: A Debian 9 environment for creating a
+ relatively generic Linux build, available for three architectures:
+ @tt{linux/386}, @tt{linux/amd64}, and @tt{linux/arm64}.
+
+ @racketblock[
+  #:docker "racket/distro-build"
+ ]
+
+ The images are intended for a non-cross build from the perspective of
+ the container, but using an image for an architecture other than the
+ host's architecture cross-builds for the image's archiecture.
+
+ The @dockerimage{i386-linux}, @dockerimage{x86_64-linux}, and
+ @dockerimage{aarch64-linux} images are the same as
+ @dockerimage{latest}, but specific to @tt{linux/386},
+ @tt{linux/amd64}, or @tt{linux/arm64} (as opposed to a
+ multi-architecture image). These tags can be useful in an environment
+ where you want to specify an architecture other than the host's
+ default and have multiple such images available.}
+
+
+ @item{@dockerimage{debian10}: Like @dockerimage{latest}, but for
+ Debian 10.
+
+ @racketblock[
+  #:docker "racket/distro-build:debian10"
+ ]
+
+ The @dockerimage{debian10-i386-linux}, @dockerimage{debian10-x86_64-linux}, and
+ @dockerimage{debian10-aarch64-linux} images are the same as
+ @dockerimage{debian10}, but specific to @tt{linux/386},
+ @tt{linux/amd64}, or @tt{linux/arm64}. }
+
+
+ @item{@dockerimage{crosslinux-i386}: For cross-building to Linux
+ (Debian 10) for i386.
+
+ @racketblock[
+  #:docker "racket/distro-build:crosslinux-i386"
+  #:cross-target-machine "ti3le"
+  #:cross-target "i686-linux-gnu"
+ ]}
+
+
+ @item{@dockerimage{crosslinux-x86_64}: For cross-building to Linux
+ (Debian 10) for x86_64.
+
+ @racketblock[
+  #:docker "racket/distro-build:crosslinux-x86_64"
+  #:cross-target-machine "ta6le"
+  #:cross-target "x86_64-linux-gnu"
+ ]}
+
+
+ @item{@dockerimage{crosslinux-aarch64}: For cross-building to Linux
+ (Debian 10) for AArch64.
+
+ @racketblock[
+  #:docker "racket/distro-build:crosslinux-aarch64"
+  #:cross-target-machine "tarm64le"
+  #:cross-target "aarch64-linux-gnu"
+ ]}
+
+
+ @item{@dockerimage{crosslinux-arm}: For cross-building to Linux
+ (Raspbian 10) for 32-bit ARMv6 VFP.
+
+ @racketblock[
+  #:docker "racket/distro-build:crosslinux-arm"
+  #:cross-target-machine "tarm32le"
+  #:cross-target "gcc-arm-linux-gnueabihf"
+ ]}
+
+
+ @item{@dockerimage{crosslinux-arm-debian7}: For cross-building to Linux
+ (Raspbian 7) for 32-bit ARMv6 VFP. This image is available only for
+ @tt{linux/amd64}.
+
+ @racketblock[
+  #:docker "racket/distro-build:crosslinux-arm-debian7"
+  #:cross-target-machine "tarm32le"
+  #:cross-target "gcc-arm-linux-gnueabihf"
+ ]}
+
+
+ @item{@dockerimage{crosswin}: For cross-building Windows distributions,
+ either 32-bit x86, 64-bit x64, or 64-bit Arm. Pick the specific Windows
+ architecture through additional configuration as shown below.
+
+ @racketblock[
+  #:docker "racket/distro-build:crosswin"
+  #:cross-target-machine "ti3nt"
+  #:cross-target "i686-w64-mingw32"
+ ]
+
+ @racketblock[
+  #:docker "racket/distro-build:crosswin"
+  #:cross-target-machine "ta6nt"
+  #:cross-target "x86_64-w64-mingw32"
+ ]
+
+ @racketblock[
+  #:docker "racket/distro-build:crosswin"
+  #:cross-target-machine "tarm64nt"
+  #:cross-target "aarch64-w64-mingw32"
+ ]}
+
+
+ @item{@dockerimage{osxcross-x86_64}: For cross-building Mac OS 10.9 (and up)
+ distributions for 64-bit Intel.
+
+ @racketblock[
+  #:docker "racket/distro-build:osxcross-x86_64"
+  #:cross-target-machine "ta6osx"
+  #:cross-target "x86_64-apple-darwin13"
+  #:configure '("CC=x86_64-apple-darwin13-cc")
+  (code:comment "to enable code signing:")
+  #:sign-cert-config (hash 'p12-dir @#,nonterm{path_to_files}
+                           'p12-file @#,nonterm{cert_key_pair_filename}
+                           'p12-password-file @#,nonterm{cert_key_pair_filename})
+  (code:comment "to enable notarization:")
+  #:notarization-config (hash 'app-specific-password-dir @#,nonterm{path_to_file}
+                              'api-key-file @#,nonterm{api_key_filename})
+ ]}
+
+
+ @item{@dockerimage{osxcross-aarch64}: For cross-building Mac OS 11 (and up)
+ distributions for Apple Silicon.
+
+ @racketblock[
+  #:docker "racket/distro-build:osxcross-aarch64"
+  #:cross-target-machine "tarm64osx"
+  #:cross-target "x86_64-apple-darwin13"
+  #:configure '("CC=x86_64-apple-darwin13-cc")
+  (code:comment "to enable code signing:")
+  #:sign-cert-config (hash 'p12-dir @#,nonterm{path_to_files}
+                           'p12-file @#,nonterm{cert_key_pair_filename}
+                           'p12-password-file @#,nonterm{cert_key_pair_filename})
+  (code:comment "to enable notarization:")
+  #:notarization-config (hash 'app-specific-password-dir @#,nonterm{path_to_file}
+                              'api-key-file @#,nonterm{api_key_filename})
+ ]}
+
+
+ @item{@dockerimage{osxcross-i386}: For cross-building Mac OS 10.6 (and up)
+ distributions for 32-bit Intel.
+
+ @racketblock[
+  #:docker "racket/distro-build:osxcross-i386"
+  #:cross-target-machine "ti3osx"
+  #:cross-target "i386-apple-darwin10"
+  #:configure '("CC=i386-apple-darwin10-cc"
+                (code:comment "recommended for a smaller distribution:")
+                "--disable-embedfw")
+ ]}
+
+
+ @item{@dockerimage{osxcross-ppc}: For cross-building Mac OS 10.5 (and up)
+ distributions for 32-bit PowerPC.
+
+ @racketblock[
+  #:docker "racket/distro-build:osxcross-ppc"
+  #:cross-target-machine "tppc32osx"
+  #:cross-target "powerpc-apple-darwin9"
+  (code:comment "recommended for a smaller distribution:")
+  #:configure '("--disable-embedfw")
+ ]}
+
+]
+
+
+@; ----------------------------------------
+
 @section{Examples}
 
 Here are some example configuration files.

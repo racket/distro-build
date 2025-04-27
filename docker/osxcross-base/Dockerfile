@@ -67,7 +67,7 @@ RUN apt install -y hfsprogs
 
 # The `libdmg-hfsplus` project provides `hfsplus` and `dmg` for filling
 # and HFS+ image and converting it to a compressed ".dmg"
-RUN git clone --filter=blob:none https://github.com/mozilla/libdmg-hfsplus
+RUN git clone --filter=blob:none https://github.com/mflatt/libdmg-hfsplus
 RUN mkdir -p libdmg-hfsplus/build
 WORKDIR /libdmg-hfsplus/build
 RUN cmake ..

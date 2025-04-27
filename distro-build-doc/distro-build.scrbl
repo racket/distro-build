@@ -138,6 +138,10 @@ Each Unix or Mac OS @tech{client machine} needs the following available:
         Nullsoft Scriptable Install System (NSIS) version 2.x with
         @exec{makensis} in @envvar{PATH}}
 
+  @item{when creating a Mac OS installer on Unix via cross-compilation,
+        @exec{mkfs.hfsplus}, @exec{hfsplus}, and @exec{dmg} in @envvar{PATH},
+        as well as @exec{rcodesign} to support code signing and notarization}
+
 ]
 
 Each Windows @tech{client machine} needs the following:
@@ -562,7 +566,7 @@ spaces, etc.):
     to @racket[1]}
 
   @item{@racket[#:timeout _number] --- numbers of seconds to wait
-    before declaring failure; defaults to 30 minutes}
+    on a client before declaring failure; defaults to 30 minutes}
 
   @item{@racket[#:init _string-or-false] --- if non-@racket[#f], a
     command to run on a client and before any other commands; the
@@ -1113,7 +1117,7 @@ independent of the target machine in the case of cross-compilation).
 
 Here are some example configuration files.
 
-@subsection{Single Installer}
+@subsection[#:tag "single-installer"]{Single Installer}
 
 The simplest possible configuration file is
 
@@ -1131,10 +1135,21 @@ used as the default configuration. With this configuration,
 creates an installer in @filepath{build/installers} for the platform
 that is used to create the installer.
 
-@subsection[#:tag "docker-example"]{Cross-Build for Mac OS}
+Beware that the default configuration creates a relatively large
+distribution, because it contains @filepath{main-distribution} and
+@filepath{main-distribution-test}. Also, the default configuration
+uses a single sequential job for the client phase, instead of
+parallelizing. Consider providing @racket[#:pkgs] and/or
+@racket[#:j] options to @racket[machine].
+
+While the client part of this build is running, output is written to
+@filepath{build/log/localhost} (since @racket[#:name] defaults to
+@racket[#:host], and @racket[#:host] defaults to @racket["localhost"]).
+
+@subsection[#:tag "docker-example"]{Cross-Build via Docker}
 
 To build for Mac OS on a host machine that can run Docker containers
-(see @secref["Available Docker Images"]), create a @filepath{site.rkt}
+(see @secref["Available Docker Images"]), create a @filepath{build/site.rkt}
 file with
 
 @codeblock{
@@ -1151,10 +1166,68 @@ file with
    #:configure '("CC=aarch64-apple-darwin20.2-cc"))
 }
 
+The container name provided as @racket[#:host] enables using the same
+container for incremental rebuilds, instead of starting from scratch
+each time.
+
+See @secref["single-installer"] for advice about providing
+@racket[#:pkgs] and @racket[#:j] options. Depending on the
+distribution, a @racket[#:timeout] larger than the default of
+@racket[(* 60 30)] seconds may also be needed, since cross compilation
+is much more work for a client.
+
+While the client part of this build is running, output is written to
+@filepath{build/log/example-osxcross-aarch64} (since @racket[#:name]
+defaults to @racket[#:host]).
+
+@subsection{Multiple Platforms}
+
+A configuration module that drives multiple Docker containers in
+parallel to build for both 64-bit Windows (x64) and Mac OS (Intel)
+might look like this:
+
+@codeblock{
+    #lang distro-build/config
+
+    (sequential
+     ;; Minimal Racket:
+     #:pkgs '()
+     ;; Up to 2 jobs in each of 2 containers:
+     #:j 2
+     (parallel ; could replace with `sequential`
+       (machine
+        #:name "Windows (64-bit x64)"
+        #:host "example-windows-x86_64" ; FIXME: container name
+        #:docker "racket/distro-build:crosswin"
+        #:cross-target-machine "ta6nt"
+        #:cross-target "x86_64-w64-mingw32")
+       (machine
+        #:name "Mac OS (64-bit Intel)"
+        #:host "example-macosx-x86_64" ; FIXME: container name
+        #:docker "racket/distro-build:osxcross-x86_64"
+        #:cross-target-machine "ta6osx"
+        #:cross-target "x86_64-apple-darwin13"
+        #:configure '("CC=x86_64-apple-darwin13-cc"))))
+}
+
+With this configuration file in @filepath{site.rkt},
+
+@commandline{make installers CONFIG=site.rkt}
+
+produces two installers, both in @filepath{build/installers}, and a
+hash table in @filepath{table.rktd} that maps
+@racket["Windows (64-bit x64)"] to the Windows installer
+and @racket["Mac OS (64-bit Intel)"] to the Mac OS installer.
+
+While the client parts of this build are running, output is written to
+@filepath{build/log/Windows (64-bit x64)} and
+@filepath{build/log/Mac OS (64-bit Intel)}.
+
+
 @subsection{Installer Web Page}
 
-To make a web page that serves both a minimal installer and packages,
-create a @filepath{site.rkt} file with
+To make a web page that serves both a minimal installer and
+main-installation packages, create a @filepath{site.rkt} file with
 
 @codeblock{
  #lang distro-build/config
@@ -1220,10 +1293,10 @@ again. The new installers will go into a new <stamp> subdirectory, and
 the main @filepath{index.html} file will be rewritten to point to them.
 
 
-@subsection{Multiple Platforms}
+@subsection{Multiple Platforms on Multiple Machines}
 
-A configuration module that drives multiple clients to build
-installers might look like this:
+A configuration module that drives multiple client machines---virtual
+and remote---to build installers might look like this:
 
 @codeblock{
     #lang distro-build/config
@@ -1232,13 +1305,11 @@ installers might look like this:
      #:pkgs '("drracket")
      #:server-hosts '() ; Insecure? See below.
      (machine
-      #:desc "Linux (32-bit, Precise Pangolin)"
-      #:name "Ubuntu 32"
+      #:name "Linux (32-bit, Precise Pangolin)"
       #:vbox "Ubuntu 12.04"
       #:host "192.168.56.102")
      (machine
-      #:desc "Windows (64-bit)"
-      #:name "Windows 64"
+      #:name "Windows (64-bit)"
       #:host "10.0.0.7"
       #:server "10.0.0.1"
       #:dir "c:\\Users\\racket\\build\\plt"
@@ -1264,12 +1335,3 @@ server listen on all interfaces (instead of just
 @racket["localhost"])---which is possibly less secure than the default
 restriction that allows build-server connections only via
 @racket["localhost"].
-
-With this configuration file in @filepath{site.rkt},
-
-@commandline{make installers CONFIG=site.rkt}
-
-produces two installers, both in @filepath{build/installers}, and a
-hash table in @filepath{table.rktd} that maps
-@racket["Linux (32-bit, Precise Pangolin)"] to the Linux installer
-and @racket["Windows (64-bit)"] to the Windows installer.

@@ -905,7 +905,7 @@ angle-bracketed pieces are details.
 
 @; ----------------------------------------
 
-@section{Available Docker Images}
+@section[#:tag "Available Docker Images"]{Available Docker Images}
 
 Several Docker images are available to build Racket distributions for
 different platforms, especially for cross-compiling to different
@@ -915,8 +915,10 @@ as @filepath{racket/distro-build} plus a tag indicating the target platform.
 
 To use one of these images, supply @racket[#:docker] to
 @racket[machine] or similar functions as shown below. For cross-build
-images, additional configuration arguments are needed as shown. Unless
-otherwise noted, the image is available for two architectures:
+images, additional configuration arguments are needed as shown.
+See @secref["docker-example"] for an example.
+
+Unless otherwise noted, each image is available for two architectures:
 @tt{linux/amd64} and @tt{linux/arm64} (i.e., to run on those hosts,
 independent of the target machine in the case of cross-compilation).
 
@@ -1061,8 +1063,8 @@ independent of the target machine in the case of cross-compilation).
  @racketblock[
   #:docker "racket/distro-build:osxcross-aarch64"
   #:cross-target-machine "tarm64osx"
-  #:cross-target "x86_64-apple-darwin13"
-  #:configure '("CC=x86_64-apple-darwin13-cc")
+  #:cross-target "aarch64-apple-darwin20.2"
+  #:configure '("CC=aarch64-apple-darwin20.2-cc")
   (code:comment "to enable code signing:")
   #:sign-cert-config (hash 'p12-dir @#,nonterm{path_to_files}
                            'p12-file @#,nonterm{cert_key_pair_filename}
@@ -1129,6 +1131,25 @@ used as the default configuration. With this configuration,
 creates an installer in @filepath{build/installers} for the platform
 that is used to create the installer.
 
+@subsection[#:tag "docker-example"]{Cross-Build for Mac OS}
+
+To build for Mac OS on a host machine that can run Docker containers
+(see @secref["Available Docker Images"]), create a @filepath{site.rkt}
+file with
+
+@codeblock{
+  #lang distro-build/config
+
+  (machine
+   ;; FIXME: the name of the container to be created for building
+   #:host "example-osxcross-aarch64"
+   ;; Image name
+   #:docker "racket/distro-build:osxcross-aarch64"
+   ;; Cross-compile configuration
+   #:cross-target-machine "tarm64osx"
+   #:cross-target "aarch64-apple-darwin20.2"
+   #:configure '("CC=aarch64-apple-darwin20.2-cc"))
+}
 
 @subsection{Installer Web Page}
 

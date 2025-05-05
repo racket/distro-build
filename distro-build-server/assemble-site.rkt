@@ -129,6 +129,11 @@
 (copy log-dir)
 (generate-index-html dest-dir log-dir www-site)
 
+;; If all builds failed, installers director won't exist:
+(unless (file-exists? (build-path build-dir installers-dir "table.rktd"))
+  (make-directory* (build-path build-dir installers-dir))
+  (call-with-output-file* (build-path build-dir installers-dir "table.rktd") (lambda (o) (write (hash) o))))
+
 (copy installers-dir)
 (generate-index-html dest-dir installers-dir www-site)
 
@@ -137,6 +142,11 @@
               installers-dir
               "table.rktd"))
 (define installers-table (get-installers-table installers-table-path))
+
+(define logs-table-path
+  (build-path dest-dir
+              log-dir
+              "logs-table.rktd"))
 
 (unless (zero? (hash-count post-processes))
   (for ([(name installer) (in-hash installers-table)])
@@ -167,6 +177,7 @@
 (copy (build-path "origin" "collects.tgz"))
 
 (make-download-page installers-table-path
+                    #:logs-table-file logs-table-path
                     #:plt-www-site www-site
                     #:title site-title
                     #:installers-url "installers/"

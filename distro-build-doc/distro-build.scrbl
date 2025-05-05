@@ -656,8 +656,15 @@ spaces, etc.):
     @racket[0]}
 
   @item{@racket[#:log-file _string] --- the file name to use for the
-    log file for the machine; defaults to @racket[#:name]'s
-    value @history[#:added "1.8"]}
+    log file for the machine; defaults to @racket[#:name]'s value, but
+    with ordering sequences (see @secref["name-format"]), @litchar{|},
+    @litchar{;}, @litchar{!}, and @litchar{*} removed, trailing and
+    ending spaces removed, and remaining space sequences converted to
+    @litchar{_}
+
+    @history[#:added "1.8"
+             #:changed "1.20" @elem{Changed default log name to remove
+                                    noise and awkward characters}]}
 
   @item{@racket[#:stream-log? _boolean] --- if true, send log output
     to server's output and error ports as well as logging them to a

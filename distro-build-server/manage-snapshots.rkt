@@ -83,6 +83,10 @@
 (define current-table (get-installers-table table-file))
 (define rev-current-table (for/hash ([(k v) (in-hash current-table)])
                             (values v k)))
+(define logs-table-file (build-path site-dir "log" "logs-table.rktd"))
+(define logs-table (or (and (file-exists? logs-table-file)
+                            (get-installers-table logs-table-file))
+                       #hash()))
 (define past-successes
   (for/fold ([table (hash)]) ([s (in-list (reverse (remove current-snapshot (get-snapshots))))])
     (with-handlers ([exn:fail? (lambda (exn)
@@ -98,7 +102,7 @@
       (for/fold ([table table]) ([(k v) (in-hash past-table)])
         (if (or (hash-ref current-table k #f)
                 (hash-ref table k #f)
-                (not (file-exists? (build-path site-dir "log" k)))
+                (not (file-exists? (build-path site-dir "log" (hash-ref logs-table k k))))
                 (hash-ref rev-current-table v #f))
             table
             (hash-set table k (past-success s
@@ -171,6 +175,7 @@
 
 (printf "Generating web page\n")
 (make-download-page table-file
+                    #:logs-table-file logs-table-file
                     #:title site-title
                     #:plt-web-style? (hash-ref config '#:plt-web-style? #t)
                     #:past-successes past-successes

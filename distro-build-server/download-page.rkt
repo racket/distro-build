@@ -56,6 +56,7 @@
 (struct past-success (name relative-url file version) #:prefab)
 
 (define (make-download-page table-file
+                            #:logs-table-file [logs-table-file #f]
                             #:past-successes [past-successes (hash)]
                             #:dest [dest "index.html"]
                             #:installers-url [installers-url "./"]
@@ -76,6 +77,10 @@
                             #:plt-web-style? [plt-style? (and www-site #t)])
 
   (define base-table (get-installers-table table-file))
+  (define logs-table (if (and logs-table-file
+                              (file-exists? logs-table-file))
+                         (get-installers-table logs-table-file)
+                         #hash()))
 
   (define table-data (for/fold ([table-data base-table]) ([(k v) (in-hash past-successes)])
                        (if (hash-ref table-data k #f)
@@ -351,12 +356,12 @@
               (td (if (past-success? inst)
                       (span class: "detail"
                             (if (and log-dir 
-                                     (file-exists? (build-path log-dir key)))
+                                     (file-exists? (build-path log-dir (hash-ref logs-table key key))))
                                 (list
                                  (a href: (url->string
                                            (combine-url/relative
                                             (string->url log-dir-url)
-                                            key))
+                                            (hash-ref logs-table key key)))
                                     "build failed")
                                  "; ")
                                 null)

@@ -116,7 +116,7 @@
        (request-loop (sub1 tries))]
       [else
        (if error-on-fail?
-           (error ''notarize-file-via-rcodesign "notarization failed")
+           (error 'notarize-file-via-rcodesign "notarization failed")
            (printf/flush "notarization failed\n"))])))
 
 ;; these could be run in parallel. Wouldn't help during the upload

@@ -1,11 +1,11 @@
 #lang racket/base
 (require racket/file)
 
-(provide record-installer)
+(provide record-installer
+         record-log-file)
 
-(define (record-installer dir filename desc)
+(define (update-table table-file filename desc)
   (when desc
-    (define table-file (build-path dir "table.rktd"))
     (call-with-file-lock/timeout 
      #:max-delay 2
      table-file
@@ -23,3 +23,9 @@
            (write t o)
            (newline o))))
      void)))
+
+(define (record-installer dir filename desc)
+  (update-table (build-path dir "table.rktd") filename desc))
+
+(define (record-log-file dir log-file desc)
+  (update-table (build-path dir "logs-table.rktd") log-file desc))

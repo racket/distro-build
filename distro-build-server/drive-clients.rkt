@@ -115,7 +115,13 @@
 
 (define (client-log-file opts)
   (or (get-opt opts '#:log-file)
-      (client-name opts)))
+      ;; simplify name to avoid characters that make an awkward file name
+      (let* ([name (client-name opts)]
+             [name (regexp-replace* #rx"(?:{[^}]*})|[|;*!]" name "")]
+             [name (regexp-replace #rx"^ +" name "")]
+             [name (regexp-replace #rx" +$" name "")]
+             [name (regexp-replace* #rx" +" name "_")])
+        name)))
 
 (define (client-name opts)
   (get-client-name opts))
@@ -992,7 +998,8 @@
   (define orig-thread (current-thread))
   (define timeout? #f)
   (begin0
-   (parameterize ([current-custodian cust])
+    (parameterize ([current-custodian cust]
+                   [current-subprocess-custodian-mode 'interrupt])
      (thread (lambda ()
                (sleep (* timeout-factor timeout))
                (eprintf "timeout for ~s\n" (client-name c))
@@ -1028,18 +1035,23 @@
 (define (client-thread c all-seq? proc)
   (unless stop?
     (define log-dir (build-path "build" "log"))
-    (define log-file (build-path log-dir (client-log-file c)))
+    (define log-file-name (client-log-file c))
+    (define log-file (build-path log-dir log-file-name))
+    (define site-log-file (build-path log-dir (client-name c))) ; expected by site assembler
     (make-directory* log-dir)
     (define cust (make-custodian))
     (define (go shutdown)
       (wait-for-turn)
-      (printf "Logging build: ~a (log: ~a)\n" (client-name c) log-file)
+      (printf "Logging build: ~a\n" log-file)
       (flush-output)
       (define p (open-output-file log-file
                                   #:exists 'truncate/replace))
       (define err-p (if (client-stream-log? c) (tee p (current-error-port)) p))
       (define out-p (if (client-stream-log? c) (tee p (current-output-port)) p))
       (file-stream-buffer-mode p 'line)
+      (fprintf p "~a\n" (client-name c))
+      (unless (equal? log-file-name (client-name c))
+        (record-log-file log-dir log-file-name (client-name c)))
       (define (report-fail)
         (record-failure (client-name c))
         (printf "Build FAILED for ~s\n" (client-name c)))
@@ -1059,7 +1071,8 @@
       (go (lambda () (exit 1)))
       (thread void)]
      [else
-      (parameterize ([current-custodian cust])
+      (parameterize ([current-custodian cust]
+                     [current-subprocess-custodian-mode 'interrupt])
         (thread
          (lambda ()
            (go (lambda ()

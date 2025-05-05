@@ -1042,7 +1042,7 @@
     (define cust (make-custodian))
     (define (go shutdown)
       (wait-for-turn)
-      (printf "Logging build: ~a\n" log-file)
+      (printf "(+) start ~a\n" log-file-name)
       (flush-output)
       (define p (open-output-file log-file
                                   #:exists 'truncate/replace))
@@ -1054,14 +1054,14 @@
         (record-log-file log-dir log-file-name (client-name c)))
       (define (report-fail)
         (record-failure (client-name c))
-        (printf "Build FAILED for ~s\n" (client-name c)))
+        (printf "(!) fail  ~a\n" (client-name c)))
       (define start-milliseconds (current-inexact-milliseconds))
       (unless (parameterize ([current-output-port err-p]
                              [current-error-port out-p])
                 (proc shutdown report-fail))
         (report-fail))
-      (printf "Duration for ~a: ~a\n"
-              (client-name c)
+      (printf "(-) end   ~a, duration ~a\n"
+              log-file-name
               (duration->string (- (current-inexact-milliseconds)
                                    start-milliseconds)))
       (flush-output)

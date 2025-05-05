@@ -10,4 +10,5 @@ RUN echo "racket ALL=(ALL) NOPASSWD: ALL " >> /etc/sudoers
 USER racket
 WORKDIR /home/racket
 RUN chown racket .
+RUN git config --global --add safe.directory /docker-mnt/server-repo
 ENTRYPOINT ["/bin/bash"]

@@ -798,7 +798,37 @@ Top keywords (expected only in the configuration top-level):
     on any build client causes the build server to exit with a non-zero
     return code; the default is @racket[#f]
     @history[#:added "1.1"]}
-]}
+]
+
+Meta keyword:
+
+@itemlist[
+
+ @item{@racket[#:splice _hash-or-list] --- splices the content of a
+    hash table or all contents of a list of hash tables into the enclosing
+    @racket[machine], @racket[sequential], or @racket[parallel] form;
+    each key must be supplied only once across the original arguments
+    and the spliced tables
+
+    @history[#:added "1.20"]}
+
+]
+
+}
+
+@deftogether[(
+@defproc[(spliceable ...) hash?]
+)]{
+
+ Returns the given keyword arguments in a hash table suitable for use
+ with @racket[#:splice] in @racket[machine], @racket[sequential], or
+ @racket[parallel].
+
+ Calling @racket[spliceable] is almost the same as calling
+ @racket[hasheq], except that keyword arguments are unquoted, and a
+ syntax error is reported if a keyword appears multiple times.
+
+}
 
 
 @deftogether[(
@@ -1012,7 +1042,7 @@ independent of the target machine in the case of cross-compilation).
  @racketblock[
   #:docker "racket/distro-build:crosslinux-arm"
   #:cross-target-machine "tarm32le"
-  #:cross-target "gcc-arm-linux-gnueabihf"
+  #:cross-target "arm-linux-gnueabihf"
  ]}
 
 
@@ -1023,7 +1053,7 @@ independent of the target machine in the case of cross-compilation).
  @racketblock[
   #:docker "racket/distro-build:crosslinux-arm-debian7"
   #:cross-target-machine "tarm32le"
-  #:cross-target "gcc-arm-linux-gnueabihf"
+  #:cross-target "arm-linux-gnueabihf"
  ]}
 
 

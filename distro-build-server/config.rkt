@@ -12,6 +12,7 @@
          sequential
          parallel
          machine
+         spliceable
          site-config?
          site-config-tag
          site-config-options
@@ -93,25 +94,66 @@
      (constructor kws kw-vals null
                   check-machine-keyword 'machine))))
 
+(define spliceable
+  (make-keyword-procedure
+   (lambda (kws kw-vals)
+     (for/hasheq ([kw (in-list kws)]
+                  [val (in-list kw-vals)])
+       (values kw val)))))
+
 (define (constructor kws kw-vals subs check tag)
+  (define (check-kw+val kw val)
+    (define r (check kw val))
+    (when (eq? r 'bad-keyword)
+      (error tag
+             (~a "unrecognized keyword for option\n"
+                 "  keyword: ~s")
+             kw))
+    (unless r
+      (error tag
+             (~a "bad value for keyword\n"
+                 "  keyword: ~s\n"
+                 "  value: ~e")
+             kw
+             val)))
   (site-config
    tag
-   (for/hash ([kw (in-list kws)]
-              [val (in-list kw-vals)])
-     (define r (check kw val))
-     (when (eq? r 'bad-keyword)
-       (error tag
-              (~a "unrecognized keyword for option\n"
-                  "  keyword: ~s")
-              kw))
-     (unless (check kw val)
-       (error tag
-              (~a "bad value for keyword\n"
-                  "  keyword: ~s\n"
-                  "  value: ~e")
-              kw
-              val))
-     (values kw val))
+   (let loop ([ht #hasheq()])
+     (for/fold ([ht ht]) ([kw (in-list kws)]
+                          [val (in-list kw-vals)])
+       (cond
+         [(eq? kw '#:splice)
+          (define sub-hts
+            (cond
+              [(hash? val) (list val)]
+              [(and (list? val)
+                    (andmap hash? val))
+               val]
+              [else (error tag
+                           (~a "bad `#:splice`\n"
+                               "  value: ~e")
+                           val)]))
+          (for/fold ([ht ht]) ([sub-ht (in-list sub-hts)])
+            (for/fold ([ht ht]) ([(k v) (in-hash sub-ht)])
+              (unless (keyword? k)
+                (error tag
+                       (~a "key in `#:splice` is not a keyword\n"
+                           "  key: ~e")
+                       k))
+              (check-kw+val k v)
+              (when (hash-has-key? ht k)
+                (error tag
+                       (~a "key collision from `#:splice`\n"
+                           "  key: ~e\n"
+                           "  existing value: ~e\n"
+                           "  new value: ~e")
+                       k
+                       (hash-ref ht k)
+                       v))
+              (hash-set ht k v)))]
+         [else
+          (check-kw+val kw val)
+          (hash-set ht kw val)])))
    (for/list ([sub subs])
      (unless (site-config? sub)
        (raise-argument-error tag "site-config?" sub))

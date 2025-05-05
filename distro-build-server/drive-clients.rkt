@@ -1054,7 +1054,7 @@
         (record-log-file log-dir log-file-name (client-name c)))
       (define (report-fail)
         (record-failure (client-name c))
-        (printf "(!) fail  ~a\n" (client-name c)))
+        (printf "(!) fail  ~a\n" log-file-name))
       (define start-milliseconds (current-inexact-milliseconds))
       (unless (parameterize ([current-output-port err-p]
                              [current-error-port out-p])

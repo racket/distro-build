@@ -147,6 +147,7 @@
     [(#:install-name) (string? val)]
     [(#:build-stamp) (string? val)]
     [(#:max-vm) (real? val)]
+    [(#:max-parallel) (real? val)]
     [(#:server) (simple-string? val)]
     [(#:server-port) (port-no? val)]
     [(#:server-hosts) (and (list? val) (andmap simple-string? val))]

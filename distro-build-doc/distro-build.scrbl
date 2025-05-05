@@ -376,6 +376,11 @@ spaces, etc.):
     run concurrently with this machine, counting the machine; defaults to
     @racket[1]}
 
+  @item{@racket[#:max-parallel _real] --- the maximum number of
+    clients to run in parallel; defaults to @racket[+inf.0]
+
+    @history[#:added "1.20"]}
+
   @item{@racket[#:vbox _string] --- VirtualBox machine name (as
     shown, for example, in the Virtual Box GUI); if provided, the
     virtual machine is started and stopped on the server as needed}

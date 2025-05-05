@@ -956,7 +956,27 @@
 
 ;; ----------------------------------------
 
+(define max-parallelism (hash-ref top-opts '#:max-parallel +inf.0))
+
 (define stop? #f)
+
+(define running-threads null)
+(define turn-lock (make-semaphore 1))
+
+(define (wait-for-turn)
+  (semaphore-wait turn-lock)
+  (define now-threads (for/list ([th (in-list running-threads)]
+                                 #:unless (thread-dead? th))
+                        th))
+  (cond
+    [((length now-threads) . < . max-parallelism)
+     (set! running-threads (cons (current-thread) now-threads))
+     (semaphore-post turn-lock)]
+    [else
+     (set! running-threads now-threads)
+     (semaphore-post turn-lock)
+     (apply sync now-threads)
+     (wait-for-turn)]))
 
 (define failures (make-hasheq))
 (define (record-failure name)
@@ -1010,10 +1030,11 @@
     (define log-dir (build-path "build" "log"))
     (define log-file (build-path log-dir (client-log-file c)))
     (make-directory* log-dir)
-    (printf "Logging build: ~a (log: ~a)\n" (client-name c) log-file)
-    (flush-output)
     (define cust (make-custodian))
     (define (go shutdown)
+      (wait-for-turn)
+      (printf "Logging build: ~a (log: ~a)\n" (client-name c) log-file)
+      (flush-output)
       (define p (open-output-file log-file
                                   #:exists 'truncate/replace))
       (define err-p (if (client-stream-log? c) (tee p (current-error-port)) p))

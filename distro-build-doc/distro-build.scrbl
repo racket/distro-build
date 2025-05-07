@@ -1,7 +1,11 @@
 #lang scribble/manual
 @(require scribble/bnf
-          (for-label distro-build/config
-                     distro-build/readme))
+          (for-label (except-in racket/base
+                                #%module-begin)
+                     racket/contract/base
+                     distro-build/config
+                     distro-build/readme
+                     distro-build/main-distribution))
 
 @title{Building Distributions of Racket}
 
@@ -14,6 +18,8 @@ The distribution-building tools are meant to be driven by a makefile
 in the main Racket source repository, which is currently
 @url{https://github.com/racket/racket}. See @filepath{build.md} there
 for general build information.
+
+@table-of-contents[]
 
 @; ----------------------------------------
 
@@ -972,6 +978,10 @@ To use one of these images, supply @racket[#:docker] to
 images, additional configuration arguments are needed as shown.
 See @secref["docker-example"] for an example.
 
+To use many of these images to build a set of distributions like the
+ones on the main Racket download side, see
+@racketmodname[distro-build/main-distribution].
+
 Unless otherwise noted, each image is available for two architectures:
 @tt{linux/amd64} and @tt{linux/arm64} (i.e., to run on those hosts,
 independent of the target machine in the case of cross-compilation).
@@ -1163,6 +1173,145 @@ independent of the target machine in the case of cross-compilation).
 
 @; ----------------------------------------
 
+@section[#:tag "main-distribution"]{Main Distribution via Docker}
+
+@defmodule[distro-build/main-distribution]
+
+The @racketmodname[distro-build/main-distribution] library provides
+functions for generating a site configuration that builds
+distributions like those available at the main Racket download site.
+
+The configuration assumes a x86_64 (64-bit Intel) or AArch64 (64-bit
+Arm) host that can run Docker containers. See
+@racket[make-spliceable-limits] for information on expected resource
+usage.
+
+@defproc[(make-machines [#:minimal? minimal? any/c #f]
+                        [#:pkgs pkgs (listof string?) (if minimal?
+                                                          '()
+                                                          '("main-distribution"))]
+                        [#:filter-rx filter-rx (or/c #f regexp?) #f]
+                        [#:installer? installer? any/c #t]
+                        [#:tgz? tgz? any/c minimal?]
+                        [#:name name string? (if minimal?
+                                                 minimal-racket-name
+                                                 racket-name)]
+                        [#:file-name file-name string? (if minimal?
+                                                           minimal-racket-file-name
+                                                           racket-file-name)]
+                        [#:cs? cs? any/c #t]
+                        [#:bc? bc? any/c #f]
+                        [#:cs-name-suffix cs-name-suffix string? ""]
+                        [#:bc-name-suffix bc-name-suffix string? " BC"]
+                        [#:uncommon? uncommon? any/c minimal?]
+                        [#:windows-sign-post-process windows-sign-post-process (or/c #f (listof string?)) #f]
+                        [#:mac-sign-cert-config mac-sign-cert-config (or/c #f hash?) #f]
+                        [#:mac-notarization-config mac-notarization-config (or/c #f hash?) #f]
+                        [#:aliases aliases list? '()])
+          site-config?]{
+
+Generates a @racket[parallel] set of @racket[machine] configurations,
+each using Docker (see @secref["Available Docker Images"]), for
+generating a site configuration that builds distributions like those
+available at the main Racket download site. The result is intended as
+an argument to a top-level @racket[sequential] to further configure
+the build, especially with a @racket[#:splice]s result from
+@racket[make-spliceable-limits] to configure a timeout and to control
+the number of Docker containers that run concurrently. To fully
+imitate the main download site, @racket[make-machines] should be
+called twice, once with @racket[minimal?] as true and once with
+@racket[minimal?] as false.
+
+The @racket[minimal?] argument indicates whether the configuration is
+intended as a Minimal Racket distribution. It determines the default
+for many other arguments. If @racket[minimal?] is true, then
+@racket[pkgs] must be an empty list.
+
+The @racket[pkgs] argument determines packages that are pre-installed
+in the distribution. It must be a subset of the packages that are
+listed for @racket[#:pkgs] in the top-level site configuration.
+
+The @racket[filter-rx] argument, when not @racket[#f], determines
+which installers are generated. It is matched against the human-readable
+@racket[#:name] for each configuration, so it will be something like
+
+@centerline{@litchar{{1} Racket | {3} Linux | {1} 64-bit x86_64; built on Debian 10}}
+
+If @racket[installer?] is true, then the configurations will include
+@filepath{.exe} installers for Windows, @filepath{.dmg} disk images
+for Mac PS, and @filepath{.sh} installers for Linux. If @racket[tgz?]
+is true, then the configurations will include @filepath{.tgz} archives
+for all platforms. Source distributions will be included as
+@filepath{.tgz} archives independent of @racket[installer?] and
+@racket[tgz?].
+
+The @racket[name] argument provides a component of the human-readable
+@racket[#:name] for a configuration, typically @racket["{1} Racket"]
+or @racket["{2} Minimal Racket"]. The @racket[file-name] argument
+provides the component of an installer or archive name, typically
+@racket["racket"] or @racket["racket-minimal"].
+
+The @racket[cs?] and @racket[bc?] arguments indicate whether the
+respective Racket variant is included, and the @racket[cs-name-suffix]
+and @racket[bc-name-suffix] arguments provide a suffix to add to
+@racket[name].
+
+The @racket[uncommon?] argument indicates whether to include platforms
+that are supported but not among the most widely used, and that are
+included only in Minimal Racket form at the main Racket download site.
+
+If @racket[windows-sign-post-process] is not @racket[#f], then it is
+used as a @racket[#:server-installer-post-process] for Windows
+installer configurations to sign them. Similarly, if
+@racket[mac-sign-cert-config] or @racket[mac-notarization-config]is
+not @racket[#f], it is used as a @racket[#:sign-cert-config] or
+@racket[#:notarization-config]value to sign Mac OS disk images.
+
+The @racket[aliases] list is added to @racket[#:dist-alises] for each
+configuration.
+
+}
+
+@defproc[(make-spliceable-limits [#:max-parallel max-parallel exact-positive-integer? 3]
+                                 [#:timeout timeout real? (* #e1.5 60 60)]
+                                 [#:j j exact-positive-integer? 2])
+         hash?]{
+
+ Passes along all arguments to @racket[spliceable], effectively
+ providing good defaults for a main-distribution build.
+
+ Expect each container to use 2 GB of memory or 1 GB times @racket[j],
+ whichever is larger. Containers are not automatically removed after a
+ build, so they are available for incremental builds. Expect the full
+ set of containers to use up to 128 GB of disk space.
+
+}
+
+@deftogether[(
+@defproc[(make-start-check) (procedure-arity-includes/c 0)]
+@defproc[(make-site-help) hash?]
+@defproc[(make-site-help-fallbacks) list?]
+)]{
+
+ Returns useful defaults for @racket[#:start-check],
+ @racket[#:site-help], and @racket[#:site-help-fallback] top-level
+ configuration.
+
+}
+
+@deftogether[(
+@defthing[racket-name string?]
+@defthing[minimal-racket-name string?]
+@defthing[racket-file-name string?]
+@defthing[minimal-racket-file-name string?]
+)]{
+
+ Default strings for names and file names.
+
+}
+
+@; ----------------------------------------
+
 @section{Examples}
 
 Here are some example configuration files.
@@ -1341,6 +1490,24 @@ and so on. To make a newer snapshot, update the Git repository, leave
 
 again. The new installers will go into a new <stamp> subdirectory, and
 the main @filepath{index.html} file will be rewritten to point to them.
+
+@subsection[#:tag "main-distro-example"]{Main Download Site}
+
+A configuration module that drives a build like the main Racket
+download page (which will take hours) might look like this:
+
+@codeblock{
+  #lang distro-build/config
+  (require distro-build/main-distribution)
+
+  (sequential
+    ;; FIXME: the URL where the installer and packages will be:
+    #:dist-base-url (string-append "http://my-server.domain/snapshots/"
+                                   (current-stamp) "/")
+    #:splice (make-spliceable-limits)
+    (make-machines #:minimal? #t)
+    (make-machines))
+}
 
 
 @subsection{Multiple Platforms on Multiple Machines}

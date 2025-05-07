@@ -802,7 +802,11 @@
              "")
          (if cross-target-machine
              (~a " SETUP_MACHINE_FLAGS=\"--cross-compiler " cross-target-machine
-                 " `pwd`/racket/src/build/cs/c/ -MCR `pwd`/build/zo:\"")
+                 " `pwd`/racket/src/build/cs/c/"
+                 ;; This `-MCR` is reundundant in most calls, but it's needed
+                 ;; for the `raco setup` step of `make install`, which otherwise
+                 ;; would build host ".zo" files local to the nested build directory
+                 " -MCR `pwd`/build/zo:\"")
              "")
          " CONFIGURE_ARGS_qq=" (qq (append
                                     (if cross-target

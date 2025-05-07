@@ -798,6 +798,14 @@ Top keywords (expected only in the configuration top-level):
     on any build client causes the build server to exit with a non-zero
     return code; the default is @racket[#f]
     @history[#:added "1.1"]}
+
+  @item{@racket[#:start-hook _proc] --- a procedure of zero arguments to
+    be called once on the server before gathering packages, which can be
+    useful for performing environment checks before proceeding; the default
+    is @racket[void]
+
+    @history[#:added "1.20"]}
+
 ]
 
 Meta keyword:

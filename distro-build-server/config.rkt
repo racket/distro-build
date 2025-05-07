@@ -298,6 +298,8 @@
     [(#:custom) (and (hash? val)
                      (for/and ([k (in-hash-keys val)])
                        (keyword? k)))]
+    [(#:start-hook) (and (procedure? val)
+                         (procedure-arity-includes? val 0))]
     [else 'bad-keyword]))
 
 (define (check-machine-keyword kw val)

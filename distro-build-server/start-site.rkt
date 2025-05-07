@@ -13,4 +13,4 @@
 
 (define config (extract-options config-file config-mode))
 
-((hash-ref config '#:start-hook void))
+((hash-ref config '#:start-hook (lambda () void)))

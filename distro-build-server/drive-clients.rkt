@@ -334,6 +334,10 @@
                                   (cond
                                     [(regexp-match? #rx"64" name) "aarch64"]
                                     [else "arm"])]
+                                 [(regexp-match? #rx"(?i:risc-v|riscv)" name)
+                                  "riscv64"]
+                                 [(regexp-match? #rx"(?i:powerpc|ppc)" name)
+                                  "ppc32"]
                                  [else
                                   (cond
                                     [(regexp-match? #rx"64" name) "x86_64"]

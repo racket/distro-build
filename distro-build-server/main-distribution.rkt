@@ -530,8 +530,12 @@
        #:docker "racket/distro-build:osxcross-i386"
        #:cross-target-machine "ti3osx"
        #:cross-target "i386-apple-darwin10"
-       #:configure '("CC=i386-apple-darwin10-cc"
-                     "--disable-embedfw")
+       #:configure (append '("CC=i386-apple-darwin10-cc"
+                             "--disable-embedfw")
+                           (if on-x86_64?
+                               ;; `configure` host inference goes wrong for some reason
+                               '("--build=x86_64-pc-linux-gnu")
+                               null))
        (cs+bc-machine
         mac-machine
         #:host "osxcross-i386"

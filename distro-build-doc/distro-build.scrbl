@@ -1087,6 +1087,16 @@ independent of the target machine in the case of cross-compilation).
  ]}
 
 
+ @item{@dockerimage{crosslinux-riscv64}: For cross-building to Linux
+ (Debian 12) for RISC-V (RV64G).
+
+ @racketblock[
+  #:docker "racket/distro-build:crosslinux-riscv64"
+  #:cross-target-machine "trv64le"
+  #:cross-target "riscv64-linux-gnu"
+ ]}
+
+
  @item{@dockerimage{crosswin}: For cross-building Windows distributions,
  either 32-bit x86, 64-bit x64, or 64-bit Arm. Pick the specific Windows
  architecture through additional configuration as shown below.
@@ -1101,6 +1111,8 @@ independent of the target machine in the case of cross-compilation).
   #:docker "racket/distro-build:crosswin"
   #:cross-target-machine "ta6nt"
   #:cross-target "x86_64-w64-mingw32"
+  (code:comment "no `-g` to avoid compiler bug when building BC:")
+  #:configure '("CFLAGS=-O2")
  ]
 
  @racketblock[
@@ -1164,6 +1176,8 @@ independent of the target machine in the case of cross-compilation).
   #:cross-target-machine "ti3osx"
   #:cross-target "i386-apple-darwin10"
   #:configure '("CC=i386-apple-darwin10-cc"
+                (code:comment "FIXME: needed when host is x86_64:")
+                "--build=x86_64-pc-linux-gnu"
                 (code:comment "recommended for a smaller distribution:")
                 "--disable-embedfw")
  ]}

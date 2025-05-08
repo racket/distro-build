@@ -248,7 +248,8 @@ spaces, etc.):
     generate an installer and instead builds for use by later
     configurations that have the same @racket[#:variant] and the
     same symbol for @racket[#:racket]; a symbol is allowed only for a
-    @racket[#:docker] configuration
+    @racket[#:docker] configuration, and discard an existing Docker
+    container when changing the symbol
 
     @history[#:changed "1.17" @elem{Made @tech{local mode} depend on
                                     @racket[#:configure],
@@ -466,7 +467,8 @@ spaces, etc.):
     @racket[#:cross-target-machine] is specified; a non-@racket[#f]
     value for @racket[#:racket] is propagated to @racket[#:configure]
     via @DFlag{enable-racket}; a symbol is allowed for @racket[#:racket]
-    only for a @racket[#:docker] configuration
+    only for a @racket[#:docker] configuration, and discard an existing Docker
+    container when changing the symbol
 
     @history[#:changed "1.20" @elem{Added symbol mode to cooperate with
                                     @racket[#:dir].}]}
@@ -1248,10 +1250,13 @@ the number of Docker containers that run concurrently.
 To fully imitate the main download site, @racket[make-machines] should
 be called twice, once with @racket[minimal?] as true and once with
 @racket[minimal?] as false. Results from multiple calls must be
-combined with @racket[sequential], not @racket[parallel]. Instead of
+combined with @racket[sequential], not @racket[parallel], because
+containers are reused to reduce unnecessary rebuilds. Instead of
 using @racket[#:clean?] to force a clean build, consider pruning all
-containers create by a build; the @racket[extract-container-names]
-function reports all relevant container names.
+containers create by a build; see @racket[extract-container-names]
+for further cleaning recommendations. Supply @racket[mac-sign-cert-config]
+and @racket[mac-notarization-config] arguments consistently, and beware
+that changing those arguments may require removing old containers.
 
 The @racket[minimal?] argument indicates whether the configuration is
 intended as a Minimal Racket distribution. It determines the default
@@ -1304,17 +1309,26 @@ configuration.
 }
 
 @defproc[(make-spliceable-limits [#:max-parallel max-parallel exact-positive-integer? 3]
-                                 [#:timeout timeout real? (* #e1.5 60 60)]
-                                 [#:j j exact-positive-integer? 2])
+                                 [#:j j exact-positive-integer? 2]
+                                 [#:timeout timeout real? (* #e1.5 60 60)])
          hash?]{
 
  Passes along all arguments to @racket[spliceable], effectively
- providing good defaults for a main-distribution build.
+ providing good defaults for a main-distribution build in combination
+ with the results of @racket[make-machines].
 
- Expect each container to use 2 GB of memory or 1 GB times @racket[j],
+ The @racket[max-parallel] argument limits the number of Docker
+ containers that run concurrently, while @racket[j] limits parallelism
+ within a Docker container.
+
+ Expect each container to use 2 GB of memory or @racket[j] GB,
  whichever is larger. Containers are not automatically removed after a
- build, so they are available for incremental builds. Expect the full
- set of containers to use up to 128 GB of disk space.
+ build, so they are available for incremental builds; see also
+ @racket[extract-container-names]. Expect the full set of containers
+ to use up to 128 GB of disk space. Note that Docker on some host
+ platforms (such as Mac OS) has a configurable set of limits that span
+ all running containers, so make sure those limits are set
+ appropriately.
 
 }
 
@@ -1345,6 +1359,17 @@ configuration.
          (listof string?)]{
 
  Extracts all Docker container names used to build @racket[config].
+
+ Docker containers are left in place after a distribution build that
+ uses them, which enables incremental updates (to some degree) when
+ rebuilding. It's always safe to discard the containers between
+ builds.
+
+ Note that the configuration produced by @racket[make-machines]
+ creates Git checkouts in the @filepath{build} subdirectory of the
+ Racket checkout used to drive a distribution build. To reset a build
+ to work from scratch, be sure to delete the @filepath{build}
+ subdirectory.
 
 }
 

@@ -34,7 +34,9 @@
 
 ;; Whether to cross-build for especially old Raspberry Pi, which
 ;; currently requires a host that can run an x86_64 Docker image.
-(define arm-debian7? on-x86_64?)
+(define arm-debian7? (and #f
+                          (or on-x86_64?
+                              (eq? 'macosx (system-type)))))
 
 (define racket-file-name "racket")
 (define minimal-racket-file-name "racket-minimal")

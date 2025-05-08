@@ -152,6 +152,19 @@
   (file-or-directory-permissions dir #o777) ; world-writeable so Docker user ID matters less
   dir)
 
+(define (docker-common-dir)
+  (define dir (build-path "build" "common"))
+  (make-directory* dir)
+  (file-or-directory-permissions dir #o777) ; world-writeable so Docker user ID matters less
+  dir)
+
+(define (assert-docker c key)
+  (unless (and (not (get-opt c '#:vbox))
+               (get-opt c '#:docker))
+    (error 'drive-clients
+           "symbol value for ~a make sense only for a Docker client"
+           key)))
+
 ;; --------------------------------------------------
 ;; Managing VirtualBox machines and Docker containers
 
@@ -172,6 +185,9 @@
         ;; instance, since otherwise that may (re-)create the dir
         ;; with with wrong permission:
         (define upload-dir (docker-upload-dir container))
+        (define common-dir? (or (symbol? (get-opt c '#:dir))
+                                (symbol? (get-opt c '#:racket))))
+        (define common-dir (and common-dir? (docker-common-dir)))
         ;; Create a Docker instance if it doesn't exist already:
         (unless (docker-id #:name container)
           (docker-create #:name container
@@ -186,6 +202,11 @@
                                      (,(path->complete-path ".git")
                                       ,(build-slash-path mnt-dir "server-repo")
                                       rw)
+                                     ,@(if common-dir?
+                                           `((,(path->complete-path common-dir)
+                                              ,(build-slash-path mnt-dir "common")
+                                              ,(if (symbol? (get-opt c '#:dir)) 'rw 'ro)))
+                                           null)
                                      ,@(let* ([config (get-opt c '#:sign-cert-config #f)]
                                               [dir (and config
                                                         (hash-ref config 'p12-dir #f))])
@@ -260,6 +281,7 @@
     #:extra-repo-dir
     #:site-dest
     #:site-help
+    #:site-help-fallbacks
     #:site-title
     #:pdf-doc?
     #:max-snapshots
@@ -273,7 +295,8 @@
     #:smtp-user
     #:smtp-password
     #:fail-on-client-failures
-    #:custom))
+    #:custom
+    #:start-hook))
 
 (define describe-never-keys
   '(#:name))
@@ -384,7 +407,8 @@
                 [else (if show-guess?
                           (format "<extension:~a>" extension-guess)
                           extension-guess)])))
-    (when (eq? dry-run 'describe)
+    (when (and (eq? dry-run 'describe)
+               (not (symbol? (get-opt c '#:dir))))
       (for ([a (in-list aliases)])
         (define base (car a))
         (define suffix (cadr a))
@@ -553,12 +577,17 @@
 
 (define (client-args c server server-port kind readme mnt-dir)
   (define desc (client-name c))
+  (define variant (or (get-opt c '#:variant) default-variant))
   (define pkgs (let ([l (get-opt c '#:pkgs)])
                  (if l
                      (apply ~a #:separator " " l)
                      default-pkgs)))
-  (define racket (get-opt c '#:racket))
-  (define variant (or (get-opt c '#:variant) default-variant))
+  (define racket-or-symbol (get-opt c '#:racket))
+  (define racket (racket-symbol->path racket-or-symbol variant))
+  (define scheme-dir (and (symbol? racket-or-symbol)
+                          (begin (assert-docker c '#:racket) #t)
+                          (build-slash-path (build-common-directory racket-or-symbol variant)
+                                            "racket/src/build/cs/c")))
   (define cs? (eq? variant 'cs))
   (define extra-repos? (and (get-opt c '#:extra-repo-dir) #t))
   (define doc-search (choose-doc-search c default-doc-search))
@@ -623,6 +652,9 @@
           "")
       (if (and racket cs?)
           (~a " RACKET=" (q racket))
+          "")
+      (if (and scheme-dir cs?)
+          (~a " CS_HOST_WORKAREA_PREFIX=" (q scheme-dir))
           "")
       (if extra-repos?
           (cond
@@ -696,6 +728,11 @@
       " TEST_PKGS=" (q (apply ~a #:separator " " (get-opt c '#:test-pkgs '())))
       " TEST_ARGS_q=" (qq (get-opt c '#:test-args '()) kind)))
 
+(define (racket-symbol->path racket-or-symbol variant)
+  (if (symbol? racket-or-symbol)
+      (build-slash-path (build-common-directory racket-or-symbol variant) "racket/bin/racket")
+      racket-or-symbol))
+
 (define (has-tests? c)
   (and (pair? (get-opt c '#:test-args '()))
        (not (get-opt c '#:source-runtime? (get-opt c '#:source? default-source?)))
@@ -716,14 +753,24 @@
 (define (get-unix-dir c)
   (get-path-opt c '#:dir "build/plt" #:localhost (current-directory)))
 
+(define (build-common-directory symbol variant)
+  (build-slash-path mnt-dir "common" (symbol->string symbol) (symbol->string variant)))
+
 (define (add-enable-portable config-args)
   (if (member "--disable-portable" config-args)
       config-args
       (cons "--enable-portable" config-args)))
 
 (define (unix-build c platform host port user server server-port repo init clean? pull? readme)
+  (define variant (or (get-opt c '#:variant) default-variant))
   (define port/kind (if (get-opt c '#:docker #f) 'docker port))
-  (define dir (get-unix-dir c))
+  (define dir-or-symbol (get-unix-dir c))
+  (define no-installer? (symbol? dir-or-symbol))
+  (define dir (if (symbol? dir-or-symbol)
+                  (begin
+                    (begin (assert-docker c '#:dir) #t)
+                    (build-common-directory dir-or-symbol variant))
+                  dir-or-symbol))
   (define env (get-opt c '#:env null))
   (define (sh . args)
     (cond
@@ -738,7 +785,6 @@
         (list "/bin/sh" "-c" (apply ~a args)))]))
   (define make-exe (or (get-opt c '#:make) "make"))
   (define j (or (get-opt c '#:j) 1))
-  (define variant (or (get-opt c '#:variant) default-variant))
   (define cs? (eq? variant 'cs))
   (define compile-any? (get-opt c '#:compile-any?))
   (define cross-target (get-opt c '#:cross-target))
@@ -748,7 +794,7 @@
                                              (infer-cross-machine cross-target)))))
   (define cross? (or cross-target cross-target-machine))
   (define given-racket (and cross?
-                            (get-opt c '#:racket)))
+                            (racket-symbol->path (get-opt c '#:racket) variant)))
   (define need-native-racket? (and cross?
                                    (not given-racket)))
   (define built-native-racket
@@ -782,7 +828,7 @@
                      (~a " EXTRA_REPOS_BASE=" (build-slash-path client-mnt-dir "extra-repos/"))])
                   "")))
      (sh "cd " (q dir) " ; "
-         make-exe " -j " j " client" (if compile-any? "-compile-any" "")
+         make-exe " -j " j " client" (if compile-any? "-compile-any" "") (if no-installer? "-no-installer" "")
          (client-args c server server-port 'unix readme client-mnt-dir)
          " JOB_OPTIONS=\"-j " j "\""
          (if need-native-racket?
@@ -798,7 +844,10 @@
              " BUNDLE_FROM_SERVER_TARGET=bundle-cross-from-server"
              "")
          (if (and cross? cs?)
-             " CS_CROSS_SUFFIX=-cross CS_HOST_WORKAREA_PREFIX=../../cross/cs/c/"
+             (~a " CS_CROSS_SUFFIX=-cross"
+                 (if (symbol? (get-opt c '#:racket))
+                     ""
+                     " CS_HOST_WORKAREA_PREFIX=../../cross/cs/c/"))
              "")
          (if cross-target-machine
              (~a " SETUP_MACHINE_FLAGS=\"--cross-compiler " cross-target-machine
@@ -824,6 +873,7 @@
                                      (get-opt c '#:configure null)))
                                    'unix))
      (and (has-tests? c)
+          (not no-installer?)
           (sh "cd " (q dir) " ; "
               make-exe " test-client"
               (client-args c server server-port 'unix readme client-mnt-dir)
@@ -841,15 +891,16 @@
 
      (define result (build))
 
-     (define uploads (directory-list upload-dir))
-     (unless (null? uploads)
-       (define filename (car uploads))
-       (define installers-dir (build-path "build" "installers"))
-       (make-directory* installers-dir)
-       (copy-file (build-path upload-dir filename)
-                  (build-path installers-dir filename)
-                  #t)
-       (record-installer installers-dir (path->string filename) (client-name c)))
+     (unless no-installer?
+       (define uploads (directory-list upload-dir))
+       (unless (null? uploads)
+         (define filename (car uploads))
+         (define installers-dir (build-path "build" "installers"))
+         (make-directory* installers-dir)
+         (copy-file (build-path upload-dir filename)
+                    (build-path installers-dir filename)
+                    #t)
+         (record-installer installers-dir (path->string filename) (client-name c))))
 
      result]))
 

@@ -164,7 +164,7 @@
     [(#:pkgs) (and (list? val) (andmap simple-string? val))]
     [(#:test-pkgs) (and (list? val) (andmap simple-string? val))]
     [(#:test-args) (and (list? val) (andmap string? val))]
-    [(#:racket) (or (not val) (string? val))]
+    [(#:racket) (or (not val) (string? val) (symbol? val))]
     [(#:scheme) (or (not val) (string? val))]
     [(#:cross-target) (or (not val) (simple-string? val))]
     [(#:cross-target-machine) (or (not val) (simple-string? val))]
@@ -196,7 +196,7 @@
     [(#:host) (simple-string? val)]
     [(#:user) (or (not val) (simple-string? val))]
     [(#:port) (port-no? val)]
-    [(#:dir) (path-string? val)]
+    [(#:dir) (or (path-string? val) (symbol? val))]
     [(#:env) (and (list? val)
                   (andmap (lambda (p)
                             (and (list? p)

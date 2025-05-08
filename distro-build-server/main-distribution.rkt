@@ -22,6 +22,7 @@
 
 (define on-x86_64? (eq? 'x86_64 (system-type 'arch)))
 (define on-aarch64? (eq? 'aarch64 (system-type 'arch)))
+(define common (system-type 'arch))
 
 (define (make-start-check)
   (lambda ()
@@ -255,7 +256,20 @@
    #:dist-base base
    #:pkgs pkgs
 
+   ;; Not an installer, but a host build (relative to a container) to
+   ;; create once and share across cross builds
    (parallel
+    #:dir common
+    #:docker "racket/distro-build:debian10"
+    (cs-machine
+     #:host "cross-common"
+     (machine))
+    (bc-machine
+     #:host "cross-common"
+     (machine)))
+
+   (parallel
+    #:racket common
     ;; ----------------------------------------
     ;; Linux
     (parallel
@@ -313,6 +327,7 @@
      ;; ----------------------------------------
      ;; Linux arm
      (parallel
+      #:racket (if arm-debian7? #f common)
       #:docker (if arm-debian7?
                    "racket/distro-build:crosslinux-arm-debian7"
                    "racket/distro-build:crosslinux-arm")

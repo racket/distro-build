@@ -237,19 +237,25 @@ spaces, etc.):
   @item{@racket[#:user _string*-or-false] --- SSH user for the client;
     defaults to @racket[#f], which means the current user}
 
-  @item{@racket[#:dir _path-string] --- normally defaults to
+  @item{@racket[#:dir _path-string-or-symbol] --- normally defaults to
     @racket["build/plt"] or @racket["build\\plt"], but defaults to the current
     directory if @deftech{local mode} is enabled: @racket[#:host] is @racket["localhost"],
     @racket[#:user] is @racket[#f], @racket[#:configure] is @racket['()],
     @racket[#:cross-target] is @racket[#f], and
     @racket[#:cross-target-machine] is @racket[#f]; for other defaults,
     @tech{local mode} depends on @racket[#:dir] also being unspecified so
-    that its default is used
+    that its default is used; a symbol, instead of a path string, does not
+    generate an installer and instead builds for use by later
+    configurations that have the same @racket[#:variant] and the
+    same symbol for @racket[#:racket]; a symbol is allowed only for a
+    @racket[#:docker] configuration
 
     @history[#:changed "1.17" @elem{Made @tech{local mode} depend on
                                     @racket[#:configure],
                                     @racket[#:cross-target], and
-                                    @racket[#:cross-target-machine].}]}
+                                    @racket[#:cross-target-machine].}
+             #:changed "1.20" @elem{Added symbol mode to cooperate with
+                                    @racket[#:racket].}]}
 
   @item{@racket[#:env (list (list _string* _string) ...)] ---
     environment-variable settings to prefix all client-machine
@@ -450,15 +456,20 @@ spaces, etc.):
 
     @history[#:added "1.3"]}
 
-  @item{@racket[#:racket _string-or-false] --- an absolute path to a
+  @item{@racket[#:racket _string-or-symbol-false] --- an absolute path to a
     native Racket executable to use for compilation, especially
-    cross-compilation; if the value is @racket[#f], then the Racket
+    cross-compilation, or a symbol that uses a Racket built by an earlier
+    configuration that uses the symbol for @racket[#:dir]; if the value is @racket[#f], then the Racket
     executable generated for the client machine is used to prepare the
     installer, or a client-native executable is generated
     automatically if @racket[#:cross-target] or
     @racket[#:cross-target-machine] is specified; a non-@racket[#f]
     value for @racket[#:racket] is propagated to @racket[#:configure]
-    via @DFlag{enable-racket}}
+    via @DFlag{enable-racket}; a symbol is allowed for @racket[#:racket]
+    only for a @racket[#:docker] configuration
+
+    @history[#:changed "1.20" @elem{Added symbol mode to cooperate with
+                                    @racket[#:dir].}]}
 
   @item{@racket[#:scheme _string-or-false] --- obsolete; was an
     absolute path to a directory containing Chez Scheme sources
@@ -670,7 +681,7 @@ spaces, etc.):
 
     @history[#:added "1.8"
              #:changed "1.20" @elem{Changed default log name to remove
-                                    noise and awkward characters}]}
+                                    noise and awkward characters.}]}
 
   @item{@racket[#:stream-log? _boolean] --- if true, send log output
     to server's output and error ports as well as logging them to a

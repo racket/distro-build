@@ -19,4 +19,4 @@
 
 (define config (site-config-options c))
 
-((hash-ref config '#:start-hook (lambda (c) void)) c)
+((hash-ref config '#:start-hook (lambda () void)) c)

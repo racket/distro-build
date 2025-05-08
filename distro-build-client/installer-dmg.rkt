@@ -3,6 +3,7 @@
          racket/file
          racket/format
          racket/runtime-path
+         racket/port
          ds-store
          ds-store/alias
          ds-store/cross-alias
@@ -77,10 +78,15 @@
 
 (define-runtime-path bg-image "macosx-installer/racket-rising.png")
 
-(define (system*/show #:ignore-failure? [ignore-failure? #f] . l)
+(define (system*/show #:ignore-failure? [ignore-failure? #f]
+                      #:quiet? [quiet? #f]
+                      . l)
   (displayln (apply ~a #:separator " " l))
   (flush-output)
-  (unless (apply system* l)
+  (unless (if quiet?
+              (parameterize ([current-output-port (open-output-nowhere)])
+                (apply system* l))
+              (apply system* l))
     (unless ignore-failure?
       (error "failed"))))
 
@@ -169,11 +175,8 @@
        (system*/show (find-exe "mkfs.hfsplus")
                      "-v" volname
                      tmp-dmg)
-       (system*/show hfsplus
-                     tmp-dmg
-                     "addall"
-                     ".")
-       (system*/show hfsplus
+       (system*/show #:quiet? #t
+                     hfsplus
                      tmp-dmg
                      "addall"
                      ".")

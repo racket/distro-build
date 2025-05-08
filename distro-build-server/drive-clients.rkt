@@ -117,7 +117,7 @@
   (or (get-opt opts '#:log-file)
       ;; simplify name to avoid characters that make an awkward file name
       (let* ([name (client-name opts)]
-             [name (regexp-replace* #rx"(?:{[^}]*})|[|;*!]" name "")]
+             [name (regexp-replace* #rx"(?:{[^}]*})|[|;*!()]" name "")]
              [name (regexp-replace #rx"^ +" name "")]
              [name (regexp-replace #rx" +$" name "")]
              [name (regexp-replace* #rx" +" name "_")])

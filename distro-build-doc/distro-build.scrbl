@@ -677,7 +677,8 @@ spaces, etc.):
   @item{@racket[#:log-file _string] --- the file name to use for the
     log file for the machine; defaults to @racket[#:name]'s value, but
     with ordering sequences (see @secref["name-format"]), @litchar{|},
-    @litchar{;}, @litchar{!}, and @litchar{*} removed, trailing and
+    @litchar{;}, @litchar{!}, @litchar{*}, @litchar{(}, @litchar{)},
+    @litchar{[}, and @litchar{]} removed, trailing and
     ending spaces removed, and remaining space sequences converted to
     @litchar{_}
 

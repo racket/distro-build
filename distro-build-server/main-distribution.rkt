@@ -5,6 +5,7 @@
                   parallel
                   sequential
                   spliceable
+                  site-config?
                   site-config-tag
                   site-config-options
                   site-config-content))
@@ -18,14 +19,16 @@
          racket-name
          minimal-racket-name
          racket-file-name
-         minimal-racket-file-name)
+         minimal-racket-file-name
+
+         extract-container-names)
 
 (define on-x86_64? (eq? 'x86_64 (system-type 'arch)))
 (define on-aarch64? (eq? 'aarch64 (system-type 'arch)))
 (define common (system-type 'arch))
 
 (define (make-start-check)
-  (lambda ()
+  (lambda (c)
     (unless (or on-x86_64? on-aarch64?)
       (error "expecting to run on x86_64 or AArch64"))))
 
@@ -106,7 +109,8 @@
   (sequential
    (machine #:name (~a name disk-image-name))
    (machine #:name (~a name tarball-name)
-            #:tgz? #t)))
+            #:tgz? #t
+            #:clean? #f)))
 
 (define (make-mac-signed sign-cert-config m)
   (if sign-cert-config
@@ -124,19 +128,25 @@
        m)
       m))
 
-(define (machine/exe+tgz #:name name)
-  (sequential
-   (machine #:name (~a name installer-name))
-   (machine #:name (~a name tarball-name)
-            #:tgz? #t
-            #:server-installer-post-process null)))
+(define (make-machine/exe+tgz windows-sign-post-process)
+  (lambda (#:name name)
+    (sequential
+     (machine #:name (~a name installer-name))
+     (machine #:name (~a name tarball-name)
+              #:tgz? #t
+              #:clean? #f
+              #:splice (if windows-sign-post-process
+                           (spliceable
+                            #:server-installer-post-process null)
+                           (spliceable))))))
 
 (define (machine/sh+tgz #:name name)
   ;; Create all Linux installer forms
   (sequential
    (machine #:name (~a name installer-name))
    (machine #:name (~a name tarball-name)
-            #:tgz? #t)))
+            #:tgz? #t
+            #:clean? #f)))
 
 (define (merge-aliaes aliases extra-aliases)
   (append
@@ -186,20 +196,48 @@
 (define (filter-machs filter-rx m)
   (cond
     [(not filter-rx) m]
-    [(eq? (site-config-tag m) 'machine)
-     (if (regexp-match? filter-rx (hash-ref (site-config-options m) '#:name
-                                            (hash-ref (site-config-options m) '#:host "localhost")))
-         m
-         (sequential))]
     [else
-     (define kws (sort (hash-keys (site-config-options m)) keyword<?))
-     (keyword-apply
-      (if (eq? (site-config-tag m) 'sequential) sequential parallel)
-      kws
-      (for/list ([kw (in-list kws)])
-        (hash-ref (site-config-options m) kw))
-      (for/list ([m (in-list (site-config-content m))])
-        (filter-machs filter-rx m)))]))
+     (define default-variant 'cs)
+     (define (matches? m)
+       (regexp-match? filter-rx (hash-ref (site-config-options m) '#:name
+                                          (hash-ref (site-config-options m) '#:host "localhost"))))
+     (define (find-keep-commons)
+       (let loop ([m m] [variant default-variant] [racket #f] [keep #hash()])
+         (define new-variant (or (hash-ref (site-config-options m) '#:variant #f)
+                                 variant))
+         (define new-racket (or (hash-ref (site-config-options m) '#:racket #f)
+                                racket))
+         (cond
+           [(eq? (site-config-tag m) 'machine)
+            (if (and racket
+                     (matches? m))
+                (hash-set keep (list variant racket) #t)
+                keep)]
+           [else
+            (for/fold ([keep keep]) ([m (in-list (site-config-content m))])
+              (loop m new-variant new-racket keep))])))
+     (define (filter-machs keep-commons)
+       (let loop ([m m] [variant default-variant] [dir #f])
+         (define new-variant (or (hash-ref (site-config-options m) '#:variant #f)
+                                 variant))
+         (define new-dir (or (hash-ref (site-config-options m) '#:dir #f)
+                             dir))
+         (cond
+           [(eq? (site-config-tag m) 'machine)
+            (if (or (hash-ref keep-commons (list new-variant new-dir) #f)
+                    (matches? m))
+                m
+                (sequential))]
+           [else
+            (define kws (sort (hash-keys (site-config-options m)) keyword<?))
+            (keyword-apply
+             (if (eq? (site-config-tag m) 'sequential) sequential parallel)
+             kws
+             (for/list ([kw (in-list kws)])
+               (hash-ref (site-config-options m) kw))
+             (for/list ([m (in-list (site-config-content m))])
+               (loop m new-variant new-dir)))])))
+     (filter-machs (find-keep-commons))]))
 
 (define (source-machine make-name src-platforms built-desc)
   (sequential
@@ -623,7 +661,7 @@
     (if minimal?
         "built libraries"
         "built packages")
-    (select-format machine/exe+tgz)
+    (select-format (make-machine/exe+tgz windows-sign-post-process))
     (select-format machine/dmg+tgz)
     (select-format machine/sh+tgz)
     (if cs?
@@ -646,3 +684,26 @@
    #:max-parallel max-parallel
    #:timeout timeout
    #:j j))
+
+(define (extract-container-names m)
+  (define containers
+    (let loop ([m m] [host #f] [docker #f] [containers #hash()])
+      (cond
+        [(site-config? m)
+         (define new-host (or (hash-ref (site-config-options m) '#:host #f)
+                              host))
+         (define new-docker (or (hash-ref (site-config-options m) '#:docker #f)
+                                docker))
+         (cond
+           [(eq? 'machine (site-config-tag m))
+            (if new-docker
+                (hash-set containers (or host "localhost") #t)
+                containers)]
+           [else
+            (loop (site-config-content m) new-host new-docker containers)])]
+        [(null? m) containers]
+        [(pair? m)
+         (loop (cdr m) host docker (loop (car m) host docker containers))]
+        [else containers])))
+
+  (sort (hash-keys containers) string<?))

@@ -816,9 +816,10 @@ Top keywords (expected only in the configuration top-level):
     return code; the default is @racket[#f]
     @history[#:added "1.1"]}
 
-  @item{@racket[#:start-hook _proc] --- a procedure of zero arguments to
+  @item{@racket[#:start-hook _proc] --- a procedure of one argument to
     be called once on the server before gathering packages, which can be
-    useful for performing environment checks before proceeding; the default
+    useful for performing environment checks before proceeding; the procedure
+    is called with the full site configuration; the default
     is @racket[void]
 
     @history[#:added "1.20"]}
@@ -1228,10 +1229,15 @@ available at the main Racket download site. The result is intended as
 an argument to a top-level @racket[sequential] to further configure
 the build, especially with a @racket[#:splice]s result from
 @racket[make-spliceable-limits] to configure a timeout and to control
-the number of Docker containers that run concurrently. To fully
-imitate the main download site, @racket[make-machines] should be
-called twice, once with @racket[minimal?] as true and once with
-@racket[minimal?] as false.
+the number of Docker containers that run concurrently.
+
+To fully imitate the main download site, @racket[make-machines] should
+be called twice, once with @racket[minimal?] as true and once with
+@racket[minimal?] as false. Results from multiple calls must be
+combined with @racket[sequential], not @racket[parallel]. Instead of
+using @racket[#:clean?] to force a clean build, consider pruning all
+containers create by a build; the @racket[extract-container-names]
+function reports all relevant container names.
 
 The @racket[minimal?] argument indicates whether the configuration is
 intended as a Minimal Racket distribution. It determines the default
@@ -1299,7 +1305,7 @@ configuration.
 }
 
 @deftogether[(
-@defproc[(make-start-check) (procedure-arity-includes/c 0)]
+@defproc[(make-start-check) (procedure-arity-includes/c 1)]
 @defproc[(make-site-help) hash?]
 @defproc[(make-site-help-fallbacks) list?]
 )]{
@@ -1318,6 +1324,13 @@ configuration.
 )]{
 
  Default strings for names and file names.
+
+}
+
+@defproc[(extract-container-names [config site-config?])
+         (listof string?)]{
+
+ Extracts all Docker container names used to build @racket[config].
 
 }
 

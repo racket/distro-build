@@ -1,7 +1,9 @@
 #lang racket/base
 (require racket/cmdline
          racket/string
-         (only-in "config.rkt" extract-options))
+         (only-in "config.rkt"
+                  current-mode
+                  site-config-options))
 
 (module test racket/base)
 
@@ -11,6 +13,10 @@
    (config-file config-mode)
    (values config-file config-mode)))
 
-(define config (extract-options config-file config-mode))
+(define c
+  (parameterize ([current-mode config-mode])
+    (dynamic-require (path->complete-path config-file) 'site-config)))
 
-((hash-ref config '#:start-hook (lambda () void)))
+(define config (site-config-options c))
+
+((hash-ref config '#:start-hook (lambda (c) void)) c)

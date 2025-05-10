@@ -250,6 +250,7 @@
     [(#:clean?) (boolean? val)]
     [(#:pull?) (boolean? val)]
     [(#:extra-repo-dir) (path-string? val)]
+    [(#:recompile-cache) (or (not val) (symbol? val))]
     [(#:release?) (boolean? val)]
     [(#:source?) (boolean? val)]
     [(#:source-runtime?) (boolean? val)]

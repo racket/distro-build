@@ -499,6 +499,15 @@ spaces, etc.):
     packages or an installer used to drive machine-independent package
     builds; defaults to @racket[#f]}
 
+  @item{@racket[#:recompile-cache _symbol-or-false] --- if not @racket[#f],
+    identifies a cache for compiled files that can be shared across
+    Docker-based machines that used the same @racket[#:recompile-cache]
+    symbol; a symbol is allowed only for a
+    @racket[#:docker] configuration, and discard an existing Docker
+    container when changing the symbol
+
+    @history[#:added "1.20"]}
+
   @item{@racket[#:bits _integer] --- @racket[32] or @racket[64];
     affects Visual Studio mode}
 
@@ -1228,6 +1237,7 @@ usage.
                         [#:file-name file-name string? (if minimal?
                                                            minimal-racket-file-name
                                                            racket-file-name)]
+                        [#:container-prefix container-prefix "main-dist-"]
                         [#:cs? cs? any/c #t]
                         [#:bc? bc? any/c #f]
                         [#:cs-name-suffix cs-name-suffix string? ""]
@@ -1236,6 +1246,7 @@ usage.
                         [#:windows-sign-post-process windows-sign-post-process (or/c #f (listof string?)) #f]
                         [#:mac-sign-cert-config mac-sign-cert-config (or/c #f hash?) #f]
                         [#:mac-notarization-config mac-notarization-config (or/c #f hash?) #f]
+                        [#:recompile-cache recompile-cache (or/c symbol? #f) 'main-dist]
                         [#:aliases aliases list? '()])
           site-config?]{
 
@@ -1248,21 +1259,24 @@ the build, especially with a @racket[#:splice]s result from
 @racket[make-spliceable-limits] to configure a timeout and to control
 the number of Docker containers that run concurrently.
 
-To fully imitate the main download site, @racket[make-machines] should
-be called twice, once with @racket[minimal?] as true and once with
-@racket[minimal?] as false. Results from multiple calls must be
-combined with @racket[sequential], not @racket[parallel], because
-containers are reused to reduce unnecessary rebuilds. Instead of
-using @racket[#:clean?] to force a clean build, consider pruning all
-containers create by a build; see @racket[extract-container-names]
-for further cleaning recommendations. Supply @racket[mac-sign-cert-config]
-and @racket[mac-notarization-config] arguments consistently, and beware
-that changing those arguments may require removing old containers.
-
 The @racket[minimal?] argument indicates whether the configuration is
 intended as a Minimal Racket distribution. It determines the default
 for many other arguments. If @racket[minimal?] is true, then
 @racket[pkgs] must be an empty list.
+
+To fully imitate the main download site, @racket[make-machines] should
+be called twice, once with @racket[minimal?] as true and once with
+@racket[minimal?] as false, normally in that order. Results from
+multiple calls must be combined with @racket[sequential], not
+@racket[parallel], because containers are reused to reduce unnecessary
+rebuilds. When using @racket[#:clean?], a good strategy is to wrap the
+result of @racket[make-machine] with @racket[minimal?] as true also
+with @racket[#:clean?] as true, and not the result of
+@racket[make-machine] with @racket[minimal?] as @racket[#false]; see
+also @racket[extract-container-names]. Supply
+@racket[mac-sign-cert-config], @racket[mac-notarization-config], and
+@racket[recompile-cache] arguments consistently, and beware that
+changing those arguments may require removing old containers.
 
 The @racket[pkgs] argument determines packages that are pre-installed
 in the distribution. It must be a subset of the packages that are
@@ -1288,6 +1302,9 @@ or @racket["{2} Minimal Racket"]. The @racket[file-name] argument
 provides the component of an installer or archive name, typically
 @racket["racket"] or @racket["racket-minimal"].
 
+The @racket[container-prefix] argument is used as a prefix on all
+Docker container names used by the build.
+
 The @racket[cs?] and @racket[bc?] arguments indicate whether the
 respective Racket variant is included, and the @racket[cs-name-suffix]
 and @racket[bc-name-suffix] arguments provide a suffix to add to
@@ -1303,6 +1320,9 @@ installer configurations to sign them. Similarly, if
 @racket[mac-sign-cert-config] or @racket[mac-notarization-config]is
 not @racket[#f], it is used as a @racket[#:sign-cert-config] or
 @racket[#:notarization-config]value to sign Mac OS disk images.
+
+The @racket[recompile-cache] argument is used as the
+@racket[#:recompile-cache] configuration for all installer builds.
 
 The @racket[aliases] list is added to @racket[#:dist-alises] for each
 configuration.
@@ -1361,16 +1381,15 @@ configuration.
 
  Extracts all Docker container names used to build @racket[config].
 
- Docker containers are left in place after a distribution build that
- uses them, which enables incremental updates (to some degree) when
- rebuilding. It's always safe to discard the containers between
- builds.
+ Docker containers are left in place after a distribution build, which
+ enables incremental updates (to some degree) when rebuilding. It's
+ always safe to discard the containers between builds.
 
  Note that the configuration produced by @racket[make-machines]
  creates Git checkouts in the @filepath{build} subdirectory of the
  Racket checkout used to drive a distribution build. To reset a build
  to work from scratch, be sure to delete the @filepath{build}
- subdirectory.
+ subdirectory as well as removing Docker containers.
 
 }
 

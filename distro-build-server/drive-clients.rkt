@@ -22,7 +22,8 @@
          remote-shell/vbox
          remote-shell/docker
          (prefix-in remote: remote-shell/ssh)
-         "email.rkt")
+         "email.rkt"
+         "private/record-using-container.rkt")
 
 ;; See "config.rkt" for an overview.
 
@@ -117,7 +118,7 @@
   (or (get-opt opts '#:log-file)
       ;; simplify name to avoid characters that make an awkward file name
       (let* ([name (client-name opts)]
-             [name (regexp-replace* #rx"(?:{[^}]*})|[|;*!()]" name "")]
+             [name (regexp-replace* #rx"(?:{[^}]*})|[][|;*!()]" name "")]
              [name (regexp-replace #rx"^ +" name "")]
              [name (regexp-replace #rx" +$" name "")]
              [name (regexp-replace* #rx" +" name "_")])
@@ -146,17 +147,19 @@
 ;; In-container root for server directories accessed by a Docker client:
 (define mnt-dir "/docker-mnt")
 
-(define (docker-upload-dir host)
-  (define dir (build-path "build" "upload" host))
+(define (make-docker-dir dir)
   (make-directory* dir)
   (file-or-directory-permissions dir #o777) ; world-writeable so Docker user ID matters less
   dir)
 
+(define (docker-upload-dir host)
+  (make-docker-dir (build-path "build" "upload" host)))
+
 (define (docker-common-dir)
-  (define dir (build-path "build" "common"))
-  (make-directory* dir)
-  (file-or-directory-permissions dir #o777) ; world-writeable so Docker user ID matters less
-  dir)
+  (make-docker-dir (build-path "build" "common")))
+
+(define (docker-recompile-cache-dir sym)
+  (make-docker-dir (build-path "build" "recompile-cache" (symbol->string sym))))
 
 (define (assert-docker c key)
   (unless (and (not (get-opt c '#:vbox))
@@ -188,6 +191,9 @@
         (define common-dir? (or (symbol? (get-opt c '#:dir))
                                 (symbol? (get-opt c '#:racket))))
         (define common-dir (and common-dir? (docker-common-dir)))
+        (define recompile-dir (let ([cache (get-opt c '#:recompile-cache)])
+                                (and cache (docker-recompile-cache-dir cache))))
+        (record-using-docker-container "build/containers.txt" container)
         ;; Create a Docker instance if it doesn't exist already:
         (unless (docker-id #:name container)
           (docker-create #:name container
@@ -206,6 +212,11 @@
                                            `((,(path->complete-path common-dir)
                                               ,(build-slash-path mnt-dir "common")
                                               ,(if (symbol? (get-opt c '#:dir)) 'rw 'ro)))
+                                           null)
+                                     ,@(if recompile-dir
+                                           `((,(path->complete-path recompile-dir)
+                                              ,(build-slash-path mnt-dir "recompile-cache")
+                                              rw))
                                            null)
                                      ,@(let* ([config (get-opt c '#:sign-cert-config #f)]
                                               [dir (and config
@@ -585,9 +596,15 @@
   (define racket-or-symbol (get-opt c '#:racket))
   (define racket (racket-symbol->path racket-or-symbol variant))
   (define scheme-dir (and (symbol? racket-or-symbol)
-                          (begin (assert-docker c '#:racket) #t)
-                          (build-slash-path (build-common-directory racket-or-symbol variant)
-                                            "racket/src/build/cs/c")))
+                          (begin
+                            (assert-docker c '#:racket)
+                            (build-slash-path (build-common-directory racket-or-symbol variant)
+                                              "racket/src/build/cs/c"))))
+  (define recompile-cache-dir (let ([cache (get-opt c '#:recompile-cache)])
+                                (and cache
+                                     (begin
+                                       (assert-docker c '#:recompile-cache)
+                                       (build-recompile-cache-directory cache)))))
   (define cs? (eq? variant 'cs))
   (define extra-repos? (and (get-opt c '#:extra-repo-dir) #t))
   (define doc-search (choose-doc-search c default-doc-search))
@@ -712,6 +729,9 @@
       (if all-platform-pkgs?
           " PKG_INSTALL_OPTIONS=--all-platforms"
           "")
+      (if recompile-cache-dir
+          (~a " RECOMPILE_CACHE=" recompile-cache-dir)
+          "")
       " UNPACK_COLLECTS_FLAGS=" (if (and cs?
                                          (not serving-machine-independent?))
                                     "--skip"
@@ -755,6 +775,9 @@
 
 (define (build-common-directory symbol variant)
   (build-slash-path mnt-dir "common" (symbol->string symbol) (symbol->string variant)))
+
+(define (build-recompile-cache-directory symbol)
+  (build-slash-path mnt-dir "recompile-cache"))
 
 (define (add-enable-portable config-args)
   (if (member "--disable-portable" config-args)
@@ -1100,7 +1123,7 @@
     (make-directory* log-dir)
     (define cust (make-custodian))
     (define (go shutdown)
-      (wait-for-turn)
+      (unless all-seq? (wait-for-turn))
       (printf "(+) start ~a\n" log-file-name)
       (flush-output)
       (define p (open-output-file log-file

@@ -163,10 +163,11 @@
 
 (define (cs-machine m
                     #:host host
+                    #:container-prefix container-prefix
                     #:as-default-with-aliases [aliases #f]
                     #:extra-aliases [extra-aliases '()])
   (sequential
-   #:host (~a host "-cs")
+   #:host (~a container-prefix host "-cs")
    #:variant 'cs
    #:dist-vm-suffix "cs"
    #:dist-aliases (merge-aliaes aliases extra-aliases)
@@ -174,10 +175,11 @@
 
 (define (bc-machine m
                     #:host host
+                    #:container-prefix container-prefix
                     #:as-default-with-aliases [aliases #f]
                     #:extra-aliases [extra-aliases '()])
   (sequential
-   #:host (~a host "-bc")
+   #:host (~a container-prefix host "-bc")
    #:variant 'bc
    #:dist-vm-suffix "bc"
    #:dist-aliases  (merge-aliaes aliases extra-aliases)
@@ -185,6 +187,7 @@
 
 (define (no-machine m
                     #:host host
+                    #:container-prefix container-prefix
                     #:as-default-with-aliases [aliases #f]
                     #:extra-aliases [extra-aliases '()])
   (sequential))
@@ -241,9 +244,10 @@
                (loop m new-variant new-dir)))])))
      (filter-machs (find-keep-commons))]))
 
-(define (source-machine make-name src-platforms built-desc)
+(define (source-machine make-name src-platforms built-desc
+                        #:container-prefix container-prefix)
   (sequential
-   #:host "crosslinux-source"
+   #:host (~a container-prefix "crosslinux-source")
    #:variant 'cs
    #:compile-any? #t
    (machine
@@ -254,21 +258,25 @@
     #:name (make-name src-platforms "Source with versionless path")
     #:source? #t
     #:versionless? #t
-    #:dist-suffix "")
+    #:dist-suffix ""
+    #:clean? #f)
    (machine
     #:name (make-name src-platforms (string-append "Source + " built-desc))
     #:source-runtime? #t
-    #:dist-suffix "builtpkgs")))
+    #:dist-suffix "builtpkgs"
+    #:clean? #f)))
 
 ;; Constructor for all machine configurations:
-(define (make-machs make-cs-name make-bc-name base aliases pkgs
+(define (make-machs container-prefix
+                    make-cs-name make-bc-name base aliases pkgs
                     src-platforms built-desc
                     win-machine mac-machine linux-machine
                     cs-machine bc-machine
                     uncommon
                     windows-sign-post-process
                     mac-sign-cert-config
-                    mac-notarization-config)
+                    mac-notarization-config
+                    recompile-cache)
   (define make-name make-cs-name)
   (define (cs+bc-machine machine
                          #:host host
@@ -280,6 +288,7 @@
     (parallel
      (cs-machine
       #:host host
+      #:container-prefix container-prefix
       #:as-default-with-aliases (and (eq? default 'cs) aliases)
       #:extra-aliases extra-aliases
       (machine
@@ -287,6 +296,7 @@
      (if bc?
          (bc-machine
           #:host host
+          #:container-prefix container-prefix
           #:as-default-with-aliases (and (eq? default 'bc) aliases)
           #:extra-aliases extra-aliases
           (machine
@@ -295,6 +305,7 @@
   (sequential
    #:dist-base base
    #:pkgs pkgs
+   #:recompile-cache recompile-cache
 
    ;; Not an installer, but a host build (relative to a container) to
    ;; create once and share across cross builds
@@ -303,9 +314,11 @@
     #:docker "racket/distro-build:debian10"
     (cs-machine
      #:host "cross-common"
+     #:container-prefix container-prefix
      (machine))
     (bc-machine
      #:host "cross-common"
+     #:container-prefix container-prefix
      (machine)))
 
    (parallel
@@ -331,7 +344,8 @@
       ;; ----------------------------------------
       ;; Source, maybe
       (if on-x86_64?
-          (source-machine make-name src-platforms built-desc)
+          (source-machine make-name src-platforms built-desc
+                          #:container-prefix container-prefix)
           (sequential)))
      ;; ----------------------------------------
      ;; Linux aarch64
@@ -350,7 +364,8 @@
       ;; ----------------------------------------
       ;; Source, maybe
       (if on-aarch64?
-          (source-machine make-name src-platforms built-desc)
+          (source-machine make-name src-platforms built-desc
+                          #:container-prefix container-prefix)
           (sequential)))
      ;; ----------------------------------------
      ;; Linux i386
@@ -408,6 +423,7 @@
       ;; CS
       (cs-machine
        #:host "debian12-x86_64"
+       #:container-prefix container-prefix
        #:as-default-with-aliases aliases
        (linux-machine
         #:name (make-cs-name linux (linux-x86_64-name #:platform debian12-dist-name-suffix)))))
@@ -421,6 +437,7 @@
       ;; CS
       (cs-machine
        #:host "debian12-aarch64"
+       #:container-prefix container-prefix
        #:as-default-with-aliases aliases
        (linux-machine
         #:name (make-cs-name linux (linux-aarch64-name #:platform debian12-dist-name-suffix))))))
@@ -436,11 +453,13 @@
      (parallel
       (cs-machine
        #:host "natipkg-x86_64"
+       #:container-prefix container-prefix
        #:as-default-with-aliases aliases
        (machine
         #:name (make-cs-name linux (linux-x86_64-name #:extra natipkg-name-extra #:order 8))))
       (cs-machine
        #:host "natipkg-x86_64-pkg-build"
+       #:container-prefix container-prefix
        (machine
         #:name (make-cs-name linux (linux-x86_64-name #:extra pkg-build-name-extra #:order 9))
         #:compile-any? #t
@@ -637,14 +656,16 @@
                                              minimal-racket-file-name
                                              racket-file-name)]
                        #:aliases [aliases '()]
+                       #:container-prefix [container-prefix "main-dist-"]
                        #:bc? [bc? #f]
                        #:bc-name-suffix [bc-name-suffix " BC"]
-                       #:cs? [cs? #t]
+                       #:cs?< [cs? #t]
                        #:cs-name-suffix [cs-name-suffix ""]
                        #:uncommon? [uncommon? minimal?]
                        #:windows-sign-post-process [windows-sign-post-process #f]
                        #:mac-sign-cert-config [mac-sign-cert-config #f]
                        #:mac-notarization-config [mac-notarization-config #f]
+                       #:recompile-cache [recompile-cache 'main-dist]
                        #:filter-rx [filter-rx #f])
   (when (and minimal? (not (null? pkgs)))
     (error 'make-parallel "package list must be empty for a Minimal Racket configuration"))
@@ -657,6 +678,7 @@
   (filter-machs
    filter-rx
    (make-machs
+    container-prefix
     (make-make-name distro-name cs-name-suffix)
     (make-make-name distro-name bc-name-suffix)
     base aliases
@@ -681,7 +703,8 @@
         no-uncommon)
     windows-sign-post-process
     mac-sign-cert-config
-    mac-notarization-config)))
+    mac-notarization-config
+    recompile-cache)))
 
 (define (make-spliceable-limits #:max-parallel [max-parallel 3]
                                 #:timeout [timeout (* #e1.5 60 60)]

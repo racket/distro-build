@@ -1237,12 +1237,13 @@ usage.
                         [#:file-name file-name string? (if minimal?
                                                            minimal-racket-file-name
                                                            racket-file-name)]
-                        [#:container-prefix container-prefix "main-dist-"]
+                        [#:container-prefix container-prefix string? "main-dist-"]
                         [#:cs? cs? any/c #t]
                         [#:bc? bc? any/c #f]
                         [#:cs-name-suffix cs-name-suffix string? ""]
                         [#:bc-name-suffix bc-name-suffix string? " BC"]
                         [#:uncommon? uncommon? any/c minimal?]
+                        [#:extra-linux-variants? extra-linux-variants? any/c #t]
                         [#:windows-sign-post-process windows-sign-post-process (or/c #f (listof string?)) #f]
                         [#:mac-sign-cert-config mac-sign-cert-config (or/c #f hash?) #f]
                         [#:mac-notarization-config mac-notarization-config (or/c #f hash?) #f]
@@ -1313,6 +1314,12 @@ and @racket[bc-name-suffix] arguments provide a suffix to add to
 The @racket[uncommon?] argument indicates whether to include platforms
 that are supported but not among the most widely used, and that are
 included only in Minimal Racket form at the main Racket download site.
+
+The @racket[extra-linux-variants?] argument indicates whether to
+include extra Linux variants. The base variant links to libraries to
+work on as many Linux distributions as possible, but additional
+variants can provide a better fit for the C and terminal libraries on
+different Linux distributions.
 
 If @racket[windows-sign-post-process] is not @racket[#f], then it is
 used as a @racket[#:server-installer-post-process] for Windows

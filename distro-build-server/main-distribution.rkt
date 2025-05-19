@@ -270,7 +270,7 @@
 (define (make-machs container-prefix
                     make-cs-name make-bc-name base aliases pkgs
                     src-platforms built-desc
-                    win-machine mac-machine linux-machine
+                    win-machine mac-machine linux-machine extra-linux-machine
                     cs-machine bc-machine
                     uncommon
                     windows-sign-post-process
@@ -425,7 +425,7 @@
        #:host "debian12-x86_64"
        #:container-prefix container-prefix
        #:as-default-with-aliases aliases
-       (linux-machine
+       (extra-linux-machine
         #:name (make-cs-name linux (linux-x86_64-name #:platform debian12-dist-name-suffix)))))
      ;; ----------------------------------------
      ;; Linux Debian 12 aarch64
@@ -439,7 +439,7 @@
        #:host "debian12-aarch64"
        #:container-prefix container-prefix
        #:as-default-with-aliases aliases
-       (linux-machine
+       (extra-linux-machine
         #:name (make-cs-name linux (linux-aarch64-name #:platform debian12-dist-name-suffix))))))
     ;; ----------------------------------------
     ;; Linux Natipkg
@@ -659,9 +659,10 @@
                        #:container-prefix [container-prefix "main-dist-"]
                        #:bc? [bc? #f]
                        #:bc-name-suffix [bc-name-suffix " BC"]
-                       #:cs?< [cs? #t]
+                       #:cs? [cs? #t]
                        #:cs-name-suffix [cs-name-suffix ""]
                        #:uncommon? [uncommon? minimal?]
+                       #:extra-linux-variants? [extra-linux-variants? #t]
                        #:windows-sign-post-process [windows-sign-post-process #f]
                        #:mac-sign-cert-config [mac-sign-cert-config #f]
                        #:mac-notarization-config [mac-notarization-config #f]
@@ -692,6 +693,9 @@
     (select-format (make-machine/exe+tgz windows-sign-post-process))
     (select-format machine/dmg+tgz)
     (select-format machine/sh+tgz)
+    (if extra-linux-variants?
+        (select-format machine/sh+tgz)
+        machine/none)
     (if cs?
         cs-machine
         no-machine)

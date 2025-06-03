@@ -403,6 +403,7 @@
        #:docker "racket/distro-build:crosslinux-riscv64"
        #:cross-target-machine "trv64le"
        #:cross-target "riscv64-linux-gnu"
+       #:dist-suffix debian12-dist-suffix
        (cs+bc-machine
         linux-machine
         #:host "crosslinux-riscv64"

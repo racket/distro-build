@@ -4,8 +4,11 @@
                                 #%module-begin)
                      racket/contract/base
                      distro-build/config
-                     distro-build/readme
-                     distro-build/main-distribution))
+                     distro-build/readme)
+          (only-in scribble/decode splice)
+          "private/version-guard.rkt")
+
+@(version-guard (require (for-label distro-build/main-distribution)))
 
 @title{Building Distributions of Racket}
 
@@ -1002,9 +1005,9 @@ To use one of these images, supply @racket[#:docker] to
 images, additional configuration arguments are needed as shown.
 See @secref["docker-example"] for an example.
 
-To use many of these images to build a set of distributions like the
+@version-guard{To use many of these images to build a set of distributions like the
 ones on the main Racket download side, see
-@racketmodname[distro-build/main-distribution].
+@racketmodname[distro-build/main-distribution].}
 
 Unless otherwise noted, each image is available for two architectures:
 @tt{linux/amd64} and @tt{linux/arm64} (i.e., to run on those hosts,
@@ -1209,6 +1212,8 @@ independent of the target machine in the case of cross-compilation).
 ]
 
 
+@version-guard{
+
 @; ----------------------------------------
 
 @section[#:tag "main-distribution"]{Main Distribution via Docker}
@@ -1397,6 +1402,8 @@ configuration.
  Racket checkout used to drive a distribution build. To reset a build
  to work from scratch, be sure to delete the @filepath{build}
  subdirectory as well as removing Docker containers.
+
+}
 
 }
 

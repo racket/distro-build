@@ -2,6 +2,7 @@
 (require racket/cmdline
          racket/file
          racket/system
+         racket/string
          net/url
          "download-page.rkt"
          "indexes.rkt"
@@ -27,14 +28,18 @@
 (define pdf-doc-dir (build-path "pdf-doc"))
 (define log-dir (build-path "log"))
 
-(define-values (config-file config-mode default-dist-base)
+(define-values (config-file config-mode default-dist-base default-pkgs)
   (command-line
    #:args
-   (config-file config-mode default-dist-base)
-   (values config-file config-mode default-dist-base)))
+   (config-file config-mode default-dist-base pkgs)
+   (values config-file config-mode default-dist-base pkgs)))
 
 (define-values (config post-processes aliases)
   (extract-options+post-processes+aliases config-file config-mode default-dist-base))
+
+(define pkgs (append (or (hash-ref config '#:pkgs #f)
+                         (string-split default-pkgs))
+                     (hash-ref config '#:test-pkgs '())))
 
 (define dest-dir (hash-ref config
                            '#:site-dest
@@ -50,6 +55,35 @@
                             #:generate? #f)))
 
 (printf "Assembling site as ~a\n" dest-dir)
+
+;; Get transitive dependencies of requested packages, instead of just cataloging
+;; everything that is installed for building distributions
+(define pkg-info-file (build-path build-dir "pkgs.rktd"))
+(define pkg-details (call-with-input-file* pkg-info-file read))
+(define pack-pkgs
+  (let loop ([pkgs pkgs] [pack-pkgs (hash "racket" #t)])
+    (cond
+      [(null? pkgs) (hash-remove pack-pkgs "racket")]
+      [else
+       (define pkg (car pkgs))
+       (cond
+         [(hash-ref pack-pkgs pkg #f)
+          ;; done
+          (loop (cdr pkgs) pack-pkgs)]
+         [else
+          (define details (hash-ref pkg-details pkg #f))
+          (unless details
+            (error 'pack-built "package to pack not installed: ~s" pkg))
+          (define new-pack-pkgs (hash-set pack-pkgs pkg #t))
+          (loop (append (for/list ([dep (in-list (or (hash-ref details 'dependencies #f)
+                                                     (error 'pack-built "dependencies not in details: ~s" pkg)))])
+                          (if (pair? dep)
+                              (car dep)
+                              dep))
+                        (cdr pkgs))
+                new-pack-pkgs)])])))
+(define (keep-pkg-file? f)
+  (hash-ref pack-pkgs (path->string (path-replace-extension f #"")) #f))
 
 (define (copy dir [build-dir build-dir])
   (make-directory* (let-values ([(base name dir?) (split-path dir)])
@@ -69,26 +103,28 @@
         [d-dir (build-path dest-dir pkgs-dir)])
     (make-directory* d-dir)
     (for ([f (directory-list c-dir)])
-      (define c (build-path c-dir f))
-      (define d (build-path d-dir f))
-      (copy-file c d)
-      (file-or-directory-modify-seconds d (file-or-directory-modify-seconds c))))
+      (when (keep-pkg-file? f)
+        (define c (build-path c-dir f))
+        (define d (build-path d-dir f))
+        (copy-file c d)
+        (file-or-directory-modify-seconds d (file-or-directory-modify-seconds c)))))
   (let ([c-dir (build-path built-dir catalog-dir "pkg")]
         [d-dir (build-path dest-dir catalog-dir "pkg")])
     (make-directory* d-dir)
     (for ([f (in-list (directory-list c-dir))])
-      (define ht (call-with-input-file* (build-path c-dir f) read))
-      (define new-ht
-        (hash-set ht 'source (relative-path->relative-url-string
-                              (build-path
-                               from-catalog-dir-to-pkgs-dir
-                               pkgs-dir
-                               (path-add-suffix f #".zip")))))
-      (call-with-output-file* 
-       (build-path d-dir f)
-       (lambda (o)
-         (write new-ht o)
-         (newline o))))))
+      (when (keep-pkg-file? f)
+        (define ht (call-with-input-file* (build-path c-dir f) read))
+        (define new-ht
+          (hash-set ht 'source (relative-path->relative-url-string
+                                (build-path
+                                 from-catalog-dir-to-pkgs-dir
+                                 pkgs-dir
+                                 (path-add-suffix f #".zip")))))
+        (call-with-output-file* 
+         (build-path d-dir f)
+         (lambda (o)
+           (write new-ht o)
+           (newline o)))))))
 
 (build-catalog built-dir)
 (when (directory-exists? native-dir)

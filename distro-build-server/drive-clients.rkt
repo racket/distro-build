@@ -193,6 +193,10 @@
         (define common-dir (and common-dir? (docker-common-dir)))
         (define recompile-dir (let ([cache (get-opt c '#:recompile-cache)])
                                 (and cache (docker-recompile-cache-dir cache))))
+        (when recompile-dir
+          (define recompile-image-file (path-replace-extension recompile-dir ".txt"))
+          (when (not (file-exists? recompile-image-file))
+            (call-with-output-file* recompile-image-file (lambda (o) (displayln docker o)))))
         (record-using-docker-container "build/containers.txt" container)
         ;; Create a Docker instance if it doesn't exist already:
         (unless (docker-id #:name container)

@@ -41,7 +41,8 @@
             (set! remote-pkg (and (not (string=? pkg"")) pkg))]
  [("--ssl-no-verify") "Skip SSL verification for package-install check"
                       (set! pkg-no-verify? #t)]
- [("--ignore-suggested-paths") "Don't use installer's suggested paths"
+ [("--ignore-suggested-paths") ("Don't use installer's suggested paths; needed to use a snapshot"
+                                "instead of a release")
                                (set! ignore-suggested-paths? #t)]
  #:once-any
  [("--fast") "Run only basic installer checks"
@@ -293,10 +294,14 @@
           (fprintf o "~a\n" (if unix-style? "yes" "no"))
           (fprintf o (if usr-local?
                          (if ignore-suggested-paths?
-                             "/usr/local/racket\n"
+                             (if unix-style?
+                                 "/usr/local\n"
+                                 "/usr/local/racket\n")
                              "2\n")
                          (if ignore-suggested-paths?
-                             "./racket\n"
+                             (if unix-style?
+                                 ".\n"
+                                 "./racket\n")
                              "4\n")))
           (when mv-shared?
             (fprintf o "s\n") ; "shared" path

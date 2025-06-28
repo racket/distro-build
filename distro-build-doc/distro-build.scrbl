@@ -1248,6 +1248,7 @@ usage.
                         [#:cs-name-suffix cs-name-suffix string? ""]
                         [#:bc-name-suffix bc-name-suffix string? " BC"]
                         [#:uncommon? uncommon? any/c minimal?]
+                        [#:natipkg? natipkg? any/c #t]
                         [#:extra-linux-variants? extra-linux-variants? any/c #t]
                         [#:windows-sign-post-process windows-sign-post-process (or/c #f (listof string?)) #f]
                         [#:mac-sign-cert-config mac-sign-cert-config (or/c #f hash?) #f]
@@ -1320,6 +1321,11 @@ The @racket[uncommon?] argument indicates whether to include platforms
 that are supported but not among the most widely used, and that are
 included only in Minimal Racket form at the main Racket download site.
 
+The @racket[natipkg?] argument indicates whether to include the
+``natipkg'' build, which is a Linux variant that includes a minimal
+set of pre-built native dependencies, instead of relying on the
+operating system to supply those libraries.
+
 The @racket[extra-linux-variants?] argument indicates whether to
 include extra Linux variants. The base variant links to libraries to
 work on as many Linux distributions as possible, but additional
@@ -1339,7 +1345,7 @@ The @racket[recompile-cache] argument is used as the
 The @racket[aliases] list is added to @racket[#:dist-alises] for each
 configuration.
 
-}
+@history[#:changed "1.21" @elem{Added the @racket[natipkg?] argument.}]}
 
 @defproc[(make-spliceable-limits [#:max-parallel max-parallel exact-positive-integer? 3]
                                  [#:j j exact-positive-integer? 2]

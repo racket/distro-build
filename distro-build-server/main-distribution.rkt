@@ -276,7 +276,8 @@
                     windows-sign-post-process
                     mac-sign-cert-config
                     mac-notarization-config
-                    recompile-cache)
+                    recompile-cache
+                    natipkg?)
   (define make-name make-cs-name)
   (define (cs+bc-machine machine
                          #:host host
@@ -444,27 +445,29 @@
         #:name (make-cs-name linux (linux-aarch64-name #:platform debian12-dist-name-suffix))))))
     ;; ----------------------------------------
     ;; Linux Natipkg
-    (parallel
-     #:docker (if on-x86_64?
-                  "racket/distro-build:debian10"
-                  "racket/distro-build:crosslinux-x86_64")
-     #:cross-target-machine (and (not on-x86_64?) "ta6le")
-     #:cross-target (and (not on-x86_64?) "x86_64-linux-gnu")
-     #:configure '("--enable-natipkg")
-     (parallel
-      (cs-machine
-       #:host "natipkg-x86_64"
-       #:container-prefix container-prefix
-       #:as-default-with-aliases aliases
-       (machine
-        #:name (make-cs-name linux (linux-x86_64-name #:extra natipkg-name-extra #:order 8))))
-      (cs-machine
-       #:host "natipkg-x86_64-pkg-build"
-       #:container-prefix container-prefix
-       (machine
-        #:name (make-cs-name linux (linux-x86_64-name #:extra pkg-build-name-extra #:order 9))
-        #:compile-any? #t
-        #:dist-suffix (string-append debian10-dist-suffix "-pkg-build")))))
+    (if natipkg?
+        (parallel
+         #:docker (if on-x86_64?
+                      "racket/distro-build:debian10"
+                      "racket/distro-build:crosslinux-x86_64")
+         #:cross-target-machine (and (not on-x86_64?) "ta6le")
+         #:cross-target (and (not on-x86_64?) "x86_64-linux-gnu")
+         #:configure '("--enable-natipkg")
+         (parallel
+          (cs-machine
+           #:host "natipkg-x86_64"
+           #:container-prefix container-prefix
+           #:as-default-with-aliases aliases
+           (machine
+            #:name (make-cs-name linux (linux-x86_64-name #:extra natipkg-name-extra #:order 8))))
+          (cs-machine
+           #:host "natipkg-x86_64-pkg-build"
+           #:container-prefix container-prefix
+           (machine
+            #:name (make-cs-name linux (linux-x86_64-name #:extra pkg-build-name-extra #:order 9))
+            #:compile-any? #t
+            #:dist-suffix (string-append debian10-dist-suffix "-pkg-build")))))
+        (sequential))
     ;; ----------------------------------------
     ;; Windows
     (parallel
@@ -663,6 +666,7 @@
                        #:cs? [cs? #t]
                        #:cs-name-suffix [cs-name-suffix ""]
                        #:uncommon? [uncommon? minimal?]
+                       #:natipkg? [natipkg? #t]
                        #:extra-linux-variants? [extra-linux-variants? #t]
                        #:windows-sign-post-process [windows-sign-post-process #f]
                        #:mac-sign-cert-config [mac-sign-cert-config #f]
@@ -709,7 +713,8 @@
     windows-sign-post-process
     mac-sign-cert-config
     mac-notarization-config
-    recompile-cache)))
+    recompile-cache
+    natipkg?)))
 
 (define (make-spliceable-limits #:max-parallel [max-parallel 3]
                                 #:timeout [timeout (* #e1.5 60 60)]

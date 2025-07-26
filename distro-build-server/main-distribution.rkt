@@ -612,15 +612,6 @@
                " but also configured to compile collections"
                " and packages to machine-independent form,"
                " which is suitable for the pkg-build service.")
-        "Unix" '(span "These sources do not work well for Windows or Mac OS,"
-                      " because those platforms need packages that supply pre-built,"
-                      " third-party libraries. To build from source on Windows and"
-                      " Mac OS, use the Minimal Racket sources and then install"
-                      " packages with " (tt "raco pkg install -i main-distribution") ".")
-        "All Platforms" '(span "These sources compile and install cleanly on all"
-                               " supported platforms."
-                               " Use " (tt "raco pkg") " to install additional Racket"
-                               " packages in a minimal installation.")
         "Source + built packages" '(span "The core run-time system is provided in source"
                                          " form, but Racket libraries are"
                                          " pre-compiled and documentation"
@@ -689,9 +680,7 @@
     (make-make-name distro-name bc-name-suffix)
     base aliases
     pkgs
-    (if minimal?
-        all-platforms
-        unix-platforms)
+    all-platforms
     (if minimal?
         "built libraries"
         "built packages")

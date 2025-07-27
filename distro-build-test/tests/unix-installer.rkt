@@ -26,6 +26,7 @@
 (define pkg-no-verify? #f)
 (define fast-mode #f)
 (define src-mode #f)
+(define just-show-plan? #f)
 
 (command-line
  #:once-each
@@ -45,6 +46,8 @@
                                 "instead of a release")
                                (set! ignore-suggested-paths? #t)]
  #:once-any
+ [("--dry-run") "Just show the test plan"
+                (set! just-show-plan? #t)]
  [("--fast") "Run only basic installer checks"
              (set! fast-mode 'fast)]
  [("--fast-src") "Run only basic source checks"
@@ -114,8 +117,9 @@
 ;; ----------------------------------------
 ;; Create working directory
 
-(unless (directory-exists? work-dir)
-  (make-directory work-dir))
+(unless just-show-plan?
+  (unless (directory-exists? work-dir)
+    (make-directory work-dir)))
 
 ;; ----------------------------------------
 ;; Get installers and "base.zip" from snapshot
@@ -142,55 +146,59 @@
          (copy-port i o)))
       (close-input-port i))))
 
-(when basic?
-  (for-each get min-racket-installers)
-  (for-each get racket-installers))
-(when natipkg?
-  (for-each get min-racket-natipkg-installers))
-(when from-src?
-  (for-each get (if fast-mode
-                    (if (eq? src-mode 'slow)
-                        racket-src-installers
-                        min-racket-src-installers)
-                    (append racket-src-built-installers
-                            racket-src-installers
-                            min-racket-src-installers
-                            min-racket-src-built-installers))))
-(get #:sub "../pkgs/" "base.zip")
+(unless just-show-plan?
+  (when basic?
+    (for-each get min-racket-installers)
+    (for-each get racket-installers))
+  (when natipkg?
+    (for-each get min-racket-natipkg-installers))
+  (when from-src?
+    (for-each get (if fast-mode
+                      (if (eq? src-mode 'slow)
+                          racket-src-installers
+                          min-racket-src-installers)
+                      (append racket-src-built-installers
+                              racket-src-installers
+                              min-racket-src-installers
+                              min-racket-src-built-installers))))
+  (get #:sub "../pkgs/" "base.zip"))
 
 ;; ----------------------------------------
 ;; Construct a simple package
 
 (define sample-pkg-dir (build-path work-dir "sample"))
-(delete-directory/files sample-pkg-dir #:must-exist? #f)
-(make-directory* sample-pkg-dir)
-(call-with-output-file* 
- (build-path sample-pkg-dir "info.rkt")
- (lambda (o)
-   (displayln "#lang info" o)
-   (write '(define collection "sample") o)
-   (write '(define deps '("base")) o)))
-(call-with-output-file* 
- (build-path sample-pkg-dir "main.rkt")
- (lambda (o)
-   (displayln "#lang racket/base" o)
-   (write "sample" o)))
-
 (define sample-zip-path (build-path work-dir "sample.zip"))
-(parameterize ([current-directory work-dir])
-  (when (file-exists? "sample.zip") (delete-file "sample.zip"))
-  (zip "sample.zip" "sample" #:utc-timestamps? #t))
+
+(unless just-show-plan?
+  (delete-directory/files sample-pkg-dir #:must-exist? #f)
+  (make-directory* sample-pkg-dir)
+  (call-with-output-file*
+   (build-path sample-pkg-dir "info.rkt")
+   (lambda (o)
+     (displayln "#lang info" o)
+     (write '(define collection "sample") o)
+     (write '(define deps '("base")) o)))
+  (call-with-output-file*
+   (build-path sample-pkg-dir "main.rkt")
+   (lambda (o)
+     (displayln "#lang racket/base" o)
+     (write "sample" o)))
+
+  (parameterize ([current-directory work-dir])
+    (when (file-exists? "sample.zip") (delete-file "sample.zip"))
+    (zip "sample.zip" "sample" #:utc-timestamps? #t)))
 
 ;; ----------------------------------------
 ;; Construct a simple program
 
 (define progy-path (build-path work-dir "progy.rkt"))
-(call-with-output-file*
- progy-path
- #:exists 'truncate
- (lambda (o)
-   (displayln "#lang racket/base" o)
-   (write '(require sample) o)))
+(unless just-show-plan?
+  (call-with-output-file*
+   progy-path
+   #:exists 'truncate
+   (lambda (o)
+     (displayln "#lang racket/base" o)
+     (write '(require sample) o))))
 
 
 ;; ----------------------------------------
@@ -198,12 +206,13 @@
 
 (define pkg-archive-dir (build-path work-dir "archive"))
 
-(when (and (or natipkg? from-src?)
-           (not (eq? fast-mode 'src)))
-  (pkg-catalog-archive pkg-archive-dir
-                       (list catalog)
-                       #:state-catalog (build-path work-dir "archive" "state.sqlite")
-                       #:relative-sources? #t))
+(unless just-show-plan?
+  (when (and (or natipkg? from-src?)
+             (not (eq? fast-mode 'src)))
+    (pkg-catalog-archive pkg-archive-dir
+                         (list catalog)
+                         #:state-catalog (build-path work-dir "archive" "state.sqlite")
+                         #:relative-sources? #t)))
 
 ;; ----------------------------------------
 
@@ -242,7 +251,7 @@
          ;; Package user scope?
          [user-scope? (if (or fast-mode usr-local? links?) '(#t) '(#t #f))])
     (printf (~a "=================================================================\n"
-                "CONFIGURATION: "
+                "INSTALLER: "
                 (if min? "minimal" "full") " "
                 (if unix-style? "unix-style" "in-place") " "
                 (if mv-shared? "mine-all-mine " "")
@@ -252,208 +261,210 @@
                 "\n"))
     (define need-base? (and min? (min-needs-base?)))
 
-    (#%app
-     dynamic-wind
+    (unless just-show-plan?
+      (#%app
+       dynamic-wind
 
-     (make-docker-setup #:volumes '())
-     
-     (lambda ()
-       (define rt (remote #:host docker-container-name
-                          #:kind 'docker
-                          #:env (if user-scope?
-                                    home-env
-                                    no-home-env)))
-       
-       (scp rt (build-path work-dir f) (at-docker-remote rt f))
+       (make-docker-setup #:volumes '())
 
-       (define script (build-path work-dir "script"))
-       (call-with-output-file*
-        script
-        #:exists 'truncate
-        (lambda (o)
-          ;; Installer interactions:
-          ;; 
-          ;; Unix-style distribution?
-          ;;  * yes -> 
-          ;;     Where to install?
-          ;;       [like below]
-          ;; 
-          ;;     Target directories
-          ;;       [e]
-          ;;       ...
-          ;; 
-          ;;  * no ->  
-          ;;     Where to install?
-          ;;       * 1 /usr/racket
-          ;;       * 2 /usr/local/racket
-          ;;       * 3 ~/racket
-          ;;       * 4 ./racket
-          ;;       * <anything else>
-          ;; 
-          ;;     Prefix for link?
-          (fprintf o "~a\n" (if unix-style? "yes" "no"))
-          (fprintf o (if usr-local?
-                         (if ignore-suggested-paths?
-                             (if unix-style?
-                                 "/usr/local\n"
-                                 "/usr/local/racket\n")
-                             "2\n")
-                         (if ignore-suggested-paths?
-                             (if unix-style?
-                                 ".\n"
-                                 "./racket\n")
-                             "4\n")))
-          (when mv-shared?
-            (fprintf o "s\n") ; "shared" path
-            (fprintf o "~a\n" (if usr-local?
-                                  "/usr/local/mine-all-mine"
-                                  "mine-all-mine")))
-          (when links?
-            (fprintf o "/usr/local\n"))
-          (fprintf o "\n")))
-       (scp rt script (at-docker-remote rt "script"))
+       (lambda ()
+         (define rt (remote #:host docker-container-name
+                            #:kind 'docker
+                            #:env (if user-scope?
+                                      home-env
+                                      no-home-env)))
 
-       (when need-base?
-         (scp rt (build-path work-dir "base.zip") (at-docker-remote rt "base.zip")))
-       (scp rt sample-zip-path (at-docker-remote rt "sample.zip"))
-       (unless min?
-         (scp rt progy-path (at-docker-remote rt "progy.rkt")))
+         (scp rt (build-path work-dir f) (at-docker-remote rt f))
 
-       (define sudo? (or usr-local? links?))
-       (define sudo (if sudo? "sudo " ""))
+         (define script (build-path work-dir "script"))
+         (call-with-output-file*
+          script
+          #:exists 'truncate
+          (lambda (o)
+            ;; Installer interactions:
+            ;;
+            ;; Unix-style distribution?
+            ;;  * yes ->
+            ;;     Where to install?
+            ;;       [like below]
+            ;;
+            ;;     Target directories
+            ;;       [e]
+            ;;       ...
+            ;;
+            ;;  * no ->
+            ;;     Where to install?
+            ;;       * 1 /usr/racket
+            ;;       * 2 /usr/local/racket
+            ;;       * 3 ~/racket
+            ;;       * 4 ./racket
+            ;;       * <anything else>
+            ;;
+            ;;     Prefix for link?
+            (fprintf o "~a\n" (if unix-style? "yes" "no"))
+            (fprintf o (if usr-local?
+                           (if ignore-suggested-paths?
+                               (if unix-style?
+                                   "/usr/local\n"
+                                   "/usr/local/racket\n")
+                               "2\n")
+                           (if ignore-suggested-paths?
+                               (if unix-style?
+                                   ".\n"
+                                   "./racket\n")
+                               "4\n")))
+            (when mv-shared?
+              (fprintf o "s\n") ; "shared" path
+              (fprintf o "~a\n" (if usr-local?
+                                    "/usr/local/mine-all-mine"
+                                    "mine-all-mine")))
+            (when links?
+              (fprintf o "/usr/local\n"))
+            (fprintf o "\n")))
+         (scp rt script (at-docker-remote rt "script"))
 
-       ;; install --------------------
-       (ssh rt sudo "sh " f " < script")
+         (when need-base?
+           (scp rt (build-path work-dir "base.zip") (at-docker-remote rt "base.zip")))
+         (scp rt sample-zip-path (at-docker-remote rt "sample.zip"))
+         (unless min?
+           (scp rt progy-path (at-docker-remote rt "progy.rkt")))
 
-       (define bin-dir
-         (cond
-          [(or links? (and usr-local? unix-style?)) ""]
-          [else
-           (~a (if usr-local?
-                   "/usr/local/"
-                   "")
-               (if unix-style?
-                   "bin/"
-                   "racket/bin/"))]))
+         (define sudo? (or usr-local? links?))
+         (define sudo (if sudo? "sudo " ""))
 
-       ;; check that Racket runs --------------------
-       (ssh rt (~a bin-dir "racket") " -e '(displayln \"hello\")'")
+         ;; install --------------------
+         (ssh rt sudo "sh " f " < script")
 
-       ;; check that `raco setup` is ok --------------------
-       ;;  For example, there are no file-permission problems.
-       (ssh rt (~a bin-dir "raco") " setup" (if sudo?
-                                                " --avoid-main"
-                                                ""))
+         (define bin-dir
+           (cond
+             [(or links? (and usr-local? unix-style?)) ""]
+             [else
+              (~a (if usr-local?
+                      "/usr/local/"
+                      "")
+                  (if unix-style?
+                      "bin/"
+                      "racket/bin/"))]))
 
-       ;; install and use a package --------------------
-       (define scope (if user-scope? "" "-i "))
-       (ssh rt (~a bin-dir "raco") " pkg install " scope "sample.zip" (if need-base? " base.zip" ""))
-       (ssh rt (~a bin-dir "racket") " -l sample")
+         ;; check that Racket runs --------------------
+         (ssh rt (~a bin-dir "racket") " -e '(displayln \"hello\")'")
 
-       ;; install a package from the package server --------------------
-       (when remote-pkg
-         (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " scope remote-pkg))
+         ;; check that `raco setup` is ok --------------------
+         ;;  For example, there are no file-permission problems.
+         (ssh rt (~a bin-dir "raco") " setup" (if sudo?
+                                                  " --avoid-main"
+                                                  ""))
 
-       ;; create a stand-alone executable ----------------------------------------
-       (unless min?
-         (ssh rt (~a bin-dir "raco") " exe progy.rkt")
-         (ssh rt "./progy")
-         (ssh rt (~a bin-dir "raco") " distribute d progy")
-         (ssh rt "d/bin/progy"))
+         ;; install and use a package --------------------
+         (define scope (if user-scope? "" "-i "))
+         (ssh rt (~a bin-dir "raco") " pkg install " scope "sample.zip" (if need-base? " base.zip" ""))
+         (ssh rt (~a bin-dir "racket") " -l sample")
 
-       ;; uninstall ----------------------------------------
-       (when unix-style?
-         (ssh rt sudo (~a bin-dir "racket-uninstall"))
-         (when (ssh rt (~a bin-dir "racket") #:mode 'result)
-           (error "not uninstalled")))
+         ;; install a package from the package server --------------------
+         (when remote-pkg
+           (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " scope remote-pkg))
 
-       ;; check stand-alone executable ----------------------------------------
-       (unless min?
-         (ssh rt "d/bin/progy"))
-       
-       (void))
+         ;; create a stand-alone executable ----------------------------------------
+         (unless min?
+           (ssh rt (~a bin-dir "raco") " exe progy.rkt")
+           (ssh rt "./progy")
+           (ssh rt (~a bin-dir "raco") " distribute d progy")
+           (ssh rt "d/bin/progy"))
 
-     docker-teardown)))
+         ;; uninstall ----------------------------------------
+         (when unix-style?
+           (ssh rt sudo (~a bin-dir "racket-uninstall"))
+           (when (ssh rt (~a bin-dir "racket") #:mode 'result)
+             (error "not uninstalled")))
+
+         ;; check stand-alone executable ----------------------------------------
+         (unless min?
+           (ssh rt "d/bin/progy"))
+
+         (void))
+
+       docker-teardown))))
 
 ;; ----------------------------------------
 
 (when natipkg?
   (sync (system-idle-evt))
-  
+
   (for* ([f (in-list min-racket-natipkg-installers)])
     (printf (~a "=================================================================\n"
                 "NATIPKG: "
                 f
                 "\n"))
 
-    (#%app
-     dynamic-wind
-     
-     (make-docker-setup #:volumes `((,pkg-archive-dir "/archive" ro)))
-     
-     (lambda ()
-       (define rt (remote #:host docker-container-name
-                          #:kind 'docker
-                          #:env home-env))
-       
-       (scp rt (build-path work-dir f) (at-docker-remote rt f))
+    (unless just-show-plan?
+      (#%app
+       dynamic-wind
 
-       ;; install --------------------
-       (ssh rt "sh " f " --in-place --dest racket")
+       (make-docker-setup #:volumes `((,pkg-archive-dir "/archive" ro)))
 
-       (define bin-dir "racket/bin/")
-       (define etc-dir "racket/etc/")
-       (define lib-dir "racket/lib")
-       (define lib-copy-dir "/tmp/xlib")
+       (lambda ()
+         (define rt (remote #:host docker-container-name
+                            #:kind 'docker
+                            #:env home-env))
 
-       ;; check that Racket runs --------------------
-       (ssh rt (~a bin-dir "racket") " -e '(displayln \"hello\")'")
+         (scp rt (build-path work-dir f) (at-docker-remote rt f))
 
-       ;; check that `raco setup` is ok --------------------
-       (ssh rt (~a bin-dir "raco") " setup")
+         ;; install --------------------
+         (ssh rt "sh " f " --in-place --dest racket")
 
-       ;; install packages  --------------------
-       (ssh rt (~a bin-dir "raco") " pkg install"
-            " --recompile-only"
-            " --catalog /archive/catalog/"
-            " --auto"
-            (if fast-mode
-                " draw-lib"
-                " drracket"))
-       
-       ;; check that the drawing library works:
-       (ssh rt (~a bin-dir "racket") " -l racket/draw")
+         (define bin-dir "racket/bin/")
+         (define etc-dir "racket/etc/")
+         (define lib-dir "racket/lib")
+         (define lib-copy-dir "/tmp/xlib")
 
-       ;; install a package from the package server --------------------
-       (when remote-pkg
-         (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
+         ;; check that Racket runs --------------------
+         (ssh rt (~a bin-dir "racket") " -e '(displayln \"hello\")'")
 
-       ;; check shared-library handling  --------------------
-       ;; add to the shared-library search path, copy libraries there,
-       ;; then make sure that installed libraries are not deleted
-       (ssh rt (~a bin-dir "racket") (format " -e '~s'"
-                                             `(let ([config (call-with-input-file
-                                                             (build-path ,etc-dir "config.rktd")
-                                                             read)])
-                                                (let ([config (hash-set config
-                                                                        (quote lib-search-dirs)
-                                                                        (list #f ,lib-copy-dir))])
-                                                  (call-with-output-file
-                                                      #:exists (quote truncate)
-                                                      (build-path ,etc-dir "config.rktd")
-                                                      (lambda (o)
-                                                        (write config o)))))))
-       (ssh rt "mkdir -p " lib-copy-dir)
-       (ssh rt "cp " (~a lib-dir "/*.so.*") " " lib-copy-dir)
-       (define old-count (ssh rt "ls -1 " lib-dir " | wc -l" #:mode 'output))
-       (ssh rt (~a bin-dir "raco") " setup")
-       (define new-count (ssh rt "ls -1 " lib-dir " | wc -l" #:mode 'output))
-       (unless (equal? old-count new-count)
-         (error "shared library was removed by raco setup"))
+         ;; check that `raco setup` is ok --------------------
+         (ssh rt (~a bin-dir "raco") " setup")
 
-       (void))
+         ;; install packages  --------------------
+         (ssh rt (~a bin-dir "raco") " pkg install"
+              " --recompile-only"
+              " --catalog /archive/catalog/"
+              " --auto"
+              (if fast-mode
+                  " draw-lib"
+                  " drracket"))
 
-     docker-teardown)))
+         ;; check that the drawing library works:
+         (ssh rt (~a bin-dir "racket") " -l racket/draw")
+
+         ;; install a package from the package server --------------------
+         (when remote-pkg
+           (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " remote-pkg))
+
+         ;; check shared-library handling  --------------------
+         ;; add to the shared-library search path, copy libraries there,
+         ;; then make sure that installed libraries are not deleted
+         (ssh rt (~a bin-dir "racket") (format " -e '~s'"
+                                               `(let ([config (call-with-input-file
+                                                               (build-path ,etc-dir "config.rktd")
+                                                               read)])
+                                                  (let ([config (hash-set config
+                                                                          (quote lib-search-dirs)
+                                                                          (list #f ,lib-copy-dir))])
+                                                    (call-with-output-file
+                                                        #:exists (quote truncate)
+                                                        (build-path ,etc-dir "config.rktd")
+                                                        (lambda (o)
+                                                          (write config o)))))))
+         (ssh rt "mkdir -p " lib-copy-dir)
+         (ssh rt "cp " (~a lib-dir "/*.so.*") " " lib-copy-dir)
+         (define old-count (ssh rt "ls -1 " lib-dir " | wc -l" #:mode 'output))
+         (ssh rt (~a bin-dir "raco") " setup")
+         (define new-count (ssh rt "ls -1 " lib-dir " | wc -l" #:mode 'output))
+         (unless (equal? old-count new-count)
+           (error "shared library was removed by raco setup"))
+
+         (void))
+
+       docker-teardown))))
 
 ;; ----------------------------------------
 
@@ -475,26 +486,35 @@
                        [(src)
                         racket-src-installers]))]
          [prefix? (if fast-mode '(#f) '(#f #t))]
-         [cs? (if fast-mode '(#t) '(#f #t))]
+         [cs? (if fast-mode '(#t) '(#t #f))]
          [user-scope? (if (or fast-mode (not cs?))
                           (if (eq? src-mode 'slow)
                               '(#f)
                               '(#t))
                           '(#t #f))]
-         ;; specifying a package directory not next to "collects"
-         ;; triggers a fixup step during installation, so check that
-         ;; in a limited set of configurations
-         [alt-pkgs? (if (or (not prefix?)
-                            (not cs?)
-                            (memq mode '(min-src))
-                            user-scope?
-                            (eq? src-mode 'slow))
-                        '(#f)
-                        '(#f #t))])
+         ;; Things to try in a limited set of configurations:
+         ;;  * specifying a package directory not next to "collects"
+         ;;    triggers a fixup step during installation
+         ;;  * natipkg mode triggers an extra installation step to
+         ;;    download native pkgs
+         [extra-mode (if (or (not prefix?)
+                             (not cs?)
+                             user-scope?
+                             (eq? src-mode 'slow))
+                         '(none)
+                         ;; only CS with prefix and installation scope:
+                         (append
+                          '(none)
+                          ;; minimal => natipkgs
+                          (if (memq mode '(min-src min-src-built)) '(natipkg) '())
+                          ;; built or non-mininal => alt=pkgs
+                          (if (not (memq mode '(min-src))) '(alt-pkgs) '())))])
     (define built? (not (or (eq? mode 'min-src) (eq? mode 'src))))
     (define min? (not (or (eq? mode 'src-built) (eq? mode 'src))))
     (define need-base? (and min? (min-needs-base?)))
-    
+    (define alt-pkgs? (eq? extra-mode 'alt-pkgs))
+    (define natipkg? (eq? extra-mode 'natipkg))
+
     (printf (~a "=================================================================\n"
                 "SOURCE: "
                 f
@@ -502,106 +522,116 @@
                 (if prefix? " --prefix" "")
                 (if user-scope? " --user" " --installation")
                 (if alt-pkgs? " --pkgsdir=..." "")
+                (if natipkg? " --natipkg" "")
                 "\n"))
 
-  
-    (#%app
-     dynamic-wind
-     
-     (make-docker-setup #:volumes `((,pkg-archive-dir "/archive" ro)))
-     
-     (lambda ()
-       (define rt (remote #:host docker-container-name
-                          #:kind 'docker
-                          #:env (if user-scope?
-                                    home-env
-                                    no-home-env)
-                          #:timeout (if (eq? mode 'src)
-                                        3600
-                                        (if cs? 1500 600))))
+    (unless just-show-plan?
+      (#%app
+       dynamic-wind
 
-       (scp rt (build-path work-dir f) (at-docker-remote rt f))
+       (make-docker-setup #:volumes `((,pkg-archive-dir "/archive" ro)))
 
-       ;; build --------------------
-       (ssh rt "tar zxf " f)
+       (lambda ()
+         (define rt (remote #:host docker-container-name
+                            #:kind 'docker
+                            #:env (if user-scope?
+                                      home-env
+                                      no-home-env)
+                            #:timeout (if (eq? mode 'src)
+                                          3600
+                                          (if cs? 1500 600))))
 
-       (define racket-dir (~a "racket-" installer-vers "/"))
+         (scp rt (build-path work-dir f) (at-docker-remote rt f))
 
-       (ssh rt (~a "cd " racket-dir "src "
-                   " && mkdir build"
-                   " && cd build"
-                   " && ../configure" (~a (if prefix?
-                                              (~a " --prefix=" docker-dir "/local")
-                                              "")
-                                          (if alt-pkgs?
-                                              (~a " --pkgsdir=" docker-dir "/pkgs-local")
-                                              "")
-                                          (if cs?
-                                              " --enable-csdefault"
-                                              " --enable-bcdefault"))
-                   " && make -j 2"
-                   " && make install" (~a (if built?
-                                              " PLT_SETUP_OPTIONS=--recompile-only"
-                                              ""))))
+         ;; build --------------------
+         (ssh rt "tar zxf " f)
 
-       (when prefix?
-         ;; a second `make install` should work, overwriting the first one
+         (define racket-dir (~a "racket-" installer-vers "/"))
+
          (ssh rt (~a "cd " racket-dir "src "
+                     " && mkdir build"
                      " && cd build"
+                     " && ../configure" (~a (if prefix?
+                                                (~a " --prefix=" docker-dir "/local")
+                                                "")
+                                            (if alt-pkgs?
+                                                (~a " --pkgsdir=" docker-dir "/pkgs-local")
+                                                "")
+                                            (if natipkg?
+                                                (~a " --enable-natipkg --enable-catalog=/archive/catalog/")
+                                                "")
+                                            (if cs?
+                                                " --enable-csdefault"
+                                                " --enable-bcdefault"))
+                     " && make -j 2"
                      " && make install" (~a (if built?
                                                 " PLT_SETUP_OPTIONS=--recompile-only"
-                                                "")))))
+                                                ""))))
 
-       (define bin-dir (if prefix?
-                           "local/bin/"
-                           (~a racket-dir "bin/")))
+         (when prefix?
+           ;; a second `make install` should work, overwriting the first one
+           (ssh rt (~a "cd " racket-dir "src "
+                       " && cd build"
+                       " && make install" (~a (if built?
+                                                  " PLT_SETUP_OPTIONS=--recompile-only"
+                                                  "")))))
 
-       ;; check that Racket runs --------------------
-       (ssh rt (~a bin-dir "racket") " -e '(displayln \"hello\")'")
+         (define bin-dir (if prefix?
+                             "local/bin/"
+                             (~a racket-dir "bin/")))
 
-       ;; check that `raco setup` is ok --------------------
-       (ssh rt (~a bin-dir "raco") " setup")
+         ;; check that Racket runs --------------------
+         (ssh rt (~a bin-dir "racket") " -e '(displayln \"hello\")'")
 
-       ;; compile and link an embedding program --------------------
-       (scp rt (if cs? embed_cs.c embed_bc.c) (at-docker-remote rt "embed.c"))
-       (ssh rt (~a "gcc -o embed embed.c"
-                   " -pthread"
-                   " -I" (if prefix?
-                             "local/include/racket"
-                             (~a racket-dir "include"))
-                   " -L" (if prefix?
-                             "local/lib"
-                             (~a racket-dir "lib"))
-                   (if cs?
-                       " -lracketcs"
-                       " -lracket3m -lrktio")
-                   " -lm -ldl -lrt -lncurses"
-                   (if cs?
-                       " -lz"
-                       " -lffi")))
-       (ssh rt "./embed")
+         ;; check that `raco setup` is ok --------------------
+         (ssh rt (~a bin-dir "raco") " setup")
 
-       ;; if starting from min and built, install DrRacket ------------
-       (define scope (if user-scope? "" " -i "))
-       (when (and min? built?)
-         (ssh rt (~a bin-dir "raco") " pkg install"
-              " --recompile-only"
-              " --catalog /archive/catalog/"
-              " --auto"
-              scope
-              " drracket"))
-       
-       ;; install a package from the package server --------------------
-       (when remote-pkg
-         (when (and need-base? (not built?))
+         ;; for natipkg, check that native libraries are available --------------------
+         (when natipkg?
+           (ssh rt (~a bin-dir "racket")
+                " -l racket/base -l ffi/unsafe -l setup/dirs"
+                " -e '(ffi-lib (build-path (find-lib-dir) \"libcrypto.so.1.1\"))'"))
+
+         ;; compile and link an embedding program --------------------
+         (scp rt (if cs? embed_cs.c embed_bc.c) (at-docker-remote rt "embed.c"))
+         (ssh rt (~a "gcc -o embed embed.c"
+                     " -pthread"
+                     " -I" (if prefix?
+                               "local/include/racket"
+                               (~a racket-dir "include"))
+                     " -L" (if prefix?
+                               "local/lib"
+                               (~a racket-dir "lib"))
+                     (if cs?
+                         " -lracketcs"
+                         " -lracket3m -lrktio")
+                     " -lm -ldl -lrt -lncurses"
+                     (if cs?
+                         " -lz"
+                         " -lffi")))
+         (ssh rt "./embed")
+
+         ;; if starting from min and built, install DrRacket ------------
+         (define scope (if user-scope? "" " -i "))
+         (when (and min? built?)
            (ssh rt (~a bin-dir "raco") " pkg install"
                 " --recompile-only"
                 " --catalog /archive/catalog/"
                 " --auto"
                 scope
-                " base"))
-         (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " scope remote-pkg))
+                " drracket"))
 
-       (void))
+         ;; install a package from the package server --------------------
+         (when remote-pkg
+           (when (and need-base? (not built?))
+             (ssh rt (~a bin-dir "raco") " pkg install"
+                  " --recompile-only"
+                  " --catalog /archive/catalog/"
+                  " --auto"
+                  scope
+                  " base"))
+           (ssh rt remote-pkg-adjust (~a bin-dir "raco") " pkg install " scope remote-pkg))
 
-     docker-teardown)))
+         (void))
+
+       docker-teardown))))

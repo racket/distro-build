@@ -46,6 +46,7 @@
 (define linux          "{3} Linux")
 (define unix-platforms "{8} Unix")
 (define all-platforms  "{9} All Platforms")
+(define natipkg        "{A} Natipkg")
 
 (define disk-image-name " | {1} Disk Image")
 (define installer-name  " | {1} Installer")
@@ -69,23 +70,29 @@
 (define debian12-dist-name-suffix "; built on Debian 12")
 (define debian12-dist-suffix "jammy") ; using Ubuntu name instead of Debian name "bookworm"
 
-(define natipkg-name-extra " natipkg")
+(define natipkg-name-extra "")
 (define pkg-build-name-extra " for pkg-build")
 
 (define linux-extra-aliases '((#f "" #f)))
 
 (define (linux-x86_64-name #:extra [extra ""]
-                           #:order [order 1]
+                           #:order [order ""]
                            #:platform [dist-name-suffix debian10-dist-name-suffix])
   (format "~a64-bit x86_64~a~a"
           (if order
-              (format "{~a} " order)
+              (format "{~a1} " order)
               "")
           extra
           dist-name-suffix))
 
-(define (linux-aarch64-name #:platform [dist-name-suffix debian10-dist-name-suffix])
-  (format "{3} 64-bit AArch64~a"
+(define (linux-aarch64-name #:extra [extra ""]
+                            #:order [order ""]
+                            #:platform [dist-name-suffix debian10-dist-name-suffix])
+  (format "~a64-bit AArch64~a~a"
+          (if order
+              (format "{~a3} " order)
+              "")
+          extra
           dist-name-suffix))
 
 (define (linux-i386-name #:platform [dist-name-suffix debian10-dist-name-suffix])
@@ -265,6 +272,38 @@
     #:source-runtime? #t
     #:dist-suffix "builtpkgs"
     #:clean? #f)))
+
+(define (natipkg-machine arch container-prefix make-cs-name cs-machine aliases)
+  (define on-arch? (or (and (equal? arch "x86_64")
+                            on-x86_64?)
+                       (and (equal? arch "aarch64")
+                            on-aarch64?)))
+  (define-values (linux-arch-name target-machine arch-order)
+    (case arch
+      [("x86_64") (values linux-x86_64-name "ta6le" (lambda (order) order))]
+      [("aarch64") (values linux-aarch64-name "tarm6le" (lambda (order) (~a order "~3")))]
+      [else (error "unknown natipkg architecture" arch)]))
+  (parallel
+   #:docker (or (and on-arch?
+                     "racket/distro-build:debian10")
+                (~a "racket/distro-build:crosslinux-" arch))
+   #:cross-target-machine (and (not on-arch?) target-machine)
+   #:cross-target (and (not on-arch?) (~a arch "-linux-gnu"))
+   #:configure '("--enable-natipkg")
+   (parallel
+    (cs-machine
+     #:host (~a "natipkg-" arch)
+     #:container-prefix container-prefix
+     #:as-default-with-aliases aliases
+     (machine
+      #:name (make-cs-name natipkg (linux-arch-name #:extra natipkg-name-extra #:order "1."))))
+    (cs-machine
+     #:host (~a "natipkg-" arch "-pkg-build")
+     #:container-prefix container-prefix
+     (machine
+      #:name (make-cs-name natipkg (linux-arch-name #:extra pkg-build-name-extra #:order "2."))
+      #:compile-any? #t
+      #:dist-suffix (string-append debian10-dist-suffix "-pkg-build"))))))
 
 ;; Constructor for all machine configurations:
 (define (make-machs container-prefix
@@ -447,26 +486,8 @@
     ;; Linux Natipkg
     (if natipkg?
         (parallel
-         #:docker (if on-x86_64?
-                      "racket/distro-build:debian10"
-                      "racket/distro-build:crosslinux-x86_64")
-         #:cross-target-machine (and (not on-x86_64?) "ta6le")
-         #:cross-target (and (not on-x86_64?) "x86_64-linux-gnu")
-         #:configure '("--enable-natipkg")
-         (parallel
-          (cs-machine
-           #:host "natipkg-x86_64"
-           #:container-prefix container-prefix
-           #:as-default-with-aliases aliases
-           (machine
-            #:name (make-cs-name linux (linux-x86_64-name #:extra natipkg-name-extra #:order 8))))
-          (cs-machine
-           #:host "natipkg-x86_64-pkg-build"
-           #:container-prefix container-prefix
-           (machine
-            #:name (make-cs-name linux (linux-x86_64-name #:extra pkg-build-name-extra #:order 9))
-            #:compile-any? #t
-            #:dist-suffix (string-append debian10-dist-suffix "-pkg-build")))))
+         (natipkg-machine "x86_64" container-prefix make-cs-name cs-machine aliases)
+         (natipkg-machine "aarch64" container-prefix make-cs-name cs-machine aliases))
         (sequential))
     ;; ----------------------------------------
     ;; Windows
@@ -590,6 +611,11 @@
                                    (string-append detail vm)))]))
 
 (define (make-site-help)
+  (define pkg-build-explain
+    '(span "The " ldquo "pkg-build" rdquo
+           " variant is configured to compile collections"
+           " and packages to machine-independent form,"
+           " which is suitable for the pkg-build service."))
   (hash "Racket" '(span "The full Racket distribution, including DrRacket"
                         " and a package manager to install more packages.")
         "Minimal Racket" '(span "Includes just enough of Racket that you can use"
@@ -600,18 +626,17 @@
                        " try other Linux installers, starting from"
                        " similar ones. Often, a build for one Linux variant works on"
                        " others, too.")
-        (linux-x86_64-name #:extra natipkg-name-extra #:order #f)
+        "Natipkg"
         '(span "The " ldquo "natipkg" rdquo
-               " distribution uses pre-built and repackaged"
+               " distribution is for Linux, but it uses pre-built and repackaged"
                " versions of system libraries, instead of"
                " relying on the operating system's package"
-               " manager to install them.")
+               " manager to install them. They are intended"
+               " for use by test and build services.")
         (linux-x86_64-name #:extra pkg-build-name-extra #:order #f)
-        '(span "The " ldquo "pkg-build" rdquo
-               " distribution is like " ldquo "natipkg" rdquo
-               " but also configured to compile collections"
-               " and packages to machine-independent form,"
-               " which is suitable for the pkg-build service.")
+        pkg-build-explain
+        (linux-aarch64-name #:extra pkg-build-name-extra #:order #f)
+        pkg-build-explain
         "Source + built packages" '(span "The core run-time system is provided in source"
                                          " form, but Racket libraries are"
                                          " pre-compiled and documentation"

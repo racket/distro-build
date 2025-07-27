@@ -45,9 +45,10 @@
  [("--ignore-suggested-paths") ("Don't use installer's suggested paths; needed to use a snapshot"
                                 "instead of a release")
                                (set! ignore-suggested-paths? #t)]
- #:once-any
+ #:once-each
  [("--dry-run") "Just show the test plan"
                 (set! just-show-plan? #t)]
+ #:once-any
  [("--fast") "Run only basic installer checks"
              (set! fast-mode 'fast)]
  [("--fast-src") "Run only basic source checks"
@@ -65,6 +66,9 @@
 
 ;; Created/replaced/deleted:
 (define docker-container-name "unix-installer-test")
+
+;; Also created/replaced/deleted, used to speed up some source builds:
+(define docker-common-container-name (string-append docker-container-name "-common"))
 
 ;; Working directory in Docker container:
 (define docker-dir "/home/racket")
@@ -215,8 +219,16 @@
                          #:relative-sources? #t)))
 
 ;; ----------------------------------------
+;; Shared build destination
 
-(define (make-docker-setup #:volumes volumes)
+(define common-dir (build-path work-dir "common"))
+(unless just-show-plan?
+  (make-directory* common-dir))
+
+;; ----------------------------------------
+
+(define (make-docker-setup #:volumes volumes
+                           #:container-name [docker-container-name docker-container-name])
   (lambda ()
     (docker-create #:name docker-container-name
                    #:image-name docker-image-name
@@ -224,7 +236,7 @@
                    #:replace? #t)
     (docker-start #:name docker-container-name)))
 
-(define docker-teardown
+(define (make-docker-teardown #:container-name [docker-container-name docker-container-name])
   (lambda ()
     (when (docker-running? #:name docker-container-name)
       (docker-stop #:name docker-container-name))
@@ -383,7 +395,7 @@
 
          (void))
 
-       docker-teardown))))
+       (make-docker-teardown)))))
 
 ;; ----------------------------------------
 
@@ -464,12 +476,38 @@
 
          (void))
 
-       docker-teardown))))
+       (make-docker-teardown)))))
 
 ;; ----------------------------------------
 
 (when from-src?
   (sync (system-idle-evt))
+
+  (printf (~a "=================================================================\n"
+              "COMMON\n"))
+  (unless just-show-plan?
+    (#%app
+     dynamic-wind
+
+     (make-docker-setup #:volumes `((,common-dir "/common" rw))
+                        #:container-name docker-common-container-name)
+
+     (lambda ()
+       (define rt (remote #:host docker-common-container-name
+                          #:kind 'docker
+                          #:timeout 3600))
+
+       (scp rt (build-path work-dir (car min-racket-src-installers)) (at-remote rt "/common/src.tgz"))
+
+       (ssh rt "cd /common && tar zxf src.tgz")
+       (ssh rt "cd /common && mv " (~a "racket-" installer-vers) " racket")
+       (ssh rt (~a "cd /common/racket/src "
+                     " && mkdir build"
+                     " && cd build"
+                     " && ../configure"
+                     " && make -j 2")))
+
+     (make-docker-teardown #:container-name docker-common-container-name)))
 
   (for* ([mode (if fast-mode
                    (if (eq? src-mode 'slow)
@@ -514,11 +552,13 @@
     (define need-base? (and min? (min-needs-base?)))
     (define alt-pkgs? (eq? extra-mode 'alt-pkgs))
     (define natipkg? (eq? extra-mode 'natipkg))
+    (define use-common? (and cs? (not (memq mode '(src-built src)))))
 
     (printf (~a "=================================================================\n"
                 "SOURCE: "
                 f
                 (if cs? " CS" " BC")
+                (if use-common? " [common]" "")
                 (if prefix? " --prefix" "")
                 (if user-scope? " --user" " --installation")
                 (if alt-pkgs? " --pkgsdir=..." "")
@@ -529,7 +569,8 @@
       (#%app
        dynamic-wind
 
-       (make-docker-setup #:volumes `((,pkg-archive-dir "/archive" ro)))
+       (make-docker-setup #:volumes `((,pkg-archive-dir "/archive" ro)
+                                      (,common-dir "/common" ro)))
 
        (lambda ()
          (define rt (remote #:host docker-container-name
@@ -562,7 +603,10 @@
                                                 "")
                                             (if cs?
                                                 " --enable-csdefault"
-                                                " --enable-bcdefault"))
+                                                " --enable-bcdefault")
+                                            (if use-common?
+                                                (~a " --enable-scheme=/common/racket/src/build/cs/c")
+                                                ""))
                      " && make -j 2"
                      " && make install" (~a (if built?
                                                 " PLT_SETUP_OPTIONS=--recompile-only"
@@ -634,4 +678,4 @@
 
          (void))
 
-       docker-teardown))))
+       (make-docker-teardown)))))

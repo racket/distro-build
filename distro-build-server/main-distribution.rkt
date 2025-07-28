@@ -281,7 +281,7 @@
   (define-values (linux-arch-name target-machine arch-order)
     (case arch
       [("x86_64") (values linux-x86_64-name "ta6le" (lambda (order) order))]
-      [("aarch64") (values linux-aarch64-name "tarm6le" (lambda (order) (~a order "~3")))]
+      [("aarch64") (values linux-aarch64-name "tarm64le" (lambda (order) (~a order "~3")))]
       [else (error "unknown natipkg architecture" arch)]))
   (parallel
    #:docker (or (and on-arch?

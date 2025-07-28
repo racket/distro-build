@@ -51,6 +51,9 @@
  #:once-any
  [("--fast") "Run only basic installer checks"
              (set! fast-mode 'fast)]
+ [("--src") "Run only source checks"
+            (set! fast-mode 'src)
+            (set! src-mode 'all)]
  [("--fast-src") "Run only basic source checks"
                  (set! fast-mode 'src)]
  [("--slow-src") "Run only longest source check"
@@ -62,7 +65,7 @@
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
 
-(define docker-image-name "racket/distro-build:x86_64-linux")
+(define docker-image-name (~a "racket/distro-build:" (system-type 'arch) "-linux"))
 
 ;; Created/replaced/deleted:
 (define docker-container-name "unix-installer-test")
@@ -77,13 +80,13 @@
 (define catalog (~a snapshot-site "catalog/"))
 
 (define min-racket-installers
-  (list (~a "racket-minimal-" installer-vers "-x86_64-linux" platform-suffix ".sh")))
+  (list (~a "racket-minimal-" installer-vers "-" (system-type 'arch) "-linux" platform-suffix ".sh")))
 
 (define racket-installers
-  (list (~a "racket-" installer-vers "-x86_64-linux" platform-suffix ".sh")))
+  (list (~a "racket-" installer-vers "-" (system-type 'arch) "-linux" platform-suffix ".sh")))
 
 (define min-racket-natipkg-installers
-  (list (~a "racket-minimal-" installer-vers "-x86_64-linux-natipkg" platform-suffix ".sh")))
+  (list (~a "racket-minimal-" installer-vers "-" (system-type 'arch) "-linux-natipkg" platform-suffix ".sh")))
 
 (define racket-src-built-installers
   (list (~a "racket-" installer-vers "-src-builtpkgs.tgz")))
@@ -114,6 +117,7 @@
 (define basic? (not (memq fast-mode '(src natipkg))))
 (define natipkg? (or (not fast-mode) (eq? fast-mode 'natipkg)))
 (define from-src? (not (memq fast-mode '(fast natipkg))))
+(define fast-src-mode (and (not (eq? src-mode 'all)) fast-mode))
 
 (define-runtime-path embed_cs.c "embed_cs.c")
 (define-runtime-path embed_bc.c "embed_bc.c")
@@ -157,7 +161,7 @@
   (when natipkg?
     (for-each get min-racket-natipkg-installers))
   (when from-src?
-    (for-each get (if fast-mode
+    (for-each get (if fast-src-mode
                       (if (eq? src-mode 'slow)
                           racket-src-installers
                           min-racket-src-installers)
@@ -212,7 +216,7 @@
 
 (unless just-show-plan?
   (when (and (or natipkg? from-src?)
-             (not (eq? fast-mode 'src)))
+             (not fast-src-mode))
     (pkg-catalog-archive pkg-archive-dir
                          (list catalog)
                          #:state-catalog (build-path work-dir "archive" "state.sqlite")
@@ -497,6 +501,8 @@
                           #:kind 'docker
                           #:timeout 3600))
 
+       (ssh rt "rm -rf /common/*")
+
        (scp rt (build-path work-dir (car min-racket-src-installers)) (at-remote rt "/common/src.tgz"))
 
        (ssh rt "cd /common && tar zxf src.tgz")
@@ -509,7 +515,7 @@
 
      (make-docker-teardown #:container-name docker-common-container-name)))
 
-  (for* ([mode (if fast-mode
+  (for* ([mode (if fast-src-mode
                    (if (eq? src-mode 'slow)
                        '(src)
                        '(min-src))
@@ -523,9 +529,9 @@
                         racket-src-built-installers]
                        [(src)
                         racket-src-installers]))]
-         [prefix? (if fast-mode '(#f) '(#f #t))]
-         [cs? (if fast-mode '(#t) '(#t #f))]
-         [user-scope? (if (or fast-mode (not cs?))
+         [prefix? (if fast-src-mode '(#f) '(#f #t))]
+         [cs? (if fast-src-mode '(#t) '(#t #f))]
+         [user-scope? (if (or fast-src-mode (not cs?))
                           (if (eq? src-mode 'slow)
                               '(#f)
                               '(#t))

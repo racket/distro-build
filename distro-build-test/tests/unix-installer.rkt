@@ -65,7 +65,7 @@
 ;; ----------------------------------------
 ;; Configuration (adjust as needed)
 
-(define docker-image-name (~a "racket/distro-build:" (system-type 'arch) "-linux"))
+(define docker-image-name (~a "racket/distro-build:debian10-" (system-type 'arch) "-linux"))
 
 ;; Created/replaced/deleted:
 (define docker-container-name "unix-installer-test")
@@ -620,11 +620,12 @@
 
          (when prefix?
            ;; a second `make install` should work, overwriting the first one
-           (ssh rt (~a "cd " racket-dir "src "
-                       " && cd build"
-                       " && make install" (~a (if built?
-                                                  " PLT_SETUP_OPTIONS=--recompile-only"
-                                                  "")))))
+           (unless natipkg? ; ... unless there are native libraries that would get lost
+             (ssh rt (~a "cd " racket-dir "src "
+                         " && cd build"
+                         " && make install" (~a (if built?
+                                                    " PLT_SETUP_OPTIONS=--recompile-only"
+                                                    ""))))))
 
          (define bin-dir (if prefix?
                              "local/bin/"
@@ -640,7 +641,7 @@
          (when natipkg?
            (ssh rt (~a bin-dir "racket")
                 " -l racket/base -l ffi/unsafe -l setup/dirs"
-                " -e '(ffi-lib (build-path (find-lib-dir) \"libcrypto.so.1.1\"))'"))
+                " -e '(ffi-lib (build-path (find-lib-dir) \"libcrypto.so\") (list \"3\" \"1.1\"))'"))
 
          ;; compile and link an embedding program --------------------
          (scp rt (if cs? embed_cs.c embed_bc.c) (at-docker-remote rt "embed.c"))

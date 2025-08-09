@@ -493,15 +493,15 @@
     ;; Windows
     (parallel
      #:docker "racket/distro-build:crosswin"
+     #:splice (if windows-sign-post-process
+                  (spliceable
+                   #:server-installer-post-process windows-sign-post-process)
+                  (spliceable))
      ;; ----------------------------------------
      ;; Windows x86_64
      (parallel
       #:cross-target "x86_64-w64-mingw32"
       #:cross-target-machine "ta6nt"
-      #:splice (if windows-sign-post-process
-                   (spliceable
-                    #:server-installer-post-process windows-sign-post-process)
-                   (spliceable))
       #:configure '("CFLAGS=-O2") ; no `-g` to avoid compiler bug when building BC
       (cs+bc-machine
        win-machine
@@ -524,10 +524,6 @@
      (parallel
       #:cross-target-machine "tarm64nt"
       #:cross-target "aarch64-w64-mingw32"
-      #:splice (if windows-sign-post-process
-                   (spliceable
-                    #:server-installer-post-process windows-sign-post-process)
-                   (spliceable))
       (cs+bc-machine
        win-machine
        #:bc? #f ; BC has not been ported to Windows AArch64

@@ -384,7 +384,7 @@
                                (cond
                                  [(regexp-match? #rx"(?i:windows)" name) "win32"]
                                  [(regexp-match? #rx"(?i:mac ?os)" name) "macosx"]
-                                 [(regexp-match? #rx"(?i:linux)" name) "linux"]
+                                 [(regexp-match? #rx"(?i:linux|natipkg)" name) "linux"]
                                  [(regexp-match? #rx"(?i:openbsd)" name) "openbsd"]
                                  [(regexp-match? #rx"(?i:freebsd)" name) "freebsd"]
                                  [(regexp-match? #rx"(?i:netbsd)" name) "netbsd"]

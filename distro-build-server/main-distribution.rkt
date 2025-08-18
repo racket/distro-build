@@ -75,6 +75,12 @@
 
 (define linux-extra-aliases '((#f "" #f)))
 
+(define (adjust-nonempty-extra extra-alises extra)
+  (for/list ([extra-alias (in-list extra-alises)])
+    (list (car extra-alias)
+          extra
+          (caddr extra-alias))))
+
 (define (linux-x86_64-name #:extra [extra ""]
                            #:order [order ""]
                            #:platform [dist-name-suffix debian10-dist-name-suffix])
@@ -295,13 +301,13 @@
      #:host (~a "natipkg-" arch)
      #:container-prefix container-prefix
      #:as-default-with-aliases aliases
-     #:extra-aliases linux-extra-aliases
      (machine
       #:name (make-cs-name natipkg (linux-arch-name #:extra natipkg-name-extra #:order "1."))))
     (cs-machine
      #:host (~a "natipkg-" arch "-pkg-build")
      #:container-prefix container-prefix
-     #:extra-aliases linux-extra-aliases
+     #:as-default-with-aliases aliases
+     #:extra-aliases (adjust-nonempty-extra linux-extra-aliases "pkg-build")
      (machine
       #:name (make-cs-name natipkg (linux-arch-name #:extra pkg-build-name-extra #:order "2."))
       #:compile-any? #t

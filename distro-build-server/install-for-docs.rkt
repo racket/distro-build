@@ -72,6 +72,7 @@
 (printf "Running `raco pkg install' for packages:\n")
 (for ([pkg (in-list pkgs)])
   (printf "  ~a\n" pkg))
+(flush-output)
 (unless (apply system* (find-exe)
                (append
                 (list "-G" "build/docs/etc")
@@ -87,6 +88,7 @@
 (when (hash-ref config '#:pdf-doc? #f)
   (display-time #:server? #t)
   (printf "Running `raco setup' PDF documentation:\n")
+  (flush-output)
   (unless (apply system* (find-exe)
                  (append
                   (list "-G" "build/docs/etc")

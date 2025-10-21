@@ -113,98 +113,110 @@
                                     (format "~a/catalog~a" docker-mnt-dir i)
                                     'ro))))
 
+  (docker-start #:name docker-name))
+
+(define (stop-container)
+  (when use-docker?
+    (docker-stop #:name docker-name)))
+
+(with-handlers ([exn? (lambda (exn)
+                        ((error-display-handler) (exn-message exn) exn)
+                        (stop-container))])
+  (when use-docker?
+    (display-time #:server? #t)
+    (printf "Installing ~a in container\n" docker-installer)
+    (flush-output)
+    (docker-exec #:name docker-name
+                 "/bin/sh" "-c"
+                 (command "mkdir -p" docker-dir
+                          "&& cd" docker-dir
+                          "&& sh" (~a docker-mnt-dir "/installers/" docker-installer)
+                          "--in-place --dest racket")))
+
   (display-time #:server? #t)
-  (printf "Installing ~a in container\n" docker-installer)
-  (docker-start #:name docker-name)
-  (docker-exec #:name docker-name
-               "/bin/sh" "-c"
-               (command "mkdir -p" docker-dir
-                        "&& cd" docker-dir
-                        "&& sh" (~a docker-mnt-dir "/installers/" docker-installer)
-                        "--in-place --dest racket")))
-
-(display-time #:server? #t)
-(printf "Running `raco pkg install' for packages:\n")
-(for ([pkg (in-list pkgs)])
-  (printf "  ~a\n" pkg))
-(flush-output)
-
-(define system*-or-docker
-  (if use-docker?
-      (lambda (exe . args)
-        (docker-exec #:name docker-name
-                     "/bin/sh" "-c"
-                     (apply command
-                            (build-path/string docker-dir "racket/bin/racket")
-                            args)))
-      system*))
-
-(unless (apply system*-or-docker (find-exe)
-               (append
-                (if use-docker?
-                    null
-                    (append
-                     (list "-G" "build/docs/etc")
-                     (target-machine-flags)))
-                (list
-                 "-l-" "raco" "pkg" "install"
-                 "--pkgs"
-                 "-i" "--deps" "search-auto"
-                 "--recompile-only"
-                 "--skip-installed")
-                (if use-docker?
-                    (apply append
-                           (for/list ([catalog (in-list catalogs)]
-                                      [i (in-naturals)]
-                                      #:when (directory-exists? catalog))
-                             (list "--catalog" (format "~a/catalog~a" docker-mnt-dir i))))
-                    null)
-                pkgs))
-  (error "install failed"))
-
-(when (hash-ref config '#:pdf-doc? #f)
-  (display-time #:server? #t)
-  (printf "Running `raco setup' PDF documentation:\n")
+  (printf "Running `raco pkg install' for packages:\n")
+  (for ([pkg (in-list pkgs)])
+    (printf "  ~a\n" pkg))
   (flush-output)
+
+  (define system*-or-docker
+    (if use-docker?
+        (lambda (exe . args)
+          (docker-exec #:name docker-name
+                       "/bin/sh" "-c"
+                       (apply command
+                              (build-path/string docker-dir "racket/bin/racket")
+                              args)))
+        system*))
+
   (unless (apply system*-or-docker (find-exe)
                  (append
                   (if use-docker?
-                    null
-                    (append
-                     (list "-G" "build/docs/etc")
-                     (target-machine-flags)))
+                      null
+                      (append
+                       (list "-G" "build/docs/etc")
+                       (target-machine-flags)))
                   (list
-                   "-l-" "raco" "setup"
+                   "-l-" "raco" "pkg" "install"
+                   "--pkgs"
+                   "-i" "--deps" "search-auto"
                    "--recompile-only"
-                   "--doc-pdf" (if use-docker?
-                                   (build-path/string docker-dir "pdf-doc")
-                                   "build/pdf-doc"))))
-    (error "PDF failed")))
+                   "--skip-installed")
+                  (if use-docker?
+                      (apply append
+                             (for/list ([catalog (in-list catalogs)]
+                                        [i (in-naturals)]
+                                        #:when (directory-exists? catalog))
+                               (list "--catalog" (format "~a/catalog~a" docker-mnt-dir i))))
+                      null)
+                  pkgs))
+    (error "install failed"))
 
-(when use-docker?
-  (printf "Gathering documentation\n")
-  (flush-output)
-  (docker-exec #:name docker-name
-               "/bin/sh" "-c"
-               (command "cd" (build-path/string docker-dir "racket")
-                        "&& tar zcf"
-                        (format "~a/output/doc.tgz" docker-mnt-dir)
-                        "doc"))
   (when (hash-ref config '#:pdf-doc? #f)
+    (display-time #:server? #t)
+    (printf "Running `raco setup' PDF documentation:\n")
+    (flush-output)
+    (unless (apply system*-or-docker (find-exe)
+                   (append
+                    (if use-docker?
+                        null
+                        (append
+                         (list "-G" "build/docs/etc")
+                         (target-machine-flags)))
+                    (list
+                     "-l-" "raco" "setup"
+                     "--recompile-only"
+                     "--doc-pdf" (if use-docker?
+                                     (build-path/string docker-dir "pdf-doc")
+                                     "build/pdf-doc"))))
+      (error "PDF failed")))
+
+  (when use-docker?
+    (printf "Gathering documentation\n")
+    (flush-output)
     (docker-exec #:name docker-name
-                 "/bin/sh" "-c" 
-                 (command "cd" docker-dir
+                 "/bin/sh" "-c"
+                 (command "cd" (build-path/string docker-dir "racket")
                           "&& tar zcf"
-                          (format "~a/output/pdf-doc.tgz" docker-mnt-dir)
-                          "pdf-doc")))
-  (define tar-exe (or (find-executable-path "tar")
-                      (error "could not find `tar` executable")))
-  (parameterize ([current-directory dir])
-    (system* tar-exe "zxf" "doc.tgz"))
-  (when (hash-ref config '#:pdf-doc? #f)
-    (let ([dir (path->complete-path dir)])
-      (parameterize ([current-directory "build"])
-        (system* tar-exe "zxf" (build-path dir "pdf-doc.tgz")))))
-  (void))
+                          (format "~a/output/doc.tgz" docker-mnt-dir)
+                          "doc"))
+    (when (hash-ref config '#:pdf-doc? #f)
+      (docker-exec #:name docker-name
+                   "/bin/sh" "-c"
+                   (command "cd" docker-dir
+                            "&& tar zcf"
+                            (format "~a/output/pdf-doc.tgz" docker-mnt-dir)
+                            "pdf-doc")))
+    (define tar-exe (or (find-executable-path "tar")
+                        (error "could not find `tar` executable")))
+    (parameterize ([current-directory dir])
+      (unless (system* tar-exe "zxf" "doc.tgz")
+        (error "doc packing failed")))
+    (when (hash-ref config '#:pdf-doc? #f)
+      (let ([dir (path->complete-path dir)])
+        (parameterize ([current-directory "build"])
+          (unless (system* tar-exe "zxf" (build-path dir "pdf-doc.tgz"))
+            (error "PDF doc packing failed"))))))
 
-(display-time #:server? #t)
+  (display-time #:server? #t)
+  (stop-container))

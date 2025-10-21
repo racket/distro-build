@@ -752,6 +752,24 @@ Top keywords (expected only in the configuration top-level):
   @item{@racket[#:pdf-doc? _boolean] --- whether to build PDF
     documentation when assembling a site; the default is @racket[#f]}
 
+  @item{@racket[#:doc-vm _hash-table-or-false] --- whether to build
+    documentation (including in PDF format when @racket[pdf-doc?] is
+    true) when assembling a site via the @tech{server machine} or a
+    Docker container; the server machine is used when
+    @racket[_hash-table-or-false] is @racket[#f]; otherwise,
+    @racket[_hash-table-or-false] can map the following keys:
+    @racket['name] for a container name to use/replace, where the
+    default is @racket["distro-build-doc"]; @racket['image-name] for
+    an image name to use, where the default the
+    @racket["racket/distro-build-doc"]; @racket['installer] for an
+    installer (built as part of the distribution) file name, where
+    @litchar{VERSION} in the string is replaced with the built version
+    number; and @racket['dir] for a directory to use within the
+    container, where the default is @racket["build"]; the default
+    value is @racket[#f]
+
+    @history[#:added "1.22"]}
+
  @item{@racket[#:fake-installers? _boolean] --- if true, instead of
     using @tech{client machines} to build installers, just uses the
     content of the @filepath{README} file that would be included as
@@ -1370,6 +1388,23 @@ configuration.
  appropriately.
 
 }
+
+@defproc[(make-spliceable-pdf-doc-via-docker
+          [#:file-name file-name string? racket-file-name]
+          [#:container-prefix container-prefix string? "main-dist-"])
+         hash?]{
+
+ Returns a table created by @racket[spliceable] to map
+ @racket[#:pdf-doc?] to @racket[#true] and @racket[#:doc-vm] to a
+ configuration. The configuration takes advantage of a non-minimal
+ installer to run the documentation-build phase of assembling a site
+ to use a Docker image that has a suitable LaTeX installation.
+
+ Pass the same @racket[#:file-name] and @racket[#:container-prefix]
+ arguments as supplied to @racket[make-machines] (when @racket[#:minimal?]
+ is not supplied to supplied as true to @racket[make-machines]).
+
+ @history[#:added "1.22"]}
 
 @deftogether[(
 @defproc[(make-start-check) (procedure-arity-includes/c 1)]

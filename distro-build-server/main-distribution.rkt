@@ -15,6 +15,7 @@
          make-site-help
          make-site-help-fallbacks
          make-spliceable-limits
+         make-spliceable-pdf-doc-via-docker
 
          racket-name
          minimal-racket-name
@@ -741,6 +742,16 @@
    #:max-parallel max-parallel
    #:timeout timeout
    #:j j))
+
+(define (make-spliceable-pdf-doc-via-docker #:file-name [base racket-file-name]
+                                            #:container-prefix [container-prefix "main-dist-"])
+  (spliceable
+    #:pdf-doc? #t
+    #:doc-vm (hash 'installer (format (if on-aarch64?
+                                          "~a-VERSION-x86_64-linux-buster-cs.sh"
+                                          "~a-VERSION-aarch64-linux-buster-cs.sh")
+                                      base)
+                   'name (string-append container-prefix "doc"))))
 
 (define (extract-container-names m)
   (define containers

@@ -276,6 +276,12 @@
     [(#:site-title) (string? val)]
     [(#:current-link-version) (simple-string? val)]
     [(#:pdf-doc?) (boolean? val)]
+    [(#:doc-vm) (or (not val)
+                    (and (hash? val)
+                         (for/and ([(k v) (in-hash val)])
+                           (case k
+                             [(dir installer name image-name) (simple-path-string? v)]
+                             [else #f]))))]
     [(#:max-snapshots) (real? val)]
     [(#:week-count) (exact-positive-integer? val)]
     [(#:plt-web-style?) (boolean? val)]
@@ -316,6 +322,11 @@
        ;; No spaces, quotes, or other things that could
        ;; break a command-line, path, or URL construction:
        (regexp-match #rx"^[-a-zA-Z0-9._]*$" s)))
+
+(define (simple-path-string? s)
+  (and (string? s)
+       ;; Like `simple-string?`, but also allow slashes
+       (regexp-match #rx"^[-/a-zA-Z0-9._]*$" s)))
 
 (define (email? s)
   (and (string? s)

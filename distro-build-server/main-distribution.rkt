@@ -748,8 +748,8 @@
   (spliceable
     #:pdf-doc? #t
     #:doc-vm (hash 'installer (format (if on-aarch64?
-                                          "~a-VERSION-x86_64-linux-buster-cs.sh"
-                                          "~a-VERSION-aarch64-linux-buster-cs.sh")
+                                          "~a-VERSION-aarch64-linux-buster-cs.sh"
+                                          "~a-VERSION-x86_64-linux-buster-cs.sh")
                                       base)
                    'name (string-append container-prefix "doc"))))
 

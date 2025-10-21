@@ -109,7 +109,8 @@
                             (for/list ([catalog (in-list catalogs)]
                                        [i (in-naturals)]
                                        #:when (directory-exists? catalog))
-                              (list (path->complete-path catalog)
+                              (define-values (base name dir?) (split-path catalog))
+                              (list (path->complete-path base)
                                     (format "~a/catalog~a" docker-mnt-dir i)
                                     'ro))))
 
@@ -167,7 +168,8 @@
                              (for/list ([catalog (in-list catalogs)]
                                         [i (in-naturals)]
                                         #:when (directory-exists? catalog))
-                               (list "--catalog" (format "~a/catalog~a" docker-mnt-dir i))))
+                               (define-values (base name dir?) (split-path catalog))
+                               (list "--catalog" (format "~a/catalog~a/~a" docker-mnt-dir i name))))
                       null)
                   pkgs))
     (error "install failed"))

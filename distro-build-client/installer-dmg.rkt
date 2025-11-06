@@ -196,6 +196,8 @@
 
 (define (framework-dir? f)
   (regexp-match? #rx#"\\.framework$" f))
+(define (app-dir? f)
+  (regexp-match? #rx#"\\.app$" f))
 
 (define (sign-executables dest-dir sign-identity sign-cert hardened-runtime?)
   ;; sign the mach-o files in any frameworks in the given directory
@@ -252,7 +254,7 @@
           ;; Sign ".app":
           (run-codesign sign-identity sign-cert f hardened-runtime?)))))
   (sign-mach-o-files-in-dir sign-identity sign-cert hardened-runtime? (build-path dest-dir "bin"))
-  (sign-mach-o-files-in-dir sign-identity sign-cert hardened-runtime? (build-path dest-dir "lib"))
+  (sign-mach-o-files-in-dir sign-identity sign-cert hardened-runtime? (build-path dest-dir "lib") #:recur? #t)
   (check-apps dest-dir)
   (check-apps (build-path dest-dir "lib"))
   (check-frameworks (build-path dest-dir "lib")))
@@ -262,15 +264,23 @@
   (flush-output))
 
 ;; sign all of the mach-o files in a directory
-(define (sign-mach-o-files-in-dir sign-identity sign-cert hardened-runtime? dir)
-  (cond [(directory-exists? dir)
-         (for ([f (in-list (directory-list dir #:build? #t))])
-           (when (mach-o-file? f)
-             (run-codesign sign-identity sign-cert f hardened-runtime?)))]
-        [else
-         (printf "WARNING: directory passed to sign-mach-o-files-in dir doesn't exist: ~e"
-                 dir)
-         (flush-output)]))
+(define (sign-mach-o-files-in-dir sign-identity sign-cert hardened-runtime? dir
+                                  #:recur? [recur? #f])
+  (let recur-loop ([dir dir])
+    (cond
+      [(directory-exists? dir)
+       (for ([f (in-list (directory-list dir #:build? #t))])
+         (when (mach-o-file? f)
+           (run-codesign sign-identity sign-cert f hardened-runtime?))
+         (when (and recur?
+                    (directory-exists? f)
+                    (not (framework-dir? f))
+                    (not (app-dir? f)))
+           (recur-loop f)))]
+      [else
+       (printf "WARNING: directory passed to sign-mach-o-files-in dir doesn't exist: ~e"
+               dir)
+       (flush-output)])))
 
 ;; is this a Mach-O file? (That is, does it start with #xfeedface or #xfeedfacf ?
 (define (mach-o-file? file)
@@ -290,8 +300,8 @@
                                             (integer-bytes->integer type-bstr #f))
                                     (values #f #f)))))       
      (and (member exe-id '(#xFeedFace #xFeedFacf))
-          ;; executables or shared library:
-          (member file-type '(2 6)))]
+          ;; executable, shared library, or loadable module:
+          (member file-type '(2 6 8)))]
     [else #f]))
 
 (define (dmg-layout dmg volname bg)

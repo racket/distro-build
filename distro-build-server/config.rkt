@@ -321,12 +321,12 @@
   (and (string? s)
        ;; No spaces, quotes, or other things that could
        ;; break a command-line, path, or URL construction:
-       (regexp-match #rx"^[-a-zA-Z0-9._]*$" s)))
+       (regexp-match #rx"^[-a-zA-Z0-9._+]*$" s)))
 
 (define (simple-path-string? s)
   (and (string? s)
        ;; Like `simple-string?`, but also allow slashes
-       (regexp-match #rx"^[-/a-zA-Z0-9._]*$" s)))
+       (regexp-match #rx"^[-/a-zA-Z0-9._+]*$" s)))
 
 (define (email? s)
   (and (string? s)

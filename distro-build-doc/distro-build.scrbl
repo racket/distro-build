@@ -837,7 +837,7 @@ Top keywords (expected only in the configuration top-level):
     source URL as a string, @racket['width] and @racket['height]
     mapped to non-negative exact integers, @racket['href] mapped to a
     link URL as a string, and @racket['alt] mapped to a string for
-    mouse-over text; the default is @racket[#f]
+    image-alternate text; the default is @racket[#f]
 
     @history[#:added "1.23"]}
 

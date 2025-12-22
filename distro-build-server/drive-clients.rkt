@@ -294,10 +294,12 @@
     #:dist-base-url
     #:server-hosts
     #:extra-repo-dir
+    #:fake-installers?
     #:site-dest
     #:site-help
     #:site-help-fallbacks
     #:site-title
+    #:site-logo
     #:pdf-doc?
     #:max-snapshots
     #:week-count

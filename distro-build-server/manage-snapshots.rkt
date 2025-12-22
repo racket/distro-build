@@ -183,8 +183,11 @@
                     #:installers-url "current/installers/"
                     #:log-dir (build-path site-dir "log")
                     #:log-dir-url "current/log/"
-                    #:docs-url (and (directory-exists? (build-path site-dir "doc"))
-                                    "current/doc/index.html")
+                    #:docs-url (let ([doc-index-url (hash-ref config '#:site-doc-url "index.html")])
+                                 (if (url-path-absolute? (string->url doc-index-url))
+                                     doc-index-url
+                                     (and (directory-exists? (build-path site-dir "doc"))
+                                          (string-append "current/doc/" doc-index-url))))
                     #:pdf-docs-url (and (directory-exists? (build-path site-dir "pdf-doc"))
                                         "current/pdf-doc/")
                     #:dest (build-path snapshots-dir

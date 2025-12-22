@@ -292,6 +292,7 @@
                                 [(src alt href) (string? v)]
                                 [(width height) (exact-nonnegative-integer? v)]
                                 [else #f]))))]
+    [(#:site-doc-url) (string? val)]
     [(#:pause-before) (and (real? val) (not (negative? val)))]
     [(#:pause-after) (and (real? val) (not (negative? val)))]
     [(#:readme) (or (string? val)

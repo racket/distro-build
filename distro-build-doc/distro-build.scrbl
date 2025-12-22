@@ -841,6 +841,14 @@ Top keywords (expected only in the configuration top-level):
 
     @history[#:added "1.23"]}
 
+  @item{@racket[#:site-doc-url _string] --- a URL to use for a
+    documentation link; when a relative URL, the link is created only
+    when HTML documentation is rendered for the site and the URL is
+    relative to the documentation directory, but an absolute URL is
+    shown always; the default is @racket["index.html"]
+
+    @history[#:added "1.23"]}
+
   @item{@racket[#:max-snapshots _number] --- number of snapshots to
     keep, used by the @tt{snapshot-site} makefile target; defaults
     to @racket[5]}

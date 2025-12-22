@@ -56,6 +56,8 @@
 
 (define logo (hash-ref config '#:site-logo #f))
 
+(define doc-index-url (hash-ref config '#:site-doc-url "index.html"))
+
 (printf "Assembling site as ~a\n" dest-dir)
 
 ;; Get transitive dependencies of requested packages, instead of just cataloging
@@ -221,8 +223,10 @@
                     #:title site-title
                     #:installers-url "installers/"
                     #:log-dir-url "log/"
-                    #:docs-url (and (directory-exists? doc-path)
-                                    "doc/index.html")
+                    #:docs-url (if (url-path-absolute? (string->url doc-index-url))
+                                   doc-index-url
+                                   (and (directory-exists? doc-path)
+                                        (string-append "doc/" doc-index-url)))
                     #:pdf-docs-url (and (directory-exists? pdf-doc-path)
                                         "pdf-doc/")
                     #:dest (build-path dest-dir

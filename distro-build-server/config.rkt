@@ -285,6 +285,13 @@
     [(#:max-snapshots) (real? val)]
     [(#:week-count) (exact-positive-integer? val)]
     [(#:plt-web-style?) (boolean? val)]
+    [(#:site-logo) (or (not val)
+                       (and (hash? val)
+                            (for/and ([(k v) (in-hash val)])
+                              (case k
+                                [(src alt href) (string? v)]
+                                [(width height) (exact-nonnegative-integer? v)]
+                                [else #f]))))]
     [(#:pause-before) (and (real? val) (not (negative? val)))]
     [(#:pause-after) (and (real? val) (not (negative? val)))]
     [(#:readme) (or (string? val)

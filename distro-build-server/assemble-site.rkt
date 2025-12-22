@@ -54,6 +54,8 @@
                             #:url "https://racket-lang.org/"
                             #:generate? #f)))
 
+(define logo (hash-ref config '#:site-logo #f))
+
 (printf "Assembling site as ~a\n" dest-dir)
 
 ;; Get transitive dependencies of requested packages, instead of just cataloging
@@ -215,6 +217,7 @@
 (make-download-page installers-table-path
                     #:logs-table-file logs-table-path
                     #:plt-www-site www-site
+                    #:logo logo
                     #:title site-title
                     #:installers-url "installers/"
                     #:log-dir-url "log/"

@@ -178,6 +178,7 @@
                     #:logs-table-file logs-table-file
                     #:title site-title
                     #:plt-web-style? (hash-ref config '#:plt-web-style? #t)
+                    #:logo (hash-ref config '#:site-logo #f)
                     #:past-successes past-successes
                     #:installers-url "current/installers/"
                     #:log-dir (build-path site-dir "log")

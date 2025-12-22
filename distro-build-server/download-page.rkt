@@ -74,7 +74,8 @@
                             #:help-fallbacks [site-help-fallbacks '()]
                             #:post-content [post-content null]
                             #:plt-www-site [www-site #f]
-                            #:plt-web-style? [plt-style? (and www-site #t)])
+                            #:plt-web-style? [plt-style? (and www-site #t)]
+                            #:logo [logo #f])
 
   (define base-table (get-installers-table table-file))
   (define logs-table (if (and logs-table-file
@@ -224,6 +225,7 @@
                                                           (a href: pdf-docs-url "PDF")
                                                           nbsp))
                                                 null)
+                               #:logo logo
                                #:share-from (or www-site
                                                 (site "www"
                                                       #:url "https://racket-lang.org/"

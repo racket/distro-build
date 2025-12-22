@@ -300,6 +300,7 @@
     #:site-help-fallbacks
     #:site-title
     #:site-logo
+    #:site-doc-url
     #:pdf-doc?
     #:max-snapshots
     #:week-count

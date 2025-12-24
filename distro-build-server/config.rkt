@@ -274,6 +274,7 @@
                                          (regexp? (car k+v))
                                          (xexpr? (cadr k+v)))))]
     [(#:site-title) (string? val)]
+    [(#:site-window-title) (string? val)]
     [(#:current-link-version) (simple-string? val)]
     [(#:pdf-doc?) (boolean? val)]
     [(#:doc-vm) (or (not val)
@@ -292,6 +293,9 @@
                                 [(src alt href) (string? v)]
                                 [(width height) (exact-nonnegative-integer? v)]
                                 [else #f]))))]
+    [(#:site-icon-headers) (or (not val)
+                               (and (list? val)
+                                    (andmap xexpr? val)))]
     [(#:site-doc-url) (string? val)]
     [(#:pause-before) (and (real? val) (not (negative? val)))]
     [(#:pause-after) (and (real? val) (not (negative? val)))]

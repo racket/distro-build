@@ -9,7 +9,8 @@
          (only-in file/sha1 bytes->hex-string)
          scribble/html
          (only-in plt-web site page call-with-registered-roots)
-         (only-in plt-web/style columns))
+         (only-in plt-web/style columns)
+         "private/html.rkt")
 
 (provide make-download-page
          get-installers-table
@@ -65,6 +66,7 @@
                             #:docs-url [docs-url #f]
                             #:pdf-docs-url [pdf-docs-url #f]
                             #:title [page-title "Racket Downloads"]
+                            #:window-title [window-title page-title]
                             #:current-rx [current-rx #f]
                             #:version->current-rx [version->current-rx #f]
                             #:current-link-version [current-link-version (version)]
@@ -75,7 +77,8 @@
                             #:post-content [post-content null]
                             #:plt-www-site [www-site #f]
                             #:plt-web-style? [plt-style? (and www-site #t)]
-                            #:logo [logo #f])
+                            #:logo [logo #f]
+                            #:icon-headers [icon-headers #f])
 
   (define base-table (get-installers-table table-file))
   (define logs-table (if (and logs-table-file
@@ -226,6 +229,8 @@
                                                           nbsp))
                                                 null)
                                #:logo logo
+                               #:icon-headers (and icon-headers
+                                                   (xexpr->html icon-headers))
                                #:share-from (or www-site
                                                 (site "www"
                                                       #:url "https://racket-lang.org/"
@@ -457,6 +462,7 @@
         (page #:site page-site
               #:file (path-element->string dest-file)
               #:title page-title
+              #:window-title window-title
               #:extra-headers page-headers
               (columns 12 #:row? #t
                        page-body))

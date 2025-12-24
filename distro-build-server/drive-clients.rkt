@@ -299,7 +299,9 @@
     #:site-help
     #:site-help-fallbacks
     #:site-title
+    #:site-window-title
     #:site-logo
+    #:site-icon-headers
     #:site-doc-url
     #:pdf-doc?
     #:max-snapshots

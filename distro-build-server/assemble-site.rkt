@@ -48,6 +48,9 @@
 (define site-title (hash-ref config
                              '#:site-title
                              "Racket Downloads"))
+(define site-window-title (hash-ref config
+                                    '#:site-window-title
+                                    site-title))
 
 (define www-site (and (hash-ref config '#:plt-web-style? #t)
                       (site "www"
@@ -55,6 +58,7 @@
                             #:generate? #f)))
 
 (define logo (hash-ref config '#:site-logo #f))
+(define icon-headers (hash-ref config '#:site-icon-headers #f))
 
 (define doc-index-url (hash-ref config '#:site-doc-url "index.html"))
 
@@ -220,7 +224,9 @@
                     #:logs-table-file logs-table-path
                     #:plt-www-site www-site
                     #:logo logo
+                    #:icon-headers icon-headers
                     #:title site-title
+                    #:window-title site-window-title
                     #:installers-url "installers/"
                     #:log-dir-url "log/"
                     #:docs-url (if (url-path-absolute? (string->url doc-index-url))

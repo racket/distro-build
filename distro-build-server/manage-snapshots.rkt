@@ -30,6 +30,9 @@
 (define site-title (hash-ref config
                              '#:site-title
                              "Racket Downloads"))
+(define site-window-title (hash-ref config
+                                    '#:site-window-title
+                                    site-title))
 
 (define current-link-version (hash-ref config
                                        '#:current-link-version
@@ -177,8 +180,10 @@
 (make-download-page table-file
                     #:logs-table-file logs-table-file
                     #:title site-title
+                    #:window-title site-window-title
                     #:plt-web-style? (hash-ref config '#:plt-web-style? #t)
                     #:logo (hash-ref config '#:site-logo #f)
+                    #:icon-headers (hash-ref config '#:site-icon-headers #f)
                     #:past-successes past-successes
                     #:installers-url "current/installers/"
                     #:log-dir (build-path site-dir "log")

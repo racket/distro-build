@@ -83,6 +83,7 @@
 (printf "Loading past successes\n")
 (flush-output)
 (define table-file (build-path site-dir installers-dir "table.rktd"))
+(define installers-file (build-path site-dir installers-dir "installers.rktd"))
 (define current-table (get-installers-table table-file))
 (define rev-current-table (for/hash ([(k v) (in-hash current-table)])
                             (values v k)))
@@ -177,7 +178,7 @@
                    current-rx)))))
 
 (printf "Generating web page\n")
-(make-download-page table-file
+(make-download-page installers-file
                     #:logs-table-file logs-table-file
                     #:title site-title
                     #:window-title site-window-title

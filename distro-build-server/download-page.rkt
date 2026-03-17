@@ -6,7 +6,6 @@
          racket/date
          racket/file
          net/url
-         (only-in file/sha1 bytes->hex-string)
          scribble/html
          (only-in plt-web site page call-with-registered-roots)
          (only-in plt-web/style columns)
@@ -46,7 +45,7 @@
 
 (define (get-installers-table table-file)
   (define table (call-with-input-file table-file read))
-  (unless (hash? table) 
+  (unless (hash? table)
     (raise-user-error
      'make-download-page
      (~a "given file does not contain a hash table\n"
@@ -90,6 +89,9 @@
                        (if (hash-ref table-data k #f)
                            table-data
                            (hash-set table-data k v))))
+
+  (define (installer-filename inst)
+    (hash-ref inst 'filename))
 
   (define (system*/string . args)
     (define s (open-output-string))
@@ -210,13 +212,6 @@
         (list* " " (make-popup (list nbsp "?" nbsp) h))
         null))
   
-  (define (make-checksum path sha-bytes)
-    `(span ([class "checksum"])
-           ,(bytes->hex-string
-             (call-with-input-file*
-              path
-              sha-bytes))))
-
   (define page-site (and plt-style?
                          (site "download-page"
                                #:url "http://page.racket-lang.org/"
@@ -347,7 +342,7 @@
                        href: (url->string
                               (combine-url/relative
                                (string->url installers-url)
-                               inst))
+                               (installer-filename inst)))
                        (strip-detail last-col))))
                (get-site-help last-col))
               (td nbsp)
@@ -355,14 +350,14 @@
                       (span class: "detail" "")
                       (span class: "detail"
                             (~r (/ (file-size (build-path (path-only table-file)
-                                                          inst))
+                                                          (installer-filename inst)))
                                    (* 1024 1024))
                                 #:precision 1)
                             " MB")))
               (td nbsp)
               (td (if (past-success? inst)
                       (span class: "detail"
-                            (if (and log-dir 
+                            (if (and log-dir
                                      (file-exists? (build-path log-dir (hash-ref logs-table key key))))
                                 (list
                                  (a href: (url->string
@@ -375,8 +370,9 @@
                             "last success: "
                             (a href: (~a (past-success-relative-url inst))
                                (past-success-name inst)))
-                      (let ([path (build-path (path-only table-file)
-                                              inst)])
+                      (let ()
+                        (define (checksum-xexpr str)
+                          `(span ([class "checksum"]) ,str))
                         (if checksum-in-popup?
                             (span class: "detail"
                                   style: "position: relative"
@@ -385,11 +381,11 @@
                                    (list nbsp nbsp "click for SHA1 and SHA256" nbsp nbsp)
                                    `(span
                                      (div "SHA1:" nbsp
-                                          ,(make-checksum path sha1-bytes))
+                                          ,(checksum-xexpr (hash-ref inst 'sha1 "")))
                                      (div "SHA256:" nbsp
-                                          ,(make-checksum path sha256-bytes)))))
+                                          ,(checksum-xexpr (hash-ref inst 'sha256 ""))))))
                             (span class: "tinydetail"
-                                  "SHA256:" nbsp (xexpr->html (make-checksum path sha256-bytes)))))))
+                                  "SHA256:" nbsp (xexpr->html (checksum-xexpr (hash-ref inst 'sha256 ""))))))))
               (let ([current-rx (or current-rx
                                     (and version->current-rx
                                          (version->current-rx
@@ -404,7 +400,7 @@
                                                   key
                                                   (if (past-success? inst)
                                                       (past-success-file inst)
-                                                      inst))])
+                                                      (installer-filename inst)))])
                                  (if (regexp-match? current-rx inst-path)
                                      (a href: (url->string
                                                (combine-url/relative

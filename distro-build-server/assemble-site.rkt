@@ -3,12 +3,14 @@
          racket/file
          racket/system
          racket/string
+         json
          net/url
          "download-page.rkt"
          "indexes.rkt"
          (only-in distro-build/config
                   extract-options+post-processes+aliases
                   infer-installer-alias)
+         (only-in distro-build/record-installer update-installers-checksums)
          (only-in plt-web site)
          (only-in xml write-xexpr))
 
@@ -173,10 +175,12 @@
 (copy log-dir)
 (generate-index-html dest-dir log-dir www-site)
 
-;; If all builds failed, installers director won't exist:
+;; If all builds failed, installers directory won't exist:
 (unless (file-exists? (build-path build-dir installers-dir "table.rktd"))
   (make-directory* (build-path build-dir installers-dir))
-  (call-with-output-file* (build-path build-dir installers-dir "table.rktd") (lambda (o) (write (hash) o))))
+  (for ([name (in-list '("table" "installers"))])
+    (call-with-output-file* (build-path build-dir installers-dir (string-append name ".rktd")) (lambda (o) (write (hash) o)))
+    (call-with-output-file* (build-path build-dir installers-dir (string-append name ".json")) (lambda (o) (write-json (hash) o)))))
 
 (copy installers-dir)
 (generate-index-html dest-dir installers-dir www-site)
@@ -186,6 +190,11 @@
               installers-dir
               "table.rktd"))
 (define installers-table (get-installers-table installers-table-path))
+
+(define installers-file-path
+  (build-path dest-dir
+              installers-dir
+              "installers.rktd"))
 
 (define logs-table-path
   (build-path dest-dir
@@ -198,7 +207,8 @@
     (when post-process
       (define args (append post-process (list (build-path dest-dir installers-dir installer))))
       (unless (apply system* args)
-        (error 'post-process "failed for ~s" args)))))
+        (error 'post-process "failed for ~s" args))))
+  (update-installers-checksums (build-path dest-dir installers-dir)))
 
 (for ([(name installer) (in-hash installers-table)])
   (define main+aliases (hash-ref aliases name #f))
@@ -220,7 +230,7 @@
 (copy "stamp.txt")
 (copy (build-path "origin" "collects.tgz"))
 
-(make-download-page installers-table-path
+(make-download-page installers-file-path
                     #:logs-table-file logs-table-path
                     #:plt-www-site www-site
                     #:logo logo

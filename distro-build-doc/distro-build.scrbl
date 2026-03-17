@@ -115,7 +115,15 @@ cases).
 If a build fails for a machine, building continues on other machines.
 Success for a given machine means that its installer ends up in
 @filepath{build/installers} (and failure for a machine means no
-installer) as recorded in the @filepath{table.rktd} file.
+installer) as recorded in the @filepath{table.rktd} file. An
+@filepath{installers.rktd} file is also generated that maps each
+installer description to a hash table containing the installer's
+filename and its SHA1 and SHA256 checksums. Each @filepath{.rktd} file
+has a corresponding @filepath{.json} file with the same content in
+JSON format.
+
+@history[#:changed "1.24" @elem{Added @filepath{installers.rktd} and
+                                 @filepath{.json} file generation.}]
 
 To use the @tt{site} makefile target, the configuration file must at
 least provide a @racket[#:dist-base-url] value, which is a URL at which the
@@ -1585,10 +1593,13 @@ With this configuration file in @filepath{site.rkt},
 
 @commandline{make installers CONFIG=site.rkt}
 
-produces two installers, both in @filepath{build/installers}, and a
-hash table in @filepath{table.rktd} that maps
+produces two installers, both in @filepath{build/installers}, a
+hash table in @filepath{table.rktd} (and @filepath{table.json}) that maps
 @racket["Windows (64-bit x64)"] to the Windows installer
-and @racket["Mac OS (64-bit Intel)"] to the Mac OS installer.
+and @racket["Mac OS (64-bit Intel)"] to the Mac OS installer, and an
+@filepath{installers.rktd} (and @filepath{installers.json})
+that maps each description to a hash table with @racket['filename],
+@racket['sha1], and @racket['sha256] entries.
 
 While the client parts of this build are running, output is written to
 @filepath{build/log/Windows (64-bit x64)} and

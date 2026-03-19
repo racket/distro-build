@@ -33,12 +33,15 @@
     (unless (or on-x86_64? on-aarch64?)
       (error "expecting to run on x86_64 or AArch64"))))
 
-;; Whether to cross-build for especially old Raspberry Pi OS,
-;; and also reliably for old Raspberry Pi devices. This currently
-;; requires a host that can run an x86_64 Docker image.
-(define arm-debian7? (and #t
-                          (or on-x86_64?
-                              (eq? 'macosx (system-type)))))
+;; Whether to cross-build 32-bit ARM as ARMv6 instead of ARMv7.
+;; The ARMv6 build also works on especially old Raspberry Pi OS,
+;; but it currently requires a host that can run an x86_64 Docker
+;; image. Using an "arm-linux-gnueabihf" toolchain instead tends to
+;; generate ARMv7 output, and mere compiler flags won't get it to
+;; link properly for ARMv6.
+(define arm-v6? (and #t
+                     (or on-x86_64?
+                         (eq? 'macosx (system-type)))))
 
 (define racket-file-name "racket")
 (define minimal-racket-file-name "racket-minimal")
@@ -71,6 +74,8 @@
 
 (define debian12-dist-name-suffix "; built on Debian 12")
 (define debian12-dist-suffix "jammy") ; using Ubuntu name instead of Debian name "bookworm"
+
+(define raspbian-dist-suffix "raspbian")
 
 (define natipkg-name-extra "")
 (define pkg-build-name-extra " for pkg-build")
@@ -107,8 +112,10 @@
   (format "{2} 32-bit i386~a"
           dist-name-suffix))
 
-(define (linux-arm-name)
-  "{5} 32-bit ARMv6 VFP; built on Raspbian")
+(define (linux-arm-name arm-v6?)
+  (if arm-v6?
+      "{5} 32-bit ARMv6 VFP; built on Raspbian"
+      (format "{5} 32-bit ARMv7~a" debian10-dist-name-suffix)))
 
 (define (linux-riscv64-name #:platform [dist-name-suffix debian12-dist-name-suffix])
   (format "{6} 64-bit RISC-V~a"
@@ -432,19 +439,20 @@
      ;; ----------------------------------------
      ;; Linux arm
      (parallel
-      #:racket (if arm-debian7? #f common)
-      #:docker (if arm-debian7?
+      #:racket (if arm-v6? #f common)
+      #:docker (if arm-v6?
                    "racket/distro-build:crosslinux-arm-debian7"
                    "racket/distro-build:crosslinux-arm")
-      #:docker-platform (and arm-debian7?
+      #:docker-platform (and arm-v6?
                              "linux/amd64")
       #:cross-target-machine "tarm32le"
       #:cross-target "arm-linux-gnueabihf"
+      #:dist-suffix (if arm-v6? raspbian-dist-suffix debian10-dist-suffix)
       (cs+bc-machine
        linux-machine
-       #:host (if arm-debian7? "crosslinux-arm-debian7" "crosslinux-arm")
+       #:host (if arm-v6? "crosslinux-arm-debian7" "crosslinux-arm")
        #:platform linux
-       #:detail (linux-arm-name)
+       #:detail (linux-arm-name arm-v6?)
        #:extra-aliases linux-extra-aliases))
      ;; ----------------------------------------
      ;; Linux riscv64

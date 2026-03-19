@@ -33,9 +33,10 @@
     (unless (or on-x86_64? on-aarch64?)
       (error "expecting to run on x86_64 or AArch64"))))
 
-;; Whether to cross-build for especially old Raspberry Pi, which
-;; currently requires a host that can run an x86_64 Docker image.
-(define arm-debian7? (and #f
+;; Whether to cross-build for especially old Raspberry Pi OS,
+;; and also reliably for old Raspberry Pi devices. This currently
+;; requires a host that can run an x86_64 Docker image.
+(define arm-debian7? (and #t
                           (or on-x86_64?
                               (eq? 'macosx (system-type)))))
 
@@ -441,7 +442,7 @@
       #:cross-target "arm-linux-gnueabihf"
       (cs+bc-machine
        linux-machine
-       #:host "crosslinux-arm"
+       #:host (if arm-debian7? "crosslinux-arm-debian7" "crosslinux-arm")
        #:platform linux
        #:detail (linux-arm-name)
        #:extra-aliases linux-extra-aliases))

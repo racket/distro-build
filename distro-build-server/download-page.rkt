@@ -44,14 +44,18 @@
                    (list table-file))))
 
 (define (get-installers-table table-file)
-  (define table (call-with-input-file table-file read))
-  (unless (hash? table)
-    (raise-user-error
-     'make-download-page
-     (~a "given file does not contain a hash table\n"
-         "  file: ~a")
-     table-file))
-  table)
+  (cond
+    [(and table-file
+          (file-exists? table-file))
+     (define table (call-with-input-file table-file read))
+     (unless (hash? table)
+       (raise-user-error
+        'make-download-page
+        (~a "given file does not contain a hash table\n"
+            "  file: ~a")
+        table-file))
+     table]
+    [else #hash()]))
 
 (struct past-success (name relative-url file version) #:prefab)
 
@@ -80,10 +84,7 @@
                             #:icon-headers [icon-headers #f])
 
   (define base-table (get-installers-table table-file))
-  (define logs-table (if (and logs-table-file
-                              (file-exists? logs-table-file))
-                         (get-installers-table logs-table-file)
-                         #hash()))
+  (define logs-table (get-installers-table logs-table-file))
 
   (define table-data (for/fold ([table-data base-table]) ([(k v) (in-hash past-successes)])
                        (if (hash-ref table-data k #f)

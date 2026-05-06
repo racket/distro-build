@@ -6,7 +6,6 @@
          racket/file
          racket/string
          racket/path
-         net/base64
          (only-in distro-build/config
                   current-mode
                   site-config?
@@ -23,7 +22,9 @@
          remote-shell/docker
          (prefix-in remote: remote-shell/ssh)
          "email.rkt"
-         "private/record-using-container.rkt")
+         "private/record-using-container.rkt"
+         "private/pack-base64.rkt"
+         "private/log-file-name.rkt")
 
 ;; See "config.rkt" for an overview.
 
@@ -116,13 +117,7 @@
 
 (define (client-log-file opts)
   (or (get-opt opts '#:log-file)
-      ;; simplify name to avoid characters that make an awkward file name
-      (let* ([name (client-name opts)]
-             [name (regexp-replace* #rx"(?:{[^}]*})|[][|;*!()]" name "")]
-             [name (regexp-replace #rx"^ +" name "")]
-             [name (regexp-replace #rx" +$" name "")]
-             [name (regexp-replace* #rx" +" name "_")])
-        name)))
+      (simplify-log-file-name (client-name opts))))
 
 (define (client-name opts)
   (get-client-name opts))
@@ -560,10 +555,6 @@
                       "\"\\&\\&\"")]
     [else s]))
 
-(define (pack-base64-strings args)
-  (bytes->string/utf-8 (base64-encode (string->bytes/utf-8 (format "~s" args))
-                                      #"")))
-
 (define build-slash-path
   (case-lambda
     [(a b)
@@ -713,9 +704,6 @@
           "")
       (if (pair? installer-pre-process)
           (~a " INSTALLER_PRE_PROCESS_BASE64=" (q (pack-base64-strings installer-pre-process)))
-          "")
-      (if (pair? installer-post-process)
-          (~a " INSTALLER_POST_PROCESS_BASE64=" (q (pack-base64-strings installer-post-process)))
           "")
       (if (pair? installer-post-process)
           (~a " INSTALLER_POST_PROCESS_BASE64=" (q (pack-base64-strings installer-post-process)))

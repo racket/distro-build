@@ -28,14 +28,14 @@
   (parameterize ([current-directory src-dir])
     (apply tar-gzip dest #:path-prefix target-dir-name (directory-list))))
 
-(define (installer-tgz source? base-name dir-name dist-suffix readme)
+(define (installer-tgz src-dir platform source? base-name dir-name dist-suffix readme)
   (define tgz-path (format "bundle/~a-~a~a.tgz"
                            base-name
                            (if source?
                                "src"
-                               (get-platform-name)) 
+                               (or platform (get-platform-name)))
                            dist-suffix))
-  (generate-tgz "bundle/racket" tgz-path
+  (generate-tgz src-dir tgz-path
                 dir-name
                 readme)
   tgz-path)

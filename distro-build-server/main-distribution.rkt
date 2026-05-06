@@ -369,6 +369,7 @@
    (parallel
     #:dir common
     #:docker "racket/distro-build:debian10"
+    #:pkgs '()
     (cs-machine
      #:host "cross-common"
      #:container-prefix container-prefix

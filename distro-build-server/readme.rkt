@@ -14,13 +14,14 @@
       @~a{ (@(current-stamp))}))
 
 (define (make-readme config)
+  (define stamp (hash-ref config '#:stamp (lambda () (maybe-stamp config))))
   @~a{
      The Racket Programming Language
      ===============================
 
      This is the
        @|(drop-sort-annotations (hash-ref config '#:name "Racket"))|
-     distribution for version @(version)@(maybe-stamp config).@;
+     distribution for version @(hash-ref config '#:version (version))@|stamp|.@;
 
       @(if (let ([src? (hash-ref config '#:source? #f)])
              (or (hash-ref config '#:source-runtime? src?)
@@ -154,7 +155,7 @@
   (define vers-suffix
     (if (hash-ref config '#:versionless? #f)
         ""
-        @~a{ v@(version)}))
+        @~a{ v@(hash-ref config '#:version (version))}))
   (if (hash-ref config '#:mac-pkg? #f)
       @~a{The installation directory is
             /Applications/@(string-append

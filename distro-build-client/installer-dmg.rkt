@@ -356,14 +356,14 @@
 
 ;; this wrapper function computes the dmg name, makes the dmg, signs it, and
 ;; returns the path to it.
-(define (installer-dmg human-name base-name dist-suffix readme
+(define (installer-dmg src-dir platform human-name base-name dist-suffix readme
                        sign-identity sign-cert notarization-config
                        #:hardened-runtime? [hardened-runtime? #t])
   (define dmg-name (format "bundle/~a-~a~a.dmg"
                            base-name
-                           (cross-system-library-subpath #f)
+                           (or platform (cross-system-library-subpath #f))
                            dist-suffix))
-  (make-dmg human-name "bundle/racket" dmg-name bg-image readme sign-identity sign-cert
+  (make-dmg human-name src-dir dmg-name bg-image readme sign-identity sign-cert
             #:hardened-runtime? hardened-runtime?)
   ;; sign whole DMG too, for Sierra
   (unless (and (string=? sign-identity "") (not sign-cert))

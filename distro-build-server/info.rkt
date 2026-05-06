@@ -2,11 +2,12 @@
 
 (define collection "distro-build")
 
-(define version "1.24")
+(define version "1.25")
 
 (define deps '(["base" #:version "8.14.0.2"]
                "distro-build-client"
                ["web-server-lib" #:version "1.6"]
+               ["raco-cross-lib" #:version "1.1"]
                "ds-store-lib"
                "net-lib"
                "scribble-html-lib"

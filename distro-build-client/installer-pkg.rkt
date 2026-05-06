@@ -149,10 +149,10 @@
               (list "--sign" sign-identity))
           (list pkg-name))))
 
-(define (installer-pkg human-name base-name dist-suffix readme sign-identity)
+(define (installer-pkg src-dir platform human-name base-name dist-suffix readme sign-identity)
   (define pkg-name (format "bundle/~a-~a~a.pkg"
                            base-name
-                           (cross-system-library-subpath #f)
+                           (or platform (cross-system-library-subpath #f))
                            dist-suffix))
-  (make-pkg human-name "bundle/racket" pkg-name readme sign-identity)
+  (make-pkg human-name src-dir pkg-name readme sign-identity)
   pkg-name)

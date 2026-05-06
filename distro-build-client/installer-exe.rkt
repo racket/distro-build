@@ -412,7 +412,7 @@ SectionEnd
                         "-V3"))
     (system* makensis verbose "installer.nsi")))
 
-(define (installer-exe human-name base-name versionless? dist-suffix readme osslsigncode-args)
+(define (installer-exe src-dir platform-in human-name base-name versionless? dist-suffix readme osslsigncode-args)
   (define makensis (or (case (system-type)
                          [(windows)
                           (or (find-executable-path "makensis.exe")
@@ -420,9 +420,15 @@ SectionEnd
                               (try-exe "c:\\Program Files (x86)\\NSIS\\makensis.exe"))]
                          [else (find-executable-path "makensis")])
                        (error 'installer-exe "cannot find \"makensis.exe\"")))
-  (define platform (let-values ([(base name dir?) (split-path (cross-system-library-subpath #f))])
-                     (bytes->string/utf-8 (path-element->bytes name))))
+  (define platform (if platform-in
+                       (car (regexp-match #rx"^[^-]*" platform-in))
+                       (let-values ([(base name dir?) (split-path (cross-system-library-subpath #f))])
+                         (bytes->string/utf-8 (path-element->bytes name)))))
   (define exe-path (format "bundle/~a-~a-win32~a.exe" base-name platform dist-suffix))
+  (unless (equal? src-dir "bundle/racket")
+    (when (directory-exists? "bundle/racket")
+      (delete-directory/files "bundle/racket"))
+    (copy-directory/files src-dir "bundle/racket" #:keep-modify-seconds? #t))
   (when readme
     (call-with-output-file*
      #:exists 'truncate
@@ -435,9 +441,9 @@ SectionEnd
                          platform
                          makensis
                          #:versionless versionless?
-                         #:extension-registers (get-extreg "bundle/racket")
-                         #:start-menus (get-startmenu "bundle/racket")
-                         #:auto-launch (get-auto-launch "bundle/racket"))
+                         #:extension-registers (get-extreg src-dir)
+                         #:start-menus (get-startmenu src-dir)
+                         #:auto-launch (get-auto-launch src-dir))
     (error "installer creation failed"))
   (when osslsigncode-args
     (define unsigned-exe-path (let-values ([(base name dir?) (split-path exe-path)])

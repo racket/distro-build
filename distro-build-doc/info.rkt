@@ -8,7 +8,8 @@
                "web-server-lib"))
 (define build-deps '("at-exp-lib"
                      "racket-doc"
-                     "scribble-lib"))
+                     "scribble-lib"
+                     "raco-cross-doc"))
 
 (define pkg-desc "documentation part of \"distro-build\"")
 

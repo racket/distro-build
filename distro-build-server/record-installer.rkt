@@ -56,20 +56,21 @@
 
 ;; Recompute checksums for all entries in installers.rktd
 ;; based on the actual files in dir
-(define (update-installers-checksums dir)
-  (define table-file (build-path dir "installers.rktd"))
-  (when (file-exists? table-file)
-    (define updated
-      (for/hash ([(desc entry) (in-hash (call-with-input-file* table-file read))])
-        (define filename (hash-ref entry 'filename))
-        (define checksums (file-checksums (build-path dir filename)))
-        (values desc (hash-set checksums 'filename filename))))
-    (call-with-output-file table-file
-      #:exists 'truncate/replace
-      (lambda (o)
-        (write updated o)
-        (newline o)))
-    (write-json-file table-file updated)))
+(define (update-installers-checksums dir table-file installer-names-table)
+  (define updated
+    (for/hash ([(desc entry) (in-hash (if (file-exists? table-file)
+                                          (call-with-input-file* table-file read)
+                                          (for/hash ([(k v) (in-hash installer-names-table)])
+                                            (values k (hash 'filename v)))))])
+      (define filename (hash-ref entry 'filename))
+      (define checksums (file-checksums (build-path dir filename)))
+      (values desc (hash-set checksums 'filename filename))))
+  (call-with-output-file table-file
+                         #:exists 'truncate/replace
+                         (lambda (o)
+                           (write updated o)
+                           (newline o)))
+  (write-json-file table-file updated))
 
 (define (record-log-file dir log-file desc)
   (update-table (build-path dir "logs-table.rktd") log-file desc))

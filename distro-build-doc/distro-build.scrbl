@@ -4,11 +4,16 @@
                                 #%module-begin)
                      racket/contract/base
                      distro-build/config
+                     distro-build/repackage
                      distro-build/readme)
           (only-in scribble/decode splice)
           "private/version-guard.rkt")
 
 @(version-guard (require (for-label distro-build/main-distribution)))
+
+@(define raco-cross (seclink #:doc '(lib "raco/private/cross/raco-cross.scrbl")
+                             "top"
+                             @exec{raco cross}))
 
 @title{Building Distributions of Racket}
 
@@ -959,6 +964,165 @@ file.}
 Returns a string to identify the current build, normally a combination
 of the date and a git commit hash.}
 
+
+@; ----------------------------------------
+
+@section[#:tag "repackage"]{Repackaging a Distribution}
+
+@defmodule[distro-build/repackage]{
+
+The @racketmodname[distro-build/repackage] library provides tools for
+deriving a distribution from an existing Racket distribution, where
+the existing distribution t includes minimal Racket builds that
+support cross compilation. The new distribution starts can have a
+different set of packages than a Racket distribution, and it can have
+an associated catalog that provides built versions of additional
+packages that are consistent with the starting Racket distribution
+(i.e., packages from either site can be installed without recompiling
+from each package's source and without re-rendering documentation).
+
+}
+
+Repackaging uses @raco-cross, so it works on any Unix or Mac OS
+platform to build packages and installers for other platforms.
+Building installers for Windows and Mac OS requires cross-build tools
+like @exec{makensis}.
+
+Repackaging output and any needed needed @raco-cross workspaces are
+written to a @filepath{compiled/repackage} subdirectory of the current
+directory.
+
+@history[#:added "1.25"]
+
+@defproc[(build-catalog [#:version version string?]
+                        [#:packages packages (listof string?)]
+                        [#:catalogs source-catalogs (listof path-string?)]
+                        [#:installers-url installers-url (or/c #f string?) #f]
+                        [#:info-catalog info-catalog string? "https://pkgs.racket-lang.org"]
+                        [#:original-template original-template (or/c #f string?) #f]
+                        [#:default-author default-author (or/c #f string?) #f]
+                        [#:dest dest path-string? "build/built"]
+                        [#:build-deps build-deps (listof string?) '("draw-lib")])
+          void?]{
+
+Creates a catalog of built packages for the Racket version specified
+by @racket[version]. The @racket[packages] argument specifies the
+packages to include, and dependencies of those packages will also be
+included when they are @emph{not} in catalogs listed in the starting
+Racket's configured catalogs (which are assumed to be catalogs of
+built packages). The catalogs provided as @racket[source-catalogs] are
+consulted (in order) to find packages to build before using any
+catalogs that the starting Racket distribution would check.
+
+If @racket[installers-url] is not @racket[#f], then it is passed along
+to @raco-cross as the source for minimal Racket distributions.
+
+As packages are built, metadata information such as the author must be
+recorded. The specified @racket[info-catalog] provides metadata for
+packages not listed in @racket[packages] (but which are dependencies
+of those packages). For packages in @racket[packages], the package
+author is extracted from a @racket[pkg-authors] definition in
+@filepath{info.rkt} if available, otherwise @racket[default-author] is
+used. If @racket[original-template] is not @racket[#f], then the
+original source (typically a directory within a Github repository) is
+formed by combining the template and package name with
+@racket[format].
+
+The resulting catalog and packages are written to @racket[(build-path
+"compiled/repackage" dest)], where a @filepath{catalog} subdirectory
+contains the catalog and a @filepath{pkgs} subdirectory contains the
+built package (referenced by @filepath{catalog} entries through
+relative paths).
+
+The @racket[build-deps] argument lists packages that need to be
+installed in the host instance use by @|raco-cross|. The default
+includes @racket["draw-lib"], because that package's native-library
+dependencies are often needed for rendering documentation on a
+non-Unix host.
+
+}
+
+
+@defproc[(repackage [#:config config-file path-string?]
+                    [#:config-mode config-mode (or/c #f string?) #f]
+                    [#:version version string?]
+                    [#:installers-url installers-url (or/c #f string?) #f]
+                    [#:catalogs catalogs (listof path-string?)]
+                    [#:dist-catalogs dist-catalogs (listof path-string?) catalogs]
+                    [#:file-name-version file-name-version string? version]
+                    [#:version-note version-note string? ""]
+                    [#:skip-notarize? skip-notarize? #f])
+         void?]{
+
+Creates a set of installers based on the configuration in
+@racket[config-file], which is loaded with @racket[current-mode] set
+to @racket[config-mode] (where @racket[#f] is equivalent to
+@racket["default"]). That configuration provides information on which
+installers to build, each installer's name, and the packages to be
+included in each installer.
+
+The @racket[version] and @racket[installers-url] arguments are used in
+the same way was by @racket[build-catalog] to locate starting, built
+minimal Racket installers. The installer to use for each machine
+configuration specified by @racket[config-file] is determined by
+matching the machine's @racket[#:name] (see @secref["name-format"])
+against names recorded for the minimal Racket installers, skipping the
+name's first component before @litchar{|} and adding
+@;
+@litchar{ | {3} Tarball}
+@;
+to the end.
+
+The @racket[catalogs] argument provides catalogs to use before
+catalogs that are recorded in the starting minimal Racket installers.
+Typically, those catalogs are the output of @racket[build-catalog].
+The @racket[dist-catalogs] argument (which defaults to
+@racket[catalogs]) lists catalogs to be added to the start of the
+catalog configuration for each repackaged installer, which typically
+list sites where the @racket[catalogs] are uploaded.
+
+The @racket[file-name-version] argument is used instead of
+@racket[version] where a version number is used in an installer file
+name. The @racket[version-note] string is used after the Racket
+version number explanation in a generated replacement
+@filepath{README} file within an installer.
+
+The resulting installers are written to
+@filepath{compiled/repackage/build/installers} alongside other
+files within @filepath{compiled/repackage/build} that are useful
+to @racket[assemble-site].
+
+}
+
+@defproc[(assemble-site [#:config config-file path-string?]
+                        [#:config-mode config-mode (or/c #f string?) #f]
+                        [#:site-dest site-dest (or/c #f path-string?) #f]
+                        [#:default-dist-base default-dist-base string? "racket"]
+                        [#:default-pkgs default-pkgs (listof string?) '()]
+                        [#:pkgs-all-file pkgs-all-file (or/c #f path-string?) "compiled/repackage/build/built/catalog/pkgs-all"]
+                        [#:missing-pkg-ok? missing-pkg-ok? any/c #f])
+          void?]{
+
+Converts the output of a catalog build and installer repackaging to a
+directory that is suitable as a web site for downloading the
+installers. The @racket[config] and @racket[config-mode] arguments are
+used the same as by @racket[repackage]. If @racket[site-dest] is
+provided, is the output directory, otherwise @racket[config]
+determines the output directory via @racket[#:site-dest].
+
+The @racket[default-dist-base] and @racket[default-pkgs] arguments
+supply relevant defaults for a configuration that are normally take
+from a makefile for a non-repackaging distribution build.
+
+The @racket[pkgs-all-file] argument provides information on packages
+to include in catalog that is provided alongside installers, including
+dependency information for determining the full set of packages. The
+default path corresponds to the output of @racket[build-catalog]. only
+packages listed in @racket[pkgs-all-file] are included, but other
+packages can be dependencies as long as @racket[missing-pkg-ok?] is
+not @racket[#f].
+
+}
 
 @; ----------------------------------------
 

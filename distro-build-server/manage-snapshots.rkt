@@ -200,14 +200,20 @@
                                        "index.html")
                     #:version->current-rx version->current-rx
                     #:current-link-version current-link-version
-                    #:get-alias (lambda (key inst)
-                                  (define main+aliases (hash-ref aliases key #f))
-                                  (or (and main+aliases
-                                           (infer-installer-alias inst
-                                                                  (car main+aliases)
-                                                                  (cadr main+aliases)
-                                                                  #:must-infer? #f))
-                                      inst))
+                    #:get-aliases (lambda (key inst)
+                                    (define main+aliases (hash-ref aliases key #f))
+                                    (if main+aliases
+                                        (for/list ([alias (in-list (cdr main+aliases))]
+                                                   #:unless (equal? alias (car main+aliases))
+                                                   #:do
+                                                   [(define alias-name
+                                                      (infer-installer-alias inst
+                                                                             (car main+aliases)
+                                                                             alias
+                                                                             #:must-infer? #f))]
+                                                   #:when alias-name)
+                                          alias-name)
+                                        null))
                     #:git-clone (current-directory)
                     #:help-table (hash-ref config '#:site-help (hash))
                     #:help-fallbacks (hash-ref config '#:site-help-fallbacks '())

@@ -24,6 +24,7 @@
 
 (provide build-catalog
          repackage
+         build-docs
          assemble-site)
 
 (define (get-dirs)
@@ -203,8 +204,8 @@
                      #:skip-pkgs? #t
                      #:compile-any? source?
                      #:use-source? source?
-                     #:command command
                      #:archive (hash-ref table key)
+                     #:command command
                      args))
 
             ;; clean up, just in case there's a leftover after a previous error
@@ -439,3 +440,55 @@
               "install" "--auto" "--skip-installed" "draw-lib")
 
   (build #f))
+
+(define (build-docs #:config config-file
+                    #:config-mode [config-mode #f]
+                    #:version version
+                    #:catalogs [catalogs null]
+                    #:installers-url [installers-url #f])
+  (define-values (base-dir workspace-dir addon-dir cache-dir) (get-dirs))
+  (define readme-file (build-path base-dir "readme.txt"))
+  (define log-dir (build-path base-dir "build" "log"))
+  (define installers-dir (build-path base-dir "build" "installers"))
+  (define installer-table-file (build-path installers-dir "table.rktd"))
+  (define doc-cross-identity "doc-maker")
+  (define doc-cross-dir (build-path workspace-dir doc-cross-identity))
+  (define docs-parent-dir (build-path base-dir "build" "docs"))
+  (define doc-dir (build-path docs-parent-dir "doc"))
+
+  (define installers-url (string-append "https://mirror.racket-lang.org/installers/" version "/"))
+
+  (define config
+    (parameterize ([current-mode (or config-mode "default")])
+      (dynamic-require (path->complete-path config-file) 'site-config)))
+
+  (delete-directory/files doc-cross-dir #:must-exist? #f)
+
+  (define (run command . args)
+    (apply raco-cross
+           #:workspace-dir workspace-dir
+           #:instance doc-cross-identity
+           #:addon-dir addon-dir
+           #:download-cache-dir cache-dir
+           #:version version
+           #:installers-url installers-url
+           #:skip-pkgs? #t
+           #:command command
+           args))
+
+  ;; create machine-indepenent instance
+  (run "racket" "-n")
+
+  ;; add new catalogs
+  (define orig-catalogs
+    (add-catalogs doc-cross-dir catalogs))
+
+  (apply run
+         "pkg" "install" "--auto"
+         (hash-ref (site-config-options config) '#:pkgs null))
+
+  (delete-directory/files doc-dir #:must-exist? #f)
+  (make-directory* docs-parent-dir)
+
+  (rename-file-or-directory (build-path doc-cross-dir "doc")
+                            doc-dir))

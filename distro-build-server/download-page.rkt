@@ -73,7 +73,7 @@
                             #:current-rx [current-rx #f]
                             #:version->current-rx [version->current-rx #f]
                             #:current-link-version [current-link-version (version)]
-                            #:get-alias [get-alias (lambda (key inst) inst)]
+                            #:get-aliases [get-aliases (lambda (key inst) null)]
                             #:git-clone [git-clone #f]
                             #:help-table [site-help (hash)]
                             #:help-fallbacks [site-help-fallbacks '()]
@@ -182,7 +182,9 @@
       [else (error "unknown xexpr" p)]))
 
   (define (make-popup label content
-                      #:overlay? [overlay? #f])
+                      #:to-left? [to-left? #f]
+                      #:overlay? [overlay? #f]
+                      #:auto-width? [auto-width? #f])
     (define id (~a "help" (gensym)))
     (define toggle (let ([elem (~a "document.getElementById" "('" id "')")])
                      (~a elem ".style.display = ((" elem ".style.display == 'inline') ? 'none' : 'inline');"
@@ -195,11 +197,15 @@
               onclick: toggle
               title: "explain"
               label))
-      (div class: (if overlay? "hiddendrophelp" "hiddenhelp")
+      (div class: (string-append (if overlay? "hiddendrophelp" "hiddenhelp")
+                                 (if to-left? " toleft" ""))
            id: id
            onclick: (if overlay? "" toggle)
            style: "display: none"
-           (div class: (if overlay? "helpwidecontent" "helpcontent")
+           (div class: (string-append (if auto-width?
+                                          "helpautocontent"
+                                          (if overlay? "helpwidecontent" "helpcontent"))
+                                      (if to-left? " toright" ""))
                 (div class: "helptext"
                      (xexpr->html content)))))))
 
@@ -239,6 +245,7 @@
   (define page-headers
     (style/inline   @~a|{ 
                              .detail { font-size: small; font-weight: normal; }
+                             .headdetail { font-size: medium; font-weight: normal; }
                              .tinydetail { font-size: xx-small; font-weight: normal; }
                              .checksum, .path { font-family: monospace; }
                              .group { border-bottom : 2px solid #88c }
@@ -264,7 +271,7 @@
                              .hiddendrophelp {
                                  top: 1em;
                              }
-                             .helpcontent, .helpwidecontent {
+                             .helpcontent, .helpwidecontent, .helpautocontent {
                                  font-size : small;
                                  font-weight : normal;
                                  background-color: #ffffee;
@@ -277,7 +284,19 @@
                              .helpwidecontent {
                                  width: 42em;
                              }
-                            a { text-decoration: none; }
+                             .helpautocontent {
+                                 width: max-content;
+                             }
+                             .toleft {
+                                 direction: rtl;
+                             }
+                             .toright {
+                                 direction: ltr;
+                             }
+                             .installeralias {
+                                 margin-left: 1em;
+                             }
+                             a { text-decoration: none; }
                            }|))
 
   (define (strip-detail s)
@@ -298,7 +317,15 @@
   (define page-body
     (list
      (if page-title
-         ((if plt-style? h3 h2) page-title)
+         (let ([page-title (cond
+                             [(regexp-match #rx"^([^|]*) [|] (.*)$" page-title)
+                              => (lambda (m)
+                                   (span (cadr m)
+                                         nbsp
+                                         (span class: "headdetail"
+                                               (caddr m))))]
+                             [else page-title])])
+           ((if plt-style? h3 h2) page-title))
          null)
      (table
       class: "download-table"
@@ -321,10 +348,7 @@
                 [(2) "group"]
                 [(3) "subgroup"]
                 [else "subsubgroup"])))
-        (define num-cols (if (or current-rx
-                                 version->current-rx)
-                             "7"
-                             "5"))
+        (define num-cols "7")
         (cond
          [(not mid-cols)
           (tr (td colspan: num-cols nbsp))]
@@ -387,32 +411,58 @@
                                           ,(checksum-xexpr (hash-ref inst 'sha256 ""))))))
                             (span class: "tinydetail"
                                   "SHA256:" nbsp (xexpr->html (checksum-xexpr (hash-ref inst 'sha256 ""))))))))
+              (td nbsp)
               (let ([current-rx (or current-rx
                                     (and version->current-rx
                                          (version->current-rx
                                           (if (past-success? inst)
                                               (past-success-version inst)
                                               current-link-version))))])
-                (if current-rx
-                    (list
-                     (td nbsp)
-                     (td (span class: "detail"
-                               (let* ([inst-path (get-alias
-                                                  key
-                                                  (if (past-success? inst)
-                                                      (past-success-file inst)
-                                                      (installer-filename inst)))])
-                                 (if (regexp-match? current-rx inst-path)
-                                     (a href: (url->string
-                                               (combine-url/relative
-                                                (string->url installers-url)
-                                                (bytes->string/utf-8
-                                                 (regexp-replace current-rx
-                                                                 (string->bytes/utf-8 inst-path)
-                                                                 #"current"))))
-                                        "as " ldquo "current" rdquo)
-                                     nbsp)))))
-                    null)))]
+                (let* ([inst-paths (let ([inst (if (past-success? inst)
+                                                   (past-success-file inst)
+                                                   (installer-filename inst))])
+                                     (cons inst (get-aliases key inst)))])
+                  (define (link inst-path)
+                    `(div
+                      (a ([class "installeralias"]
+                          [href ,(url->string
+                                  (combine-url/relative
+                                   (string->url installers-url)
+                                   inst-path))])
+                         ,inst-path)))
+                  (define alias-links
+                    (cdr
+                     (apply
+                      append
+                      (for/list ([inst-path (in-list inst-paths)])
+                        (if current-rx
+                            (list
+                             (link inst-path)
+                             (link (bytes->string/utf-8
+                                    (regexp-replace current-rx
+                                                    (string->bytes/utf-8 inst-path)
+                                                    #"current"))))
+                            (list (link inst-path)))))))
+                  (if (null? alias-links)
+                      (td)
+                      (td (make-popup
+                           #:to-left? #t
+                           #:auto-width? #t
+                           (list nbsp "aliases" nbsp)
+                           `(div
+                             ,(cond
+                                [(and current-rx (pair? (cdr alias-links)))
+                                 "Current and shorthand"]
+                                [current-rx
+                                 "Current"]
+                                [else
+                                 "Shorthand"])
+                             " "
+                             ,(if (null? (cdr alias-links))
+                                  "alias"
+                                  "aliases")
+                             ":"
+                             ,@alias-links)))))))]
          [else
           (tr class: row-level-class
               (td class: level-class

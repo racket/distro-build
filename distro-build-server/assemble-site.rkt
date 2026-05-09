@@ -241,15 +241,21 @@
                                  installers-file-path
                                  installers-table))
 
-  (for ([(name installer) (in-hash installers-table)])
-    (define main+aliases (hash-ref aliases name #f))
-    (when main+aliases
-      (define main (car main+aliases))
-      (for ([alias (in-list (cdr main+aliases))])
-        (unless (equal? alias main)
-          (define alias-name (infer-installer-alias installer main alias))
-          (make-file-or-directory-link installer
-                                       (build-path dest-dir installers-dir alias-name))))))
+  (define alias-names
+    (for/hash ([(name installer) (in-hash installers-table)])
+      (define main+aliases (hash-ref aliases name #f))
+      (cond
+        [main+aliases
+         (define main (car main+aliases))
+         (values
+          installer
+          (for/list ([alias (in-list (cdr main+aliases))]
+                     #:unless (equal? alias main))
+            (define alias-name (infer-installer-alias installer main alias))
+            (make-file-or-directory-link installer
+                                         (build-path dest-dir installers-dir alias-name))
+            alias-name))]
+        [else (values installer null)])))
 
   (define doc-path (build-path docs-dir doc-dir))
   (when (directory-exists? doc-path)
@@ -280,4 +286,6 @@
                                          "index.html")
                       #:help-table (hash-ref config '#:site-help (hash))
                       #:help-fallbacks (hash-ref config '#:site-help-fallbacks '())
+                      #:get-aliases (lambda (key filename)
+                                      (hash-ref alias-names filename null))
                       #:git-clone (current-directory)))

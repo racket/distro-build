@@ -1094,6 +1094,21 @@ to @racket[assemble-site].
 
 }
 
+@defproc[(build-docs [#:config config-file path-string?]
+                     [#:config-mode config-mode (or/c #f string?) #f]
+                     [#:version version string?]
+                     [#:installers-url installers-url (or/c #f string?) #f]
+                     [#:catalogs catalogs (listof path-string?)])
+         void?]{
+
+Similar to @racket[repackage], but for the additional step of
+rendering HTML documentation to
+@filepath{compiled/repackage/build/docs}, which is where
+@racket[assemble-site] expects to find (optional) rendered
+documentation to include at a web site.
+
+}
+
 @defproc[(assemble-site [#:config config-file path-string?]
                         [#:config-mode config-mode (or/c #f string?) #f]
                         [#:site-dest site-dest (or/c #f path-string?) #f]

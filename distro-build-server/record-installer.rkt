@@ -39,19 +39,22 @@
        (write-json-file table-file t))
      void)))
 
-(define (file-checksums path)
+(define (file-info dir filename)
+  (define path (build-path dir filename))
   (if (file-exists? path)
-      (hash 'sha1 (bytes->hex-string
+      (hash 'filename filename
+            'sha1 (bytes->hex-string
                     (call-with-input-file* path sha1-bytes))
             'sha256 (bytes->hex-string
-                     (call-with-input-file* path sha256-bytes)))
-      (hash 'sha1 "" 'sha256 "")))
+                     (call-with-input-file* path sha256-bytes))
+            'size (file-size path))
+      (hash 'sha1 "" 'sha256 "" 'size 0)))
 
 (define (record-installer dir filename desc)
   (update-table (build-path dir "table.rktd") filename desc)
-  (define checksums (file-checksums (build-path dir filename)))
+  (define info (file-info dir filename))
   (update-table (build-path dir "installers.rktd")
-                (hash-set checksums 'filename filename)
+                info
                 desc))
 
 ;; Recompute checksums for all entries in installers.rktd
@@ -63,8 +66,8 @@
                                           (for/hash ([(k v) (in-hash installer-names-table)])
                                             (values k (hash 'filename v)))))])
       (define filename (hash-ref entry 'filename))
-      (define checksums (file-checksums (build-path dir filename)))
-      (values desc (hash-set checksums 'filename filename))))
+      (define info (file-info dir filename))
+      (values desc info)))
   (call-with-output-file table-file
                          #:exists 'truncate/replace
                          (lambda (o)

@@ -8,6 +8,8 @@
 
 ;;  This module is run in a cross environment to build packages
 
+(module test racket/base)
+
 (define original-repo-template #f)
 (define existing-catalogs null)
 (define default-author "plt@racket-lang.org")

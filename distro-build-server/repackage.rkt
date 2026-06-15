@@ -17,18 +17,23 @@
          "private/pack-base64.rkt"
          "private/status.rkt"
          "private/log-file-name.rkt"
+         "private/merge-catalog.rkt"
          distro-build/installer
          distro-build/readme
          distro-build/display-time
          distro-build/assemble-site)
 
 (provide build-catalog
+         merge-catalog
          repackage
          build-docs
          assemble-site)
 
-(define (get-dirs)
-  (define base-dir (path->complete-path (build-path "compiled" "repackage")))
+(define (get-dirs [extra-version #f])
+  (define base-dir (path->complete-path (let ([p (build-path "compiled" "repackage")])
+                                          (if extra-version
+                                              (build-path p extra-version)
+                                              p))))
   (define workspace-dir (build-path base-dir "workspace"))
   (define addon-dir (build-path base-dir "addon"))
   (define cache-dir (path->complete-path (build-path "compiled" "download-cache")))
@@ -42,66 +47,92 @@
                        #:original-template [original-template #f]
                        #:default-author [default-author #f]
                        #:dest [dest "build/built"]
-                       #:build-deps [build-deps '("draw-lib")])
-  (define-values (base-dir workspace-dir addon-dir cache-dir) (get-dirs))
-  (define site-dir (build-path base-dir dest))
-  (define cross-identity "catalog-builder")
-  (define cross-dir (build-path workspace-dir cross-identity))
+                       #:build-deps [build-deps '("draw-lib")]
+                       #:config [config-file #f]
+                       #:config-mode [config-mode #f])
+  (define config
+    (and config-file
+         (parameterize ([current-mode (or config-mode "default")])
+           (dynamic-require (path->complete-path config-file) 'site-config))))
 
-  (status "Working in ~a\n" workspace-dir)
-  (make-directory* workspace-dir)
+  (define (build-one-catalog #:version [version version]
+                             #:as-extra? [as-extra? #f])
+    (define-values (base-dir workspace-dir addon-dir cache-dir) (get-dirs (and as-extra? version)))
+    (define site-dir (build-path base-dir dest))
+    (define cross-identity "catalog-builder")
+    (define cross-dir (build-path workspace-dir cross-identity))
 
-  (define (run #:any? [any? #t]
-               #:quiet? [quiet? #f]
-               command
-               . args)
-    (apply raco-cross
-           #:workspace-dir workspace-dir
-           #:compile-any? any?
-           #:instance (and any? cross-identity)
-           #:quiet? quiet?
-           #:addon-dir addon-dir
-           #:download-cache-dir cache-dir
-           #:skip-pkgs? #true
-           #:version version
-           #:installers-url installers-url
-           #:command command
-           args))
+    (status "Working in ~a\n" workspace-dir)
+    (make-directory* workspace-dir)
 
-  ;; make sure any needed foreign libraries are installed at host
-  (apply run #:any? #f
-         "pkg" "install" "--auto" "--skip-installed"
-         build-deps)
+    (define (run #:any? [any? #t]
+                 #:quiet? [quiet? #f]
+                 command
+                 . args)
+      (apply raco-cross
+             #:workspace-dir workspace-dir
+             #:compile-any? any?
+             #:instance (and any? cross-identity)
+             #:quiet? quiet?
+             #:addon-dir addon-dir
+             #:download-cache-dir cache-dir
+             #:skip-pkgs? #true
+             #:version version
+             #:installers-url installers-url
+             #:command command
+             args))
 
-  ;; create machine-indepenent instance
-  (run "racket" "-n")
+    ;; make sure any needed foreign libraries are installed at host
+    (apply run #:any? #f
+           "pkg" "install" "--auto" "--skip-installed"
+           build-deps)
 
-  ;; add new catalogs
-  (define orig-catalogs
-    (add-catalogs cross-dir source-catalogs))
+    ;; create machine-indepenent instance
+    (run "racket" "-n")
 
-  ;; install in machine-independent cross target
-  (apply run
-         "pkg" "install" "-u" "--auto" "--skip-installed"
-         packages)
-  ;; In case we fixed something after a previous install
-  (run "setup")
+    ;; add new catalogs
+    (define orig-catalogs
+      (add-catalogs cross-dir source-catalogs))
 
-  (apply run "racket" (collection-file-path "make-catalog.rkt" "distro-build/private")
-         (append
-          (if original-template
-              (list "--original-template" original-template)
-              null)
-          (if default-author
-              (list "--default-author" default-author)
-              null)
-          (apply append
-                 (for/list ([orig-catalog (in-list orig-catalogs)]
-                            #:when orig-catalog)
-                   (list "++existing-catalog" orig-catalog)))
-          (list site-dir
-                info-catalog)
-          packages)))
+    ;; install in machine-independent cross target
+    (apply run
+           "pkg" "install" "-u" "--auto" "--skip-installed"
+           packages)
+    ;; In case we fixed something after a previous install
+    (run "setup")
+
+    (apply run "racket" (collection-file-path "make-catalog.rkt" "distro-build/private")
+           (append
+            (if original-template
+                (list "--original-template" original-template)
+                null)
+            (if default-author
+                (list "--default-author" default-author)
+                null)
+            (apply append
+                   (for/list ([orig-catalog (in-list orig-catalogs)]
+                              #:when orig-catalog)
+                     (list "++existing-catalog" orig-catalog)))
+            (list site-dir
+                  info-catalog)
+            packages)))
+
+  (build-one-catalog)
+
+  (define extra-versions (remove version
+                                 (if config
+                                     (hash-ref (merge-options (hasheq) config) '#:repackage-versions '())
+                                     '())))
+  (unless (null? extra-versions)
+    (for ([extra-version (in-list extra-versions)])
+      (build-one-catalog #:version extra-version #:as-extra? #t))
+    (define-values (base-dir workspace-dir addon-dir cache-dir) (get-dirs))
+    (for ([extra-version (in-list extra-versions)])
+      (define-values (extra-base-dir extra-workspace-dir extra-addon-dir extra-cache-dir) (get-dirs extra-version))
+      (merge-catalog extra-version
+                     base-dir
+                     extra-base-dir
+                     dest))))
 
 (define (repackage #:config config-file
                    #:config-mode [config-mode #f]

@@ -3,6 +3,7 @@
 (require racket/format
          racket/string
          xml
+         version/utils
          (for-syntax syntax/kerncase
                      racket/base))
 
@@ -283,6 +284,8 @@
                            (case k
                              [(dir installer name image-name) (simple-path-string? v)]
                              [else #f]))))]
+    [(#:repackage-versions) (and (list? val)
+                                 (andmap (lambda (s) (and (string? s) (valid-version? s))) val))]
     [(#:max-snapshots) (real? val)]
     [(#:week-count) (exact-positive-integer? val)]
     [(#:plt-web-style?) (boolean? val)]

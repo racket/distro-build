@@ -299,6 +299,7 @@
     #:site-icon-headers
     #:site-doc-url
     #:pdf-doc?
+    #:repackage-versions
     #:max-snapshots
     #:week-count
     #:plt-web-style?

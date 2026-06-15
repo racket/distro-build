@@ -891,6 +891,12 @@ Top keywords (expected only in the configuration top-level):
     @racket[plt-web] should be used to generate a site or snapshot
     page; the default is @racket[#t]}
 
+  @item{@racket[#:repackage-versions _version-list] --- specifies
+    additional Racket versions to support in a catalog created
+    via @racket[build-catalog]; the default is @racket['()]
+
+    @history[#:added "1.26"]}
+
   @item{@racket[#:fail-on-client-failures _boolean] --- if true, failure
     on any build client causes the build server to exit with a non-zero
     return code; the default is @racket[#f]
@@ -973,7 +979,7 @@ of the date and a git commit hash.}
 
 The @racketmodname[distro-build/repackage] library provides tools for
 deriving a distribution from an existing Racket distribution, where
-the existing distribution t includes minimal Racket builds that
+the existing distribution includes minimal Racket builds that
 support cross compilation. The new distribution starts can have a
 different set of packages than a Racket distribution, and it can have
 an associated catalog that provides built versions of additional
@@ -1002,7 +1008,9 @@ directory.
                         [#:original-template original-template (or/c #f string?) #f]
                         [#:default-author default-author (or/c #f string?) #f]
                         [#:dest dest path-string? "build/built"]
-                        [#:build-deps build-deps (listof string?) '("draw-lib")])
+                        [#:build-deps build-deps (listof string?) '("draw-lib")]
+                        [#:config config-file (or/c path-string? #f) #f]
+                        [#:config-mode config-mode (or/c #f string?) #f])
           void?]{
 
 Creates a catalog of built packages for the Racket version specified
@@ -1039,6 +1047,16 @@ installed in the host instance use by @|raco-cross|. The default
 includes @racket["draw-lib"], because that package's native-library
 dependencies are often needed for rendering documentation on a
 non-Unix host.
+
+If @racket[config-file] is not @racket[#f], then the configuration is
+loaded with @racket[current-mode] set to @racket[config-mode] (where
+@racket[#f] is equivalent to @racket["default"]), and the loaded
+configuration is checked for a @racket[#:repackage-versions] entry. If
+the entry is present, the generated catalog includes an alternative
+package reference for each version in each package, where the
+alternative version is built with the corresponding Racket version. If
+@racket[version] itself is included in the list of extra versions, it
+is ignored.
 
 }
 

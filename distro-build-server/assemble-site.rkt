@@ -83,6 +83,8 @@
 
   (define doc-index-url (hash-ref config '#:site-doc-url "index.html"))
 
+  (define repackage-versions (hash-ref config '#:repackage-versions '()))
+
   (printf "Assembling site as ~a\n" dest-dir)
 
   ;; Get transitive dependencies of requested packages, instead of just cataloging
@@ -145,7 +147,16 @@
           (define c (build-path c-dir f))
           (define d (build-path d-dir f))
           (copy-file c d)
-          (file-or-directory-modify-seconds d (file-or-directory-modify-seconds c)))))
+          (file-or-directory-modify-seconds d (file-or-directory-modify-seconds c))
+          (for ([vers (in-list repackage-versions)])
+            (let ([c-vers-dir (build-path built-dir vers pkgs-dir)]
+                  [d-vers-dir (build-path dest-dir vers pkgs-dir)])
+              (define c-vers (build-path c-vers-dir f))
+              (define d-vers (build-path d-vers-dir f))
+              (when (file-exists? c-vers)
+                (make-directory* d-vers-dir)
+                (copy-file c-vers d-vers)
+                (file-or-directory-modify-seconds d-vers (file-or-directory-modify-seconds c-vers))))))))
     (let ([c-dir (build-path built-dir catalog-dir "pkg")]
           [d-dir (build-path dest-dir catalog-dir "pkg")])
       (make-directory* d-dir)
@@ -158,10 +169,26 @@
                                    from-catalog-dir-to-pkgs-dir
                                    pkgs-dir
                                    (path-add-suffix f #".zip")))))
+          (define vers-ht (hash-ref new-ht 'versions #hash()))
+          (define new-vers-ht
+            (for/fold ([vers-ht vers-ht]) ([(vers a-ht) (in-hash vers-ht)]
+                                           #:when (string? vers))
+              (hash-set vers-ht vers
+                        (hash-set a-ht 'source
+                                  (relative-path->relative-url-string
+                                   (build-path
+                                    from-catalog-dir-to-pkgs-dir
+                                    vers
+                                    pkgs-dir
+                                    (path-add-suffix f #".zip")))))))
+          (define new-ht/versions
+            (if (equal? new-vers-ht vers-ht)
+                new-ht
+                (hash-set new-ht 'versions new-vers-ht)))
           (call-with-output-file* 
            (build-path d-dir f)
            (lambda (o)
-             (write new-ht o)
+             (write new-ht/versions o)
              (newline o)))))))
 
   (build-catalog built-dir)

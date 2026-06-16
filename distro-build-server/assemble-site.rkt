@@ -302,6 +302,7 @@
                       #:title site-title
                       #:window-title site-window-title
                       #:installers-url "installers/"
+                      #:configure-installers-download? #t
                       #:log-dir-url "log/"
                       #:docs-url (if (url-path-absolute? (string->url doc-index-url))
                                      doc-index-url

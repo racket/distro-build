@@ -64,6 +64,7 @@
                             #:past-successes [past-successes (hash)]
                             #:dest [dest "index.html"]
                             #:installers-url [installers-url "./"]
+                            #:configure-installers-download? [configure-installers-download? #f]
                             #:log-dir [log-dir #f]
                             #:log-dir-url [log-dir-url #f]
                             #:docs-url [docs-url #f]
@@ -540,12 +541,13 @@
         (lambda (o)
           (output-xml page-content o)))])))
 
-  ;; update "instalter/.htaccess" to download shell scripts insteda of showing them
-  (call-with-output-file*
-   (build-path (if (path? dest-dir) dest-dir (current-directory)) "installers" ".htaccess")
-   #:exists 'append
-   (lambda (o)
-     (displayln "<FilesMatch \"\\.sh$\">" o)
-     (displayln "  Header set Content-Disposition \"attachment\"" o)
-     (displayln "  ForceType application/octet-stream" o)
-     (displayln "</FilesMatch>" o))))
+  (when configure-installers-download?
+    ;; update "instalter/.htaccess" to download shell scripts instead of showing them
+    (call-with-output-file*
+     (build-path (if (path? dest-dir) dest-dir (current-directory)) "installers" ".htaccess")
+     #:exists 'append
+     (lambda (o)
+       (displayln "<FilesMatch \"\\.sh$\">" o)
+       (displayln "  Header set Content-Disposition \"attachment\"" o)
+       (displayln "  ForceType application/octet-stream" o)
+       (displayln "</FilesMatch>" o)))))

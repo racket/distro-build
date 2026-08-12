@@ -13,6 +13,7 @@
 (define original-repo-template #f)
 (define existing-catalogs null)
 (define default-author "plt@racket-lang.org")
+(define check-package-implies #f)
 
 (define-values (site-dir info-cat local-packages)
   (command-line
@@ -21,6 +22,8 @@
                             (set! original-repo-template template)]
    [("--default-author") author "Set default author to <author>"
                          (set! default-author author)]
+   [("--check-package-implies") pkg "Check that <pkg> depends on excluded packages"
+                                (set! check-package-implies pkg)]
    #:multi
    [("++existing-catalog") cat "Add <cat> to list of existing"
                            (set! existing-catalogs (cons cat existing-catalogs))]
@@ -39,8 +42,22 @@
   (for/fold ([main-pkgs (hash)]) ([main-cat (in-list existing-catalogs)])
     (printf "Main catalog: ~a\n" main-cat)
     (parameterize ([current-pkg-catalogs (list (string->url main-cat))])
-      (for/fold ([main-pkgs main-pkgs]) ([name (in-list (get-all-pkg-names-from-catalogs))])
-        (hash-set main-pkgs name #t)))))
+      (for/fold ([main-pkgs main-pkgs]) ([(name details) (in-hash (get-all-pkg-details-from-catalogs))])
+        (hash-set main-pkgs name details)))))
+
+(define implied-packages
+  (and check-package-implies
+       (let loop ([pkgs (hash "racket" #t)]
+                  [pkg check-package-implies])
+         (cond
+           [(hash-ref pkgs pkg #f) pkgs]
+           [else
+            (define new-pkgs (hash-set pkgs pkg #t))
+            (define details (hash-ref main-pkgs pkg))
+            (for/fold ([pkgs new-pkgs]) ([dep (in-list (hash-ref details 'dependencies null))])
+              (loop pkgs (if (pair? dep)
+                             (car dep)
+                             dep)))]))))
 
 (define pkg-details
   (parameterize ([current-pkg-catalogs (list (string->url info-cat))])
@@ -52,7 +69,16 @@
 
 (define catalog-pkgs
   (for/fold ([ht installed-pkgs]) ([k (in-hash-keys main-pkgs)])
-    (hash-remove ht k)))
+    (cond
+      [(hash-ref ht k #f)
+       (when implied-packages
+         (unless (hash-ref implied-packages k #f)
+           (error 'build-catalog
+                  "needed package is in main catalog, but not a dependency of ~s: ~s"
+                  check-package-implies
+                  k)))
+       (hash-remove ht k)]
+      [else ht])))
 
 (printf "Packages to catalog:\n")
 (for ([k (in-hash-keys catalog-pkgs)])

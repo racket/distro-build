@@ -1003,9 +1003,11 @@ directory.
 @defproc[(build-catalog [#:version version string?]
                         [#:packages packages (listof string?)]
                         [#:catalogs source-catalogs (listof path-string?)]
+                        [#:remove-catalogs remove-catalogs (listof string?) (list)]
                         [#:installers-url installers-url (or/c #f string?) #f]
                         [#:info-catalog info-catalog string? "https://pkgs.racket-lang.org"]
                         [#:original-template original-template (or/c #f string?) #f]
+                        [#:check-package-implies check-package-implies (or/c #f string?) #f]
                         [#:default-author default-author (or/c #f string?) #f]
                         [#:dest dest path-string? "build/built"]
                         [#:build-deps build-deps (listof string?) '("draw-lib")]
@@ -1020,7 +1022,9 @@ included when they are @emph{not} in catalogs listed in the starting
 Racket's configured catalogs (which are assumed to be catalogs of
 built packages). The catalogs provided as @racket[source-catalogs] are
 consulted (in order) to find packages to build before using any
-catalogs that the starting Racket distribution would check.
+catalogs that the starting Racket distribution would check. Each
+catalog in @racket[remove-catalogs] is removed from the set that
+the starting Racket distribution would check.
 
 If @racket[installers-url] is not @racket[#f], then it is passed along
 to @raco-cross as the source for minimal Racket distributions.
@@ -1040,7 +1044,10 @@ The resulting catalog and packages are written to @racket[(build-path
 "compiled/repackage" dest)], where a @filepath{catalog} subdirectory
 contains the catalog and a @filepath{pkgs} subdirectory contains the
 built package (referenced by @filepath{catalog} entries through
-relative paths).
+relative paths). If @racket[check-package-implies] is a string,
+then for each package that is a dependency of @racket[packages]
+but not to be included in the catalog, it must be a dependency
+of @racket[check-package-implies].
 
 The @racket[build-deps] argument lists packages that need to be
 installed in the host instance use by @|raco-cross|. The default
@@ -1058,6 +1065,9 @@ alternative version is built with the corresponding Racket version. If
 @racket[version] itself is included in the list of extra versions, it
 is ignored.
 
+@history[#:changed "1.27" @elem{Added the @racket[#:remove-catalogs]
+                                and @racket[#:check-package-implies] arguments.}]
+
 }
 
 
@@ -1067,6 +1077,7 @@ is ignored.
                     [#:installers-url installers-url (or/c #f string?) #f]
                     [#:catalogs catalogs (listof path-string?)]
                     [#:dist-catalogs dist-catalogs (listof path-string?) catalogs]
+                    [#:remove-catalogs remove-catalogs (listof string?) (list)]
                     [#:file-name-version file-name-version string? version]
                     [#:version-note version-note string? ""]
                     [#:skip-notarize? skip-notarize? #f])
@@ -1097,7 +1108,10 @@ Typically, those catalogs are the output of @racket[build-catalog].
 The @racket[dist-catalogs] argument (which defaults to
 @racket[catalogs]) lists catalogs to be added to the start of the
 catalog configuration for each repackaged installer, which typically
-list sites where the @racket[catalogs] are uploaded.
+list sites where the @racket[catalogs] are uploaded. The
+@racket[remove-catalogs] argument lists catalogs to be removed
+from the starting installer, typically because they are replaced by
+by @racket[catalogs].
 
 The @racket[file-name-version] argument is used instead of
 @racket[version] where a version number is used in an installer file
@@ -1109,6 +1123,8 @@ The resulting installers are written to
 @filepath{compiled/repackage/build/installers} alongside other
 files within @filepath{compiled/repackage/build} that are useful
 to @racket[assemble-site].
+
+@history[#:changed "1.27" @elem{Added the @racket[#:remove-catalogs] argument.}]
 
 }
 

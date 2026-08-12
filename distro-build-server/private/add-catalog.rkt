@@ -2,14 +2,17 @@
 
 (provide add-catalogs)
 
-(define (add-catalogs cross-dir cats #:keep-old? [keep-old? #t])
+(define (add-catalogs cross-dir cats
+                      #:keep-old? [keep-old? #t]
+                      #:remove-catalogs [remove-cats '()])
   (define config-dir (build-path cross-dir "etc"))
   (define config-file (build-path config-dir "config.rktd"))
 
   (define ht (call-with-input-file* config-file read))
 
-  (define old-catalogs (or (hash-ref ht 'old-catalogs #f)
-                           (hash-ref ht 'catalogs '(#f))))
+  (define old-catalogs (remove* remove-cats
+                                (or (hash-ref ht 'old-catalogs #f)
+                                    (hash-ref ht 'catalogs '(#f)))))
   (let* ([ht (hash-set ht 'catalogs (append (for/list ([cat (in-list cats)])
                                               (if (path? cat)
                                                   (path->string cat)

@@ -42,6 +42,8 @@
 (define (build-catalog #:version version
                        #:packages packages
                        #:catalogs source-catalogs
+                       #:remove-catalogs [remove-catalogs null]
+                       #:check-package-implies [check-package-implies #f]
                        #:info-catalog [info-catalog "https://pkgs.racket-lang.org"]
                        #:installers-url [installers-url #f]
                        #:original-template [original-template #f]
@@ -92,7 +94,7 @@
 
     ;; add new catalogs
     (define orig-catalogs
-      (add-catalogs cross-dir source-catalogs))
+      (add-catalogs cross-dir source-catalogs #:remove-catalogs remove-catalogs))
 
     ;; install in machine-independent cross target
     (apply run
@@ -108,6 +110,9 @@
                 null)
             (if default-author
                 (list "--default-author" default-author)
+                null)
+            (if check-package-implies
+                (list "--check-package-implies" check-package-implies)
                 null)
             (apply append
                    (for/list ([orig-catalog (in-list orig-catalogs)]
@@ -140,6 +145,7 @@
                    #:installers-url [installers-url #f]
                    #:file-name-version [file-name-version version]
                    #:catalogs [catalogs null]
+                   #:remove-catalogs [remove-catalogs null]
                    #:dist-catalogs [dist-catalogs catalogs]
                    #:version-note [version-note ""]
                    #:skip-notarize? [skip-notarize? #f])
@@ -151,7 +157,7 @@
   (define cross-identity "repackaged")
   (define cross-dir (build-path workspace-dir cross-identity))
 
-  (define installers-url (string-append "https://mirror.racket-lang.org/installers/" version "/"))
+  (define installers-url (string-append "https://download.racket-lang.org/installers/" version "/"))
 
   (define config
     (parameterize ([current-mode (or config-mode "default")])
@@ -162,12 +168,15 @@
     (make-directory* base-dir)
     (define u (combine-url/relative (string->url installers-url) "table.rktd"))
     (status "Getting table ~a\n" (url->string u))
-    (define p (get-pure-port u))
+    (define p (get-pure-port u #:redirections 5))
     (call-with-output-file
      table-file
      (lambda (o) (copy-port p o)))
     (close-input-port p))
   (define table (file->value table-file))
+  (unless (hash? table)
+    (delete-file table-file)
+    (error 'repackage "error getting installer table: ~v" table))
 
   (define (build-one c #:just-plan? [just-plan? #f])
     (define name (hash-ref c '#:name #f))
@@ -244,7 +253,8 @@
 
             (run "pkg" "config")
 
-            (define orig-cats (add-catalogs cross-dir catalogs))
+            (define orig-cats (add-catalogs cross-dir catalogs
+                                            #:remove-catalogs remove-catalogs))
 
             (run "pkg" "config")
 
@@ -487,7 +497,7 @@
   (define docs-parent-dir (build-path base-dir "build" "docs"))
   (define doc-dir (build-path docs-parent-dir "doc"))
 
-  (define installers-url (string-append "https://mirror.racket-lang.org/installers/" version "/"))
+  (define installers-url (string-append "https://download.racket-lang.org/installers/" version "/"))
 
   (define config
     (parameterize ([current-mode (or config-mode "default")])
@@ -511,8 +521,7 @@
   (run "racket" "-n")
 
   ;; add new catalogs
-  (define orig-catalogs
-    (add-catalogs doc-cross-dir catalogs))
+  (add-catalogs doc-cross-dir catalogs)
 
   (apply run
          "pkg" "install" "--auto"

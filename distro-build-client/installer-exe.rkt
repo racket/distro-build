@@ -437,7 +437,7 @@ SectionEnd
        (display (regexp-replace* #rx"\n" readme "\r\n") o))))
   (unless (nsis-generate exe-path
                          human-name
-                         (or (let ([m (regexp-match #rx"[0-9]+([.][0-9]+)*" human-name)])
+                         (or (let ([m (regexp-match #rx"[0-9]+([.][0-9]+)+$" human-name)])
                                (and m (car m)))
                              (version))
                          platform

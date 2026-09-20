@@ -156,9 +156,12 @@
 (define (docker-recompile-cache-dir sym)
   (make-docker-dir (build-path "build" "recompile-cache" (symbol->string sym))))
 
+(define (is-docker? c)
+   (and (not (get-opt c '#:vbox))
+        (get-opt c '#:docker)))
+
 (define (assert-docker c key)
-  (unless (and (not (get-opt c '#:vbox))
-               (get-opt c '#:docker))
+  (unless (is-docker? c)
     (error 'drive-clients
            "symbol value for ~a make sense only for a Docker client"
            key)))
@@ -317,6 +320,9 @@
 (define describe-never-keys
   '(#:name))
 
+(define describe-omit-false-as-default-keys
+  '(#:log-file))
+
 (define (describe-config c #:show-top? [show-top? #f])
   (when (eq? dry-run 'describe)
     (for ([k (in-list (sort (hash-keys c) keyword<?))])
@@ -324,10 +330,13 @@
       (when (and (or (eq? top? show-top?)
                      (memq k describe-both-keys))
                  (not (memq k describe-never-keys)))
-        (printf "~a~a: ~v\n"
-                (describe-indent)
-                (keyword->string k)
-                (hash-ref c k))))))
+        (define v (hash-ref c k))
+        (unless (and (not v)
+                     (memq k describe-omit-false-as-default-keys))
+          (printf "~a~a: ~v\n"
+                  (describe-indent)
+                  (keyword->string k)
+                  v))))))
 
 (define (displayln/wrap-for-describe s)
   (cond
@@ -823,6 +832,8 @@
     (if cs? "cross/cs/c/racketcs" "cross/bc/racket3m"))
   (define extra-repos? (and (get-opt c '#:extra-repo-dir) #t))
   (define client-mnt-dir (and (eq? port/kind 'docker) mnt-dir))
+  (define avoid-clone-permission-mismatch?
+    (and (is-docker? c) pull?))
   (define (build)
     (ssh-script
      host port/kind user env
@@ -834,6 +845,11 @@
           (sh "rm -rf  " (q dir)))
      (sh "if [ ! -d " (q dir) " ] ; then"
          " git clone " (q repo) " " (q dir) " ; "
+         (if avoid-clone-permission-mismatch?
+             (string-append
+              " cd " (q dir) " ; "
+              " git config --global --add safe.directory `pwd` ; ")
+             "")
          "fi")
      (and pull?
           (sh "cd " (q dir) " ; "

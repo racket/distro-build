@@ -699,8 +699,9 @@ spaces, etc.):
     seconds to wait after stopping a machine; the default is
     @racket[0]}
 
-  @item{@racket[#:log-file _string] --- the file name to use for the
-    log file for the machine; defaults to @racket[#:name]'s value, but
+  @item{@racket[#:log-file _string-or-false] --- the file name to use for the
+    log file for the machine, or @racket[#f] to use  the default;
+    defaults to @racket[#:name]'s value, but
     with ordering sequences (see @secref["name-format"]), @litchar{|},
     @litchar{;}, @litchar{!}, @litchar{*}, @litchar{(}, @litchar{)},
     @litchar{[}, and @litchar{]} removed, trailing and
@@ -709,7 +710,9 @@ spaces, etc.):
 
     @history[#:added "1.8"
              #:changed "1.20" @elem{Changed default log name to remove
-                                    noise and awkward characters.}]}
+                                    noise and awkward characters.}
+             #:changed "1.28" @elem{Changed to allow @racket[#f] to mean
+                                    the default.}]}
 
   @item{@racket[#:stream-log? _boolean] --- if true, send log output
     to server's output and error ports as well as logging them to a
@@ -1523,6 +1526,7 @@ usage.
                         [#:uncommon? uncommon? any/c minimal?]
                         [#:natipkg? natipkg? any/c #t]
                         [#:extra-linux-variants? extra-linux-variants? any/c #t]
+                        [#:common-log-suffix common-log-suffix (or/c string? #f) (and minimal? "-min")]
                         [#:windows-sign-post-process windows-sign-post-process (or/c #f (listof string?)) #f]
                         [#:mac-sign-cert-config mac-sign-cert-config (or/c #f hash?) #f]
                         [#:mac-notarization-config mac-notarization-config (or/c #f hash?) #f]
@@ -1605,6 +1609,12 @@ work on as many Linux distributions as possible, but additional
 variants can provide a better fit for the C and terminal libraries on
 different Linux distributions.
 
+The @racket[common-log-suffix] argument specializes the name of the
+log file for a shared common build that is used for cross compilation.
+Specializing the name is useful to prevent overwriting a log when
+@racket[make-machines] is used multiple times to create a larger
+build, especially one with minimal and non-minimal installers.
+
 If @racket[windows-sign-post-process] is not @racket[#f], then it is
 used as a @racket[#:server-installer-post-process] for Windows
 installer configurations to sign them. Similarly, if
@@ -1618,7 +1628,8 @@ The @racket[recompile-cache] argument is used as the
 The @racket[aliases] list is added to @racket[#:dist-alises] for each
 configuration.
 
-@history[#:changed "1.21" @elem{Added the @racket[natipkg?] argument.}]}
+@history[#:changed "1.21" @elem{Added the @racket[natipkg?] argument.}
+         #:changed "1.28" @elem{Added the @racket[common-log-suffix] argument.}]}
 
 @defproc[(make-spliceable-limits [#:max-parallel max-parallel exact-positive-integer? 3]
                                  [#:j j exact-positive-integer? 2]

@@ -315,7 +315,7 @@
     [(#:smtp-user+password-file) (or (not val) (path-string? val))]
     [(#:smtp-sending-server) (simple-string? val)]
     [(#:fail-on-client-failures) (boolean? val)]
-    [(#:log-file) (string? val)]
+    [(#:log-file) (or (not val) (string? val))]
     [(#:stream-log?) (boolean? val)]
     [(#:custom) (and (hash? val)
                      (for/and ([k (in-hash-keys val)])

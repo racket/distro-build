@@ -186,10 +186,13 @@
 (define (cs-machine m
                     #:host host
                     #:container-prefix container-prefix
+                    #:log-name-suffix [log-name-suffix #f]
                     #:as-default-with-aliases [aliases #f]
                     #:extra-aliases [extra-aliases '()])
+  (define host-name (~a container-prefix host "-cs"))
   (sequential
-   #:host (~a container-prefix host "-cs")
+   #:host host-name
+   #:log-file (and log-name-suffix (string-append host-name log-name-suffix))
    #:variant 'cs
    #:dist-vm-suffix "cs"
    #:dist-aliases (merge-aliaes aliases extra-aliases)
@@ -198,10 +201,13 @@
 (define (bc-machine m
                     #:host host
                     #:container-prefix container-prefix
+                    #:log-name-suffix [log-name-suffix #f]
                     #:as-default-with-aliases [aliases #f]
                     #:extra-aliases [extra-aliases '()])
+  (define host-name (~a container-prefix host "-bc"))
   (sequential
-   #:host (~a container-prefix host "-bc")
+   #:host host-name
+   #:log-file (and log-name-suffix (string-append host-name log-name-suffix))
    #:variant 'bc
    #:dist-vm-suffix "bc"
    #:dist-aliases  (merge-aliaes aliases extra-aliases)
@@ -210,6 +216,7 @@
 (define (no-machine m
                     #:host host
                     #:container-prefix container-prefix
+                    #:log-name-suffix [log-name-suffix #f]
                     #:as-default-with-aliases [aliases #f]
                     #:extra-aliases [extra-aliases '()])
   (sequential))
@@ -321,7 +328,7 @@
       #:name (make-cs-name natipkg (linux-arch-name #:extra pkg-build-name-extra #:order "2."))
       #:compile-any? #t
       #:dist-suffix (string-append debian10-dist-suffix "-pkg-build"))))))
-
+<
 ;; Constructor for all machine configurations:
 (define (make-machs container-prefix
                     make-cs-name make-bc-name base aliases pkgs
@@ -333,7 +340,8 @@
                     mac-sign-cert-config
                     mac-notarization-config
                     recompile-cache
-                    natipkg?)
+                    natipkg?
+                    common-log-suffix)
   (define make-name make-cs-name)
   (define (cs+bc-machine machine
                          #:host host
@@ -372,10 +380,12 @@
     #:pkgs '()
     (cs-machine
      #:host "cross-common"
+     #:log-name-suffix common-log-suffix
      #:container-prefix container-prefix
      (machine))
     (bc-machine
      #:host "cross-common"
+     #:log-name-suffix common-log-suffix
      #:container-prefix container-prefix
      (machine)))
 
@@ -699,6 +709,7 @@
                        #:uncommon? [uncommon? minimal?]
                        #:natipkg? [natipkg? #t]
                        #:extra-linux-variants? [extra-linux-variants? #t]
+                       #:common-log-suffix [common-log-suffix (and minimal? "-min")]
                        #:windows-sign-post-process [windows-sign-post-process #f]
                        #:mac-sign-cert-config [mac-sign-cert-config #f]
                        #:mac-notarization-config [mac-notarization-config #f]
@@ -743,7 +754,8 @@
     mac-sign-cert-config
     mac-notarization-config
     recompile-cache
-    natipkg?)))
+    natipkg?
+    common-log-suffix)))
 
 (define (make-spliceable-limits #:max-parallel [max-parallel 3]
                                 #:timeout [timeout (* #e1.5 60 60)]
